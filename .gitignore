@@ -1,0 +1,35 @@
+*.swp
+*.pyc
+*.pkl
+*.py~
+.pytest_cache
+.DS_Store
+.idea
+
+# Setuptools distribution and build folders.
+/dist/
+/build
+keys/
+
+# Virtualenv
+/env
+
+*.sublime-project
+*.sublime-workspace
+
+.ipynb_checkpoints
+ghostdriver.log
+
+htmlcov
+
+junk
+
+*.egg-info
+.cache
+
+MUJOCO_LOG.TXT
+
+/logs/
+# /misc/
+/global_config.json
+/misc/diff/*
