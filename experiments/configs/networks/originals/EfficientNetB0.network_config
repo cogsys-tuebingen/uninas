@@ -1,0 +1,626 @@
+{
+  "name": "StackedCellsNetworkBody",
+  "kwargs": {
+    "features_mul": 1,
+    "features_first_cell": -1,
+    "cell_order": [
+      "s0-r-0",
+      "n-1",
+      "s1-r-2",
+      "n-3",
+      "s2-r-4",
+      "n-5",
+      "n-6",
+      "s3-n-7",
+      "n-8",
+      "n-9",
+      "s4-r-10",
+      "n-11",
+      "n-12",
+      "n-13",
+      "s5-n-14"
+    ],
+    "cell_configs": {
+      "s0-r-0": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s0-r-0",
+          "features_mult": -1,
+          "features_fixed": 24
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 2,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 3,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-1": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-1",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 3,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "s1-r-2": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s1-r-2",
+          "features_mult": -1,
+          "features_fixed": 40
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 2,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-3": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-3",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "s2-r-4": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s2-r-4",
+          "features_mult": -1,
+          "features_fixed": 80
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 2,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 3,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-5": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-5",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 3,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-6": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-6",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 3,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "s3-n-7": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s3-n-7",
+          "features_mult": -1,
+          "features_fixed": 112
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-8": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-8",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-9": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-9",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "s4-r-10": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s4-r-10",
+          "features_mult": -1,
+          "features_fixed": 192
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 2,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-11": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-11",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-12": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-12",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "n-13": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "n-13",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 5,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "s5-n-14": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s5-n-14",
+          "features_mult": -1,
+          "features_fixed": 320
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "swish",
+              "act_inplace": true,
+              "att_dict": {
+                "att_cls": "SqueezeExcitationChannelModule",
+                "use_c_substitute": true,
+                "c_mul": 0.25,
+                "squeeze_act": "swish",
+                "excite_act": "sigmoid",
+                "squeeze_bias": true,
+                "excite_bias": true,
+                "squeeze_bn": false
+              },
+              "k_size": 3,
+              "expansion": 6
+            }
+          }
+        }
+      }
+    },
+    "cell_partials": {}
+  },
+  "submodules": {
+    "stem": {
+      "name": "MobileNetV2Stem",
+      "kwargs": {
+        "features": 32,
+        "stride": 2,
+        "k_size": 3,
+        "act_fun": "swish",
+        "features1": 16,
+        "stride1": 1,
+        "k_size1": 3,
+        "act_fun1": "swish",
+        "se_cmul1": 0.25
+      },
+      "submodules": {
+        "stem0": {
+          "name": "ConvLayer",
+          "kwargs": {
+            "use_bn": true,
+            "bn_affine": true,
+            "act_fun": "swish",
+            "act_inplace": true,
+            "dropout_rate": 0.0,
+            "dropout_inplace": false,
+            "dropout_keep": false,
+            "order": "w_bn_act",
+            "k_size": 3,
+            "dilation": 1,
+            "stride": 2,
+            "groups": 1,
+            "bias": false,
+            "padding": "same"
+          }
+        },
+        "stem1": {
+          "name": "MobileInvertedConvLayer",
+          "kwargs": {
+            "k_size": 3,
+            "k_size_in": 1,
+            "k_size_out": 1,
+            "stride": 1,
+            "expansion": 1.0,
+            "padding": "same",
+            "dilation": 1,
+            "bn_affine": true,
+            "act_fun": "swish",
+            "act_inplace": true,
+            "att_dict": {
+              "att_cls": "SqueezeExcitationChannelModule",
+              "squeeze_act": "swish",
+              "c_mul": 0.25
+            }
+          }
+        }
+      }
+    }
+  },
+  "submodule_lists": {
+    "heads": [
+      {
+        "name": "FeatureMixClassificationHead",
+        "kwargs": {
+          "weight": 1.0,
+          "cell_idx": -1,
+          "persist": true,
+          "features": 1280,
+          "act_fun": "swish",
+          "bias": true,
+          "dropout": 0.0,
+          "gap_first": false
+        }
+      }
+    ]
+  }
+}

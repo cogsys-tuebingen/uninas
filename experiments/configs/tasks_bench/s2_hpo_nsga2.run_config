@@ -1,0 +1,32 @@
+{
+    "cls_task": "MiniBenchHPOTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.note": "NSGA-II bench search",
+    "{cls_task}.save_dir": "{path_tmp}/bench/s2/hpo/nsga2/",
+    "{cls_task}.save_del_old": true,
+    "{cls_task}.mini_bench_path": "{path_data}/nasbench201_1.1_mini.pt",
+    "{cls_task}.mini_bench_dataset": "ImageNet16-120",
+    "{cls_task}.plot_true_pareto": true,
+
+    "cls_hpo_self_algorithm": "NSGA2HPO",
+    "{cls_hpo_self_algorithm}.iterations": 20,
+    "{cls_hpo_self_algorithm}.crossover": "single",
+    "{cls_hpo_self_algorithm}.pop_size": 30,
+    "{cls_hpo_self_algorithm}.pop_core": 10,
+    "{cls_hpo_self_algorithm}.num_tourney": 3,
+    "{cls_hpo_self_algorithm}.prob_mutations": 0.1,
+
+    "cls_hpo_estimators": "MiniBenchFlopsEstimator, MiniBenchAcc1Estimator",
+    "{cls_hpo_estimators#0}.key": "flops",
+    "{cls_hpo_estimators#0}.is_constraint": false,
+    "{cls_hpo_estimators#0}.min_value": 0.0,
+    "{cls_hpo_estimators#0}.max_value": 330000000,
+    "{cls_hpo_estimators#0}.is_objective": true,
+    "{cls_hpo_estimators#0}.maximize": false,
+
+    "{cls_hpo_estimators#1}.key": "accuracy",
+    "{cls_hpo_estimators#1}.is_constraint": false,
+    "{cls_hpo_estimators#1}.is_objective": true,
+    "{cls_hpo_estimators#1}.maximize": true
+}

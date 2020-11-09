@@ -1,0 +1,41 @@
+{
+    "cls_task": "MiniBenchPymooHPOTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.note": "NSGA-II bench search",
+    "{cls_task}.save_dir": "{path_tmp}/bench/s2/pymoo/nsga2/",
+    "{cls_task}.save_del_old": true,
+    "{cls_task}.mini_bench_path": "{path_data}/nasbench201_1.1_mini.pt",
+    "{cls_task}.mini_bench_dataset": "ImageNet16-120",
+    "{cls_task}.plot_true_pareto": true,
+
+    "cls_hpo_pymoo_algorithm": "NSGA2PymooAlgorithm",
+    "{cls_hpo_pymoo_algorithm}.pop_size": 30,
+    "{cls_hpo_pymoo_algorithm}.n_offsprings": 20,
+
+    "cls_hpo_estimators": "MiniBenchFlopsEstimator, MiniBenchAcc1Estimator",
+    "{cls_hpo_estimators#0}.key": "flops",
+    "{cls_hpo_estimators#0}.is_constraint": false,
+    "{cls_hpo_estimators#0}.min_value": 0,
+    "{cls_hpo_estimators#0}.max_value": 0,
+    "{cls_hpo_estimators#0}.is_objective": true,
+    "{cls_hpo_estimators#0}.maximize": false,
+    "{cls_hpo_estimators#1}.key": "acc1",
+    "{cls_hpo_estimators#1}.is_constraint": false,
+    "{cls_hpo_estimators#1}.is_objective": true,
+    "{cls_hpo_estimators#1}.maximize": true,
+
+    "cls_hpo_pymoo_termination": "NIterPymooTermination",
+    "{cls_hpo_pymoo_termination}.n": 20,
+
+    "cls_hpo_pymoo_sampler": "IntRandomPymooSampler",
+
+    "cls_hpo_pymoo_crossover": "SbxPymooCrossover",
+    "{cls_hpo_pymoo_crossover}.type": "int",
+    "{cls_hpo_pymoo_crossover}.prob": 0.9,
+    "{cls_hpo_pymoo_crossover}.eta": 15,
+
+    "cls_hpo_pymoo_mutation": "PolynomialPymooMutation",
+    "{cls_hpo_pymoo_mutation}.type": "int",
+    "{cls_hpo_pymoo_mutation}.eta": 20
+}

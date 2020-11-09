@@ -1,0 +1,30 @@
+{
+    "cls_task": "EvalNetBenchTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.note": "full bench eval",
+    "{cls_task}.save_dir": "{path_tmp}/bench/s2/eval/",
+    "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
+    "{cls_task}.save_del_old": true,
+    "{cls_task}.mini_bench_path": "{path_data}/nasbench201_1.1_mini.pt",
+
+    "cls_device": "CudaDevicesManager",
+    "{cls_device}.num_devices": 1,
+    "{cls_device}.use_cudnn": true,
+    "{cls_device}.use_cudnn_benchmark": true,
+    "{cls_device}.use_cudnn_deterministic": false,
+
+    "cls_hpo_self_algorithm": "RandomHPO",
+    "{cls_hpo_self_algorithm}.num_eval": 1000,
+
+    "cls_hpo_estimators": "NetValueEstimator",
+    "{cls_hpo_estimators#0}.key": "acc1",
+    "{cls_hpo_estimators#0}.is_constraint": false,
+    "{cls_hpo_estimators#0}.is_objective": true,
+    "{cls_hpo_estimators#0}.maximize": true,
+    "{cls_hpo_estimators#0}.load": false,
+    "{cls_hpo_estimators#0}.batches_forward": 0,
+    "{cls_hpo_estimators#0}.batches_train": 0,
+    "{cls_hpo_estimators#0}.batches_eval": 20,
+    "{cls_hpo_estimators#0}.value": "val/accuracy/1"
+}

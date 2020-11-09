@@ -1,0 +1,637 @@
+{
+  "name": "StackedCellsNetworkBody",
+  "kwargs": {
+    "features_mul": 1,
+    "features_first_cell": 144,
+    "cell_order": [
+      "n",
+      "r"
+    ],
+    "cell_configs": {
+      "n": {
+        "name": "DartsCNNCell",
+        "kwargs": {
+          "name": "n",
+          "features_mult": 1,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "concat": {
+            "name": "ConcatChoiceModule",
+            "kwargs": {
+              "idxs": [
+                2,
+                3,
+                4,
+                5
+              ],
+              "dim": 1
+            }
+          }
+        },
+        "submodule_lists": {
+          "blocks": [
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 0
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SequentialModulesF",
+                        "submodule_lists": {
+                          "submodules": [
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            },
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 1
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SequentialModulesF",
+                        "submodule_lists": {
+                          "submodules": [
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            },
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 0
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SequentialModulesF",
+                        "submodule_lists": {
+                          "submodules": [
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            },
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 1
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SequentialModulesF",
+                        "submodule_lists": {
+                          "submodules": [
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            },
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 0
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SkipLayer"
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 1
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SequentialModulesF",
+                        "submodule_lists": {
+                          "submodules": [
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            },
+                            {
+                              "name": "SepConvLayer",
+                              "kwargs": {
+                                "use_bn": true,
+                                "bn_affine": true,
+                                "act_fun": "relu",
+                                "act_inplace": false,
+                                "dropout_rate": 0.0,
+                                "dropout_inplace": false,
+                                "dropout_keep": false,
+                                "order": "act_w_bn",
+                                "k_size": 3,
+                                "dilation": 1,
+                                "stride": 1,
+                                "groups": 1,
+                                "bias": false,
+                                "padding": "same"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 0
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SkipLayer"
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 2
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SepConvLayer",
+                        "kwargs": {
+                          "use_bn": true,
+                          "bn_affine": true,
+                          "act_fun": "relu",
+                          "act_inplace": false,
+                          "dropout_rate": 0.0,
+                          "dropout_inplace": false,
+                          "dropout_keep": false,
+                          "order": "act_w_bn",
+                          "k_size": 3,
+                          "dilation": 2,
+                          "stride": 1,
+                          "groups": 1,
+                          "bias": false,
+                          "padding": "same"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "r": {
+        "name": "DartsCNNCell",
+        "kwargs": {
+          "name": "r",
+          "features_mult": 2,
+          "features_fixed": -1
+        },
+        "submodules": {
+          "concat": {
+            "name": "ConcatChoiceModule",
+            "kwargs": {
+              "idxs": [
+                2,
+                3,
+                4,
+                5
+              ],
+              "dim": 1
+            }
+          }
+        },
+        "submodule_lists": {
+          "blocks": [
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 0
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "PoolingLayer",
+                        "kwargs": {
+                          "use_bn": false,
+                          "bn_affine": true,
+                          "act_fun": null,
+                          "act_inplace": false,
+                          "dropout_rate": 0.0,
+                          "dropout_inplace": false,
+                          "dropout_keep": false,
+                          "order": "w",
+                          "pool_type": "max",
+                          "k_size": 3,
+                          "stride": 2,
+                          "padding": "same"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 1
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "PoolingLayer",
+                        "kwargs": {
+                          "use_bn": false,
+                          "bn_affine": true,
+                          "act_fun": null,
+                          "act_inplace": false,
+                          "dropout_rate": 0.0,
+                          "dropout_inplace": false,
+                          "dropout_keep": false,
+                          "order": "w",
+                          "pool_type": "max",
+                          "k_size": 3,
+                          "stride": 2,
+                          "padding": "same"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 1
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "PoolingLayer",
+                        "kwargs": {
+                          "use_bn": false,
+                          "bn_affine": true,
+                          "act_fun": null,
+                          "act_inplace": false,
+                          "dropout_rate": 0.0,
+                          "dropout_inplace": false,
+                          "dropout_keep": false,
+                          "order": "w",
+                          "pool_type": "max",
+                          "k_size": 3,
+                          "stride": 2,
+                          "padding": "same"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 2
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SkipLayer"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 0
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "PoolingLayer",
+                        "kwargs": {
+                          "use_bn": false,
+                          "bn_affine": true,
+                          "act_fun": null,
+                          "act_inplace": false,
+                          "dropout_rate": 0.0,
+                          "dropout_inplace": false,
+                          "dropout_keep": false,
+                          "order": "w",
+                          "pool_type": "max",
+                          "k_size": 3,
+                          "stride": 2,
+                          "padding": "same"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 2
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SkipLayer"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "DartsCNNBlock",
+              "submodule_lists": {
+                "ops": [
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 1
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "PoolingLayer",
+                        "kwargs": {
+                          "use_bn": false,
+                          "bn_affine": true,
+                          "act_fun": null,
+                          "act_inplace": false,
+                          "dropout_rate": 0.0,
+                          "dropout_inplace": false,
+                          "dropout_keep": false,
+                          "order": "w",
+                          "pool_type": "max",
+                          "k_size": 3,
+                          "stride": 2,
+                          "padding": "same"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "InputChoiceWrapperModule",
+                    "kwargs": {
+                      "idx": 2
+                    },
+                    "submodules": {
+                      "wrapped": {
+                        "name": "SkipLayer"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cell_partials": {}
+  },
+  "submodules": {
+    "stem": {
+      "name": "DartsCifarStem",
+      "kwargs": {
+        "features": 108
+      },
+      "submodules": {
+        "stem_module": {
+          "name": "ConvLayer",
+          "kwargs": {
+            "use_bn": true,
+            "bn_affine": true,
+            "act_fun": null,
+            "act_inplace": false,
+            "dropout_rate": 0.0,
+            "dropout_inplace": false,
+            "dropout_keep": false,
+            "order": "w_bn",
+            "k_size": 3,
+            "dilation": 1,
+            "stride": 1,
+            "groups": 1,
+            "bias": false,
+            "padding": "same"
+          }
+        }
+      }
+    }
+  },
+  "submodule_lists": {
+    "heads": [
+      {
+        "name": "ClassificationHead",
+        "kwargs": {
+          "weight": 1.0,
+          "cell_idx": -1,
+          "persist": true,
+          "bias": true,
+          "dropout": 0.0
+        }
+      }
+    ]
+  }
+}

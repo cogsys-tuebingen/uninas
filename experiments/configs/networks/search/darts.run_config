@@ -1,0 +1,36 @@
+{
+    "cls_network_body": "StackedCellsNetworkBody",
+    "{cls_network_body}.cell_order": "n, n, r, n, n, r, n, n",
+    "{cls_network_body}.features_first_cell": 64,
+    "{cls_network_body}.features_mul": 1,
+
+    "cls_network_cells": "DartsCNNSearchCell, DartsCNNSearchCell",
+    "{cls_network_cells#0}.name": "n",
+    "{cls_network_cells#0}.arc_key": "n",
+    "{cls_network_cells#0}.arc_shared": true,
+    "{cls_network_cells#0}.primitives": "DartsPrimitives",
+    "{cls_network_cells#0}.features_mult": 1,
+    "{cls_network_cells#0}.stride": 1,
+    "{cls_network_cells#0}.num_concat": 4,
+    "{cls_network_cells#0}.num_blocks": 4,
+    "{cls_network_cells#0}.cls_block": "DartsCNNSearchBlock",
+    "{cls_network_cells#1}.name": "r",
+    "{cls_network_cells#1}.arc_key": "r",
+    "{cls_network_cells#1}.arc_shared": true,
+    "{cls_network_cells#1}.primitives": "DartsPrimitives",
+    "{cls_network_cells#1}.features_mult": 2,
+    "{cls_network_cells#1}.stride": 2,
+    "{cls_network_cells#1}.num_concat": 4,
+    "{cls_network_cells#1}.num_blocks": 4,
+    "{cls_network_cells#1}.cls_block": "DartsCNNSearchBlock",
+
+    "cls_network_stem": "DartsCifarStem",
+    "{cls_network_stem}.features": 48,
+
+    "cls_network_heads": "ClassificationHead",
+    "{cls_network_heads#0}.weight": 1.0,
+    "{cls_network_heads#0}.cell_idx": -1,
+    "{cls_network_heads#0}.persist": true,
+    "{cls_network_heads#0}.bias": true,
+    "{cls_network_heads#0}.dropout": 0.0
+}

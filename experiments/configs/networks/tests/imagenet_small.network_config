@@ -1,0 +1,188 @@
+{
+  "name": "StackedCellsNetworkBody",
+  "kwargs": {
+    "features_mul": 1,
+    "features_first_cell": -1,
+    "cell_order": [
+      "s0-n",
+      "s1-r",
+      "s1-n-3"
+    ],
+    "cell_configs": {
+      "s0-n": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s0-n",
+          "features_mult": -1,
+          "features_fixed": 8
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 2,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "relu6",
+              "act_inplace": true,
+              "att_dict": null,
+              "k_size": 3,
+              "expansion": 3
+            }
+          }
+        }
+      },
+      "s1-r": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s1-r",
+          "features_mult": -1,
+          "features_fixed": 8
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 2,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "relu6",
+              "act_inplace": true,
+              "att_dict": null,
+              "k_size": 7,
+              "expansion": 6
+            }
+          }
+        }
+      },
+      "s1-n-3": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s1-n-3",
+          "features_mult": -1,
+          "features_fixed": 8
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "relu6",
+              "act_inplace": true,
+              "att_dict": null,
+              "k_size": 5,
+              "expansion": 3
+            }
+          }
+        }
+      },
+      "s1-n-4": {
+        "name": "PassThroughCNNCell",
+        "kwargs": {
+          "name": "s1-n-4",
+          "features_mult": -1,
+          "features_fixed": 16
+        },
+        "submodules": {
+          "op": {
+            "name": "MobileInvertedConvLayer",
+            "kwargs": {
+              "k_size_in": 1,
+              "k_size_out": 1,
+              "stride": 1,
+              "padding": "same",
+              "dilation": 1,
+              "bn_affine": true,
+              "act_fun": "relu6",
+              "act_inplace": true,
+              "att_dict": null,
+              "k_size": 3,
+              "expansion": 3
+            }
+          }
+        }
+      }
+    },
+    "cell_partials": {}
+  },
+  "submodules": {
+    "stem": {
+      "name": "MobileNetV2Stem",
+      "kwargs": {
+        "features": 16,
+        "stride": 2,
+        "k_size": 3,
+        "act_fun": "swish",
+        "features1": 16,
+        "stride1": 1,
+        "k_size1": 3,
+        "act_fun1": "hswish",
+        "se_cmul1": 0.0
+      },
+      "submodules": {
+        "stem0": {
+          "name": "ConvLayer",
+          "kwargs": {
+            "use_bn": true,
+            "bn_affine": true,
+            "act_fun": "swish",
+            "act_inplace": true,
+            "dropout_rate": 0.0,
+            "dropout_inplace": false,
+            "order": "w_bn_act",
+            "k_size": 3,
+            "dilation": 1,
+            "stride": 2,
+            "groups": 1,
+            "bias": false,
+            "padding": "same"
+          }
+        },
+        "stem1": {
+          "name": "MobileInvertedConvLayer",
+          "kwargs": {
+            "k_size": 3,
+            "k_size_in": 1,
+            "k_size_out": 1,
+            "stride": 1,
+            "expansion": 1.0,
+            "padding": "same",
+            "dilation": 1,
+            "bn_affine": true,
+            "act_fun": "hswish",
+            "act_inplace": true,
+            "att_dict": null
+          }
+        }
+      }
+    }
+  },
+  "submodule_lists": {
+    "heads": [
+      {
+        "name": "FeatureMixClassificationHead",
+        "kwargs": {
+          "weight": 1.0,
+          "cell_idx": -1,
+          "persist": true,
+          "features": 32,
+          "act_fun": "relu6",
+          "bias": true,
+          "dropout": 0.0,
+          "gap_first": false
+        }
+      }
+    ]
+  }
+}

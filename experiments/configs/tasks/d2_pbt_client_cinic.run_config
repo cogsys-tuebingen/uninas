@@ -1,0 +1,89 @@
+{
+    "cls_task": "SingleRetrainTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.note": "DARTS-like retraining",
+    "{cls_task}.save_dir": "{path_tmp}/d2/cifar/",
+    "{cls_task}.save_del_old": false,
+
+    "cls_device": "CudaDevicesManager",
+    "{cls_device}.num_devices": 1,
+    "{cls_device}.use_cudnn": true,
+    "{cls_device}.use_cudnn_benchmark": true,
+    "{cls_device}.use_cudnn_deterministic": false,
+
+    "cls_method": "RetrainMethod",
+
+    "cls_network": "RetrainInsertConfigUninasNetwork",
+    "{cls_network}.config_path": "{path_conf_net_originals}/DARTS_V1.network_config",
+
+    "cls_trainer": "SimpleTrainer",
+    "{cls_trainer}.max_epochs": 600,
+    "{cls_trainer}.clip_grad_value": -1,
+    "{cls_trainer}.clip_grad_norm_value": 5.0,
+    "{cls_trainer}.clip_grad_norm_type": 2,
+    "{cls_trainer}.log_fs": true,
+    "{cls_trainer}.log_ram": true,
+    "{cls_trainer}.eval_last": -1,
+    "{cls_trainer}.test_last": 10,
+    "{cls_trainer}.ema_device": "disabled",
+
+    "cls_exp_loggers": "TensorBoardExpLogger",
+    "{cls_exp_loggers#0}.log_graph": false,
+
+    "cls_callbacks": "PbtCallback",
+    "{cls_callbacks#0}.communication_file": "{path_tmp}/pbt_server/communication_uri",
+
+    "cls_data": "Cinic10Data",
+    "{cls_data}.dir": "{path_tmp}/data/",
+    "{cls_data}.download": false,
+    "{cls_data}.fake": false,
+    "{cls_data}.batch_size_train": 96,
+    "{cls_data}.batch_size_test": -1,
+    "{cls_data}.num_workers": 4,
+    "{cls_data}.valid_split": 0.0,
+    "{cls_data}.valid_shuffle": false,
+
+    "cls_augmentations": "DartsCifarAug, CutoutAug",
+    "{cls_augmentations#1}.size": 16,
+
+    "cls_criterion": "CrossEntropyCriterion",
+    "{cls_criterion}.smoothing_epsilon": 0.0,
+
+    "cls_network_body": "StackedCellsNetworkBody",
+    "{cls_network_body}.cell_order": "n, n, n, n, n, n, r, n, n, n, n, n, n, r, n, n, n, n, n, n",
+    "{cls_network_body}.features_first_cell": 144,
+
+    "cls_network_stem": "DartsCifarStem",
+    "{cls_network_stem}.features": 108,
+
+    "cls_network_heads": "ClassificationHead, DartsCifarAuxHead",
+    "{cls_network_heads#0}.weight": 1.0,
+    "{cls_network_heads#0}.cell_idx": -1,
+    "{cls_network_heads#0}.persist": true,
+    "{cls_network_heads#0}.bias": true,
+    "{cls_network_heads#0}.dropout": 0.1,
+    "{cls_network_heads#1}.weight": 0.4,
+    "{cls_network_heads#1}.cell_idx": 13,
+    "{cls_network_heads#1}.persist": false,
+
+    "cls_metrics": "AccuracyMetric",
+    "{cls_metrics#0}.topk": "1, 5",
+
+    "cls_initializers": "",
+
+    "cls_regularizers": "DropOutRegularizer, DropPathRegularizer",
+    "{cls_regularizers#0}.prob": 0.1,
+    "{cls_regularizers#1}.min_prob": 0.0,
+    "{cls_regularizers#1}.max_prob": 0.3,
+    "{cls_regularizers#1}.drop_id_paths": false,
+
+    "cls_optimizers": "SGDOptimizer",
+    "{cls_optimizers#0}.lr": 0.025,
+    "{cls_optimizers#0}.momentum": 0.9,
+    "{cls_optimizers#0}.nesterov": false,
+    "{cls_optimizers#0}.weight_decay": 3e-4,
+    "{cls_optimizers#0}.weight_decay_filter": false,
+
+    "cls_schedulers": "ConstantScheduler"
+}
