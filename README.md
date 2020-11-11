@@ -1,5 +1,5 @@
 
-#### ICLR 2020 submission notes
+#### ICLR 2021 submission notes
 
 Code used to produce the results presented in https://openreview.net/forum?id=J40FkbdldTX
 
