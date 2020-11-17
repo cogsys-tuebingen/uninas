@@ -164,6 +164,30 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
                 logits_head.append(head(x[-1]))
         return logits_head
 
+    def forward_specific(self, x: Union[torch.Tensor, list], start_block=-1, end_block=None) -> [torch.Tensor]:
+        """
+        can execute specific part of the network, returns result after end_block
+        """
+
+        # stem, -1
+        if start_block <= -1:
+            x = self.stem(x)
+        if end_block == -1:
+            return x
+
+        if isinstance(x, torch.Tensor):
+            x = [x]
+
+        # blocks, 0 to n
+        for i, m in enumerate(self.cells):
+            if start_block <= i:
+                x = m(x)
+            if end_block == i:
+                return x
+
+        # head, otherwise
+        return [self.get_last_head()(x[-1])]
+
     @classmethod
     def meta_args_to_add(cls) -> [MetaArgument]:
         """
@@ -236,45 +260,3 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
             if already_had:
                 logger.info('%s cell type "%s" from given config' % ('Replaced' if already_had else 'Added', name))
             self.cell_configs[name] = cfg
-
-
-@Register.network_body()
-class StudentStackedCellsNetworkBody(StackedCellsNetworkBody):
-    """
-    A model made from stacking cells
-    Purely sequential, one stem with n outputs, every cell has n inputs and n outputs
-    For knowledge distillation only, limited to one head
-    """
-
-    def _update_heads(self):
-        super()._update_heads()
-        assert len(self.heads) == 1, 'Can not have multiple heads!'
-
-    @classmethod
-    def is_student_network(cls) -> bool:
-        """ for knowledge distillation """
-        return True
-
-    def forward(self, x: Union[torch.Tensor, list], start_block=-1, end_block=None) -> [torch.Tensor]:
-        """
-        can execute specific part of the network, returns result after end_block
-        """
-
-        # stem, -1
-        if start_block <= -1:
-            x = self.stem(x)
-        if end_block == -1:
-            return x
-
-        if isinstance(x, torch.Tensor):
-            x = [x]
-
-        # blocks, 0 to n
-        for i, m in enumerate(self.cells):
-            if start_block <= i:
-                x = m(x)
-            if end_block == i:
-                return x
-
-        # head, otherwise
-        return [self.get_last_head()(x[-1])]

@@ -7,6 +7,7 @@
     "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
     "{cls_task}.save_del_old": true,
     "{cls_task}.mini_bench_path": "{path_data}/nasbench201_1.1_mini.pt",
+    "{cls_task}.measure_correlations": "'KendallTauCorrelation, PearsonCorrelation, SpearmanCorrelation'",
 
     "cls_device": "CudaDevicesManager",
     "{cls_device}.num_devices": 1,

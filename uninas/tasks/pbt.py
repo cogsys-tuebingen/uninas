@@ -110,7 +110,7 @@ try:
                 # if the watched key is not there, or we already synchronized, there is no need for synchronization
                 with self._lock:
                     if (self._epoch < self._next_callback_epoch)\
-                            or (not self.selector.is_interesting(self._log_dicts[self._epoch][client_id])):
+                            or (not self.selector.is_interesting(epoch, self._log_dicts[epoch][client_id])):
                         return self.selector.empty_response(client_id)
 
                 # synchronization, one at the barrier will figure out the new client instructions, then return them

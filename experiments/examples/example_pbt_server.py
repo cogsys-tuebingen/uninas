@@ -14,9 +14,11 @@ args = {
 
     # this path must match the one in the clients' callbacks
     "{cls_task}.communication_file": "{path_tmp}/pbt_server/communication_uri",
-    "{cls_task}.num_clients": 2,
+    "{cls_task}.num_clients": 1,
 
     "cls_pbt_selector": "DefaultPbtSelector",
+    "{cls_pbt_selector}.each_epochs": 1,
+    "{cls_pbt_selector}.grace_epochs": 0,
     "{cls_pbt_selector}.save_ema": True,
     "{cls_pbt_selector}.elitist": False,
     "{cls_pbt_selector}.replace_worst": 0.5,

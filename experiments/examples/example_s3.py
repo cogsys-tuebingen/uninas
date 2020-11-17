@@ -31,12 +31,12 @@ args = {
 
     "cls_method": "RetrainMethod",
 
-    "cls_network": "EfficientNetTimmNetwork",
-    "{cls_network}.model_name": "tf_efficientnet_b0",
+    # "cls_network": "EfficientNetTimmNetwork",
+    # "{cls_network}.model_name": "tf_efficientnet_b0",
     # "{cls_network}.checkpoint_path": "{path_pretrained}",
 
-    # "cls_network": "RetrainUninasNetwork",
-    # "{cls_network}.config_path": "FairNasC",
+    "cls_network": "RetrainUninasNetwork",
+    "{cls_network}.config_path": "FairNasC",
     # "{cls_network}.config_path": "ShuffleNetV2PlusMedium",
     # "{cls_network}.config_path": "EfficientNetB0",
     # "{cls_network}.config_path": "imagenet_small",

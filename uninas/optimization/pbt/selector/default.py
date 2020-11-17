@@ -19,8 +19,9 @@ class DefaultPbtSelector(AbstractPbtSelector):
     """
 
     def __init__(self, weights_dir: str, logger: Logger, targets: [OptimizationTarget], mutations: [AbstractPbtMutation],
-                 save_ema: bool, elitist: bool, replace_worst: float, copy_best: float):
-        super().__init__(weights_dir, logger, targets, mutations, save_ema, elitist)
+                 each_epochs: int, grace_epochs: int, save_ema: bool, elitist: bool,
+                 replace_worst: float, copy_best: float):
+        super().__init__(weights_dir, logger, targets, mutations, each_epochs, grace_epochs, save_ema, elitist)
         self.replace_worst = replace_worst
         self.copy_best = copy_best
 

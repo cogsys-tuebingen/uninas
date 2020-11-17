@@ -12,7 +12,6 @@ from uninas.utils.misc import split
 from uninas.utils.args import MetaArgument, Argument, Namespace, find_in_args
 from uninas.utils.loggers.python import log_headline, Logger
 from uninas.benchmarks.mini import MiniNASBenchApi
-from uninas.utils.visualize.kendall_tau import KendallTau
 from uninas.register import Register
 from uninas.builder import Builder
 
@@ -229,13 +228,19 @@ class EvalNetBenchTask(NetHPOTask):
             _, cell_order = find_in_args(self.args, '.cell_order')
             self.num_normal = cell_order.count('n')
 
+        # correlations
+        self.correlation_cls = []
+        for name in split(self._parsed_argument('measure_correlations', self.args)):
+            self.correlation_cls.append(Register.get(name))
+
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
             Argument('mini_bench_path', default='{path_data}/mini.pt', type=str, help='', is_path=True),
-            Argument('mini_bench_dataset', default='cifar10', type=str, help='to rank top 50/100'),
+            Argument('mini_bench_dataset', default='cifar10', type=str, help='data set to rank topN networks on'),
             Argument('measure_top', default='10, 50', type=str, help='measure topN bench architectures'),
+            Argument('measure_correlations', default='KendallTauCorrelation', type=str, help='correlations to measure'),
         ]
 
     def _run(self, save=False):
@@ -274,12 +279,20 @@ class EvalNetBenchTask(NetHPOTask):
                 'net_bench/%s/num' % name: population.size
             })
             for k, bv in bench_values.items():
-                kt = KendallTau(column_names=("network", "bench %s" % self.mini_bench.bench_type),
-                                add_lines=False, can_show=False)
-                tau = kt.add_data(net_values, bv, "%s, %s" % (k, key), s=8)
-                kt.plot(legend=True, show=False, save_path=file_plot % ('kt', name, k))
+                # generate plot
+                m = self.correlation_cls[0](column_names=("network", "bench %s" % self.mini_bench.bench_type),
+                                            add_lines=False, can_show=False)
+                m.add_data(net_values, bv, "%s, %s" % (k, key), other_metrics=self.correlation_cls, s=8)
+                m.plot(legend=True, show=False, save_path=file_plot % ('metrics', name, k))
+
+                # log general things
                 self.get_first_method().log_metrics({
-                    'net_bench/%s/%s/%s/tau' % (name, key, k): tau,
                     'net_bench/%s/%s/%s/avg/bench' % (name, key, k): sum(bv) / len(bv),
                     'net_bench/%s/%s/%s/avg/net' % (name, key, k): sum(net_values) / len(net_values),
                 })
+
+                # log metrics
+                for m in self.correlation_cls:
+                    self.get_first_method().log_metrics({
+                        'net_bench/%s/%s/%s/%s' % (name, key, k, m.short_name()): m.calculate(net_values, bv),
+                    })

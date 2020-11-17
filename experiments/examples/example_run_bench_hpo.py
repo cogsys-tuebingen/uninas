@@ -17,7 +17,10 @@ changes = {
 
     # to be removed if you run a pure HPO on the bench
     "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
-    "{cls_task}.measure_top": "'10, 25, 50, 100, 150, 250, 500'",
+    # "{cls_task}.measure_top": "'10, 25, 50, 100, 150, 250, 500'",
+    "{cls_task}.measure_top": "'10, 25, 50'",
+
+    # "{cls_hpo_self_algorithm}.num_eval": 20,
 
     "{cls_task}.mini_bench_dataset": "cifar10",
     # "{cls_task}.mini_bench_dataset": "ImageNet16-120",

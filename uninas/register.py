@@ -89,6 +89,7 @@ class Register(metaclass=Singleton):
     optimization_targets = RegisterDict('optimization targets')
     profilers = RegisterDict('profiler')
     profile_functions = RegisterDict('profile functions')
+    correlation_metrics = RegisterDict('correlation metrics')
 
     @classmethod
     def _add(cls, dct: dict, **kwargs):
@@ -258,6 +259,10 @@ class Register(metaclass=Singleton):
     @classmethod
     def profile_function(cls):
         return cls._add(cls.profile_functions)
+
+    @classmethod
+    def correlation_metric(cls, rank=False):
+        return cls._add(cls.correlation_metrics, rank=rank)
 
     @classmethod
     def _print_dct(cls, logger: Logger, text: str, dct: RegisterDict):

@@ -20,7 +20,7 @@ class AbstractPbtSelector(ArgsInterface):
     """
 
     def __init__(self, weights_dir: str, logger: Logger, targets: [OptimizationTarget], mutations: [AbstractPbtMutation],
-                 save_ema: bool, elitist: bool):
+                 each_epochs: int, grace_epochs: int, save_ema: bool, elitist: bool):
         super().__init__()
         self._nds = NonDominatedSorting()
         self._data = {
@@ -31,6 +31,8 @@ class AbstractPbtSelector(ArgsInterface):
         self.logger = logger
         self.targets = targets
         self.mutations = mutations
+        self.each_epochs = each_epochs
+        self.grace_epochs = grace_epochs
         self.save_ema = save_ema
         self.elitist = elitist
 
@@ -47,6 +49,8 @@ class AbstractPbtSelector(ArgsInterface):
     def args_to_add(cls, index=None) -> [Argument]:
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
+            Argument('each_epochs', default=1, type=int, help="only synchronize each n epochs"),
+            Argument('grace_epochs', default=0, type=int, help="skip synchronization for the first n epochs"),
             Argument('save_ema', default="True", type=str, is_bool=True,
                      help="save the EMA-model weights if available, otherwise save the trained model's weights"),
             Argument('elitist', default="True", type=str, is_bool=True,
@@ -194,8 +198,12 @@ class AbstractPbtSelector(ArgsInterface):
     def empty_response(cls, client_id: int) -> PbtServerResponse:
         return PbtServerResponse(client_id=client_id)
 
-    def is_interesting(self, log_dict: dict) -> bool:
+    def is_interesting(self, epoch: int, log_dict: dict) -> bool:
         """ if the watched key is not in the log dict, no need to synchronize """
+        if epoch < self.grace_epochs:
+            return False
+        if (epoch - self.grace_epochs + 1) % self.each_epochs > 0:
+            return False
         return all([target.is_interesting(log_dict) for target in self.targets])
 
     def first_use(self, log_dicts: {int, dict}) -> {int, (dict, PbtServerResponse)}:
@@ -315,3 +323,10 @@ class AbstractPbtSelector(ArgsInterface):
         plt.ylabel("client id")
         plt.savefig("%s/lineage.pdf" % save_dir)
         plt.clf()
+
+
+if __name__ == '__main__':
+    sel = AbstractPbtSelector('', Logger('__main__'), [], [], 4, 20, False, False)
+    for i in range(100):
+        if sel.is_interesting(i, {}):
+            print(i, end=', ')

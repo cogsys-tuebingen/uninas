@@ -1,3 +1,4 @@
+import types
 import torch
 import torch.nn as nn
 from typing import Union
@@ -15,6 +16,9 @@ class AbstractNetworkBody(AbstractArgsModule):
     def forward(self, x: torch.Tensor) -> [torch.Tensor]:
         raise NotImplementedError
 
+    def forward_specific(self, x: Union[torch.Tensor, list], start_block=-1, end_block=None) -> [torch.Tensor]:
+        raise NotImplementedError
+
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         raise NotImplementedError
 
@@ -27,6 +31,13 @@ class AbstractNetworkBody(AbstractArgsModule):
     def get_heads(self) -> nn.ModuleList():
         raise NotImplementedError
 
+    def use_specific_forward(self):
+        """
+        replace the default forward pass with one that can execute specific cells, can not be undone
+        """
+        assert len(self.heads) == 1, 'Can not have multiple heads!'
+        self.forward = types.MethodType(self.forward_specific, self)
+
     @classmethod
     def search_network_from_args(cls, args: Namespace, weight_strategies: Union[dict, str]):
         """
@@ -34,8 +45,3 @@ class AbstractNetworkBody(AbstractArgsModule):
         :param weight_strategies: {strategy name: [cell indices]}, or name used for all
         """
         raise NotImplementedError
-
-    @classmethod
-    def is_student_network(cls) -> bool:
-        """ for knowledge distillation """
-        return False
