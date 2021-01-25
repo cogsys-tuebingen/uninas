@@ -7,12 +7,10 @@ from uninas.training.callbacks.abstract import AbstractCallback
 from uninas.utils.torch.ema import ModelEMA
 from uninas.utils.torch.misc import itemize
 from uninas.utils.args import Argument
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
 from uninas.register import Register
 try:
     import Pyro5.api
-
-    logger = get_logger()
 
 
     @Register.training_callback(requires_log_dict=True)
@@ -36,7 +34,7 @@ try:
 
         @classmethod
         def log(cls, msg: str):
-            logger.info('%s: %s' % (cls.__name__, msg))
+            LoggerManager().get_logger().info('%s: %s' % (cls.__name__, msg))
 
         def setup(self, trainer: AbstractTrainerFunctions, pl_module: AbstractMethod, stage: str):
             """ called when the trainer changes the method it trains (also called for the first one) """

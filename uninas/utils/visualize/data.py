@@ -4,7 +4,7 @@ visualize the augmented data (not normalized, no batch-level augmentations (e.g.
 
 import matplotlib.pyplot as plt
 import numpy as np
-from uninas.utils.torch.standalone import get_imagenet
+from uninas.utils.torch.standalone import get_imagenet, get_imagenet16
 from uninas.builder import Builder
 
 
@@ -13,9 +13,10 @@ if __name__ == '__main__':
 
     num_img = 4
     num_transforms = 8
-    train_data = True  # [True, False], train or test data
+    train_data = True  # [True, False], train or test data (affects data augmentation)
 
     # get the data set
+
     data_set = get_imagenet(
         data_dir="{path_data}/ImageNet_ILSVRC2012/",
         batch_size=num_img,
@@ -25,6 +26,13 @@ if __name__ == '__main__':
             "CutoutAug#1.size": 112,
         },
     )
+
+    """
+    data_set = get_imagenet16(
+        data_dir="{path_data}/ImageNet16/",
+        batch_size=num_img,
+    )
+    """
 
     print('data set   ', data_set.str())
     print('transforms ', data_set.list_train_transforms() if train_data else data_set.list_test_transforms())

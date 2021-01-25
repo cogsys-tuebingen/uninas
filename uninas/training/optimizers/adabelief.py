@@ -1,12 +1,12 @@
 from uninas.register import Register
 from uninas.utils.args import Argument
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 try:
     from adabelief_pytorch import AdaBelief
 
 
     @Register.optimizer()
-    class AdaBeliefOptimizer(AbstractOptimizer):
+    class AdaBeliefOptimizer(WrappedOptimizer):
         """
         https://juntang-zhuang.github.io/adabelief/
         https://arxiv.org/abs/2010.07468

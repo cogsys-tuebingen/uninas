@@ -6,7 +6,7 @@ from uninas.methods.strategies.random import RandomChoiceStrategy
 from uninas.model.layers.common import SkipLayer
 from uninas.model.layers.cnn import ZeroLayer, FactorizedReductionLayer, PoolingLayer, ConvLayer, SepConvLayer
 from uninas.model.layers.shufflenet import ShuffleNetV2Layer, ShuffleNetV2XceptionLayer
-from uninas.model.layers.mobilenet import MobileInvertedConvLayer, MixedMobileInvertedConvLayer
+from uninas.model.layers.mobilenet import MobileInvertedConvLayer, FusedMobileInvertedConvLayer
 from uninas.model.layers.singlepathnas import SuperConvThresholdLayer, SuperSepConvThresholdLayer, SuperMobileInvertedConvThresholdLayer
 from uninas.model.layers.superkernels import SuperConvLayer, SuperSepConvLayer, SuperMobileInvertedConvLayer
 from uninas.model.layers.scarletnas import LinearTransformerLayer
@@ -56,8 +56,8 @@ class TestLayers(unittest.TestCase):
             (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3)),
             (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3,))),
             (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1))),
-            (MixedMobileInvertedConvLayer,          [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(name='mmicl1', k_sizes=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1))),
-            (MixedMobileInvertedConvLayer,          [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(name='mmicl2', k_sizes=((3, 5), (3, 5, 7)), k_size_in=(1, 1), k_size_out=(1, 1))),
+            (FusedMobileInvertedConvLayer, [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(name='mmicl1', k_sizes=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1))),
+            (FusedMobileInvertedConvLayer, [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(name='mmicl2', k_sizes=((3, 5), (3, 5, 7)), k_size_in=(1, 1), k_size_out=(1, 1))),
             (ShuffleNetV2Layer,                     [case_s1_c1, case_s1_c2, case_s2_c2],             dict(k_size=3)),
             (ShuffleNetV2XceptionLayer,             [case_s1_c1, case_s1_c2, case_s2_c2],             dict(k_size=3)),
             (LinearTransformerLayer,                [case_s1_c1, case_s1_c2],                         dict()),
@@ -89,7 +89,7 @@ class TestLayers(unittest.TestCase):
         x = torch.empty(size=[n, c, h, w])
         shape = Shape([c, h, w])
         layers = [
-            MixedMobileInvertedConvLayer(name='mmicl', k_sizes=(3, 5, 7), expansions=(3, 6)),
+            FusedMobileInvertedConvLayer(name='mmicl', k_sizes=(3, 5, 7), expansions=(3, 6)),
             SuperConvThresholdLayer(k_sizes=(3, 5, 7)),
             SuperSepConvThresholdLayer(k_sizes=(3, 5, 7)),
             SuperMobileInvertedConvThresholdLayer(k_sizes=(3, 5, 7), expansions=(3, 6), sse_dict=dict(c_muls=(0.0, 0.25, 0.5))),

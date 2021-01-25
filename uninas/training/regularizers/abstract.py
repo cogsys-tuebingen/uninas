@@ -7,8 +7,9 @@ from uninas.utils.args import ArgsInterface, Namespace
 
 
 class AbstractRegularizer(ArgsInterface):
-    def __init__(self, _: Namespace, index=None):
+    def __init__(self, _: Namespace, index: int):
         ArgsInterface.__init__(self)
+        assert isinstance(index, int)
         self.index = index
         self._changed = True
 
@@ -30,9 +31,8 @@ class AbstractRegularizer(ArgsInterface):
         """ externally set the main value of this regularizer """
         raise NotImplementedError
 
-    @classmethod
-    def _dict_key(cls, key: str) -> str:
-        return 'regularization/%s/%s' % (cls.__name__, key)
+    def _dict_key(self, key: str) -> str:
+        return 'regularizer/%d/%s/%s' % (self.index, self.__class__.__name__, key)
 
     @classmethod
     def filter_values_in_dict(cls, log_dict: dict, regularizer_name: str) -> dict:

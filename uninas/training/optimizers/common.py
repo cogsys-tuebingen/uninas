@@ -2,12 +2,12 @@ from torch.optim.sgd import SGD
 from torch.optim.adam import Adam
 from torch.optim.rmsprop import RMSprop
 from uninas.utils.args import Argument
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.register import Register
 
 
 @Register.optimizer()
-class SGDOptimizer(AbstractOptimizer):
+class SGDOptimizer(WrappedOptimizer):
     optimizer_cls = SGD
 
     @classmethod
@@ -21,7 +21,7 @@ class SGDOptimizer(AbstractOptimizer):
 
 
 @Register.optimizer()
-class RMSPropOptimizer(AbstractOptimizer):
+class RMSPropOptimizer(WrappedOptimizer):
     optimizer_cls = RMSprop
 
     @classmethod
@@ -37,7 +37,7 @@ class RMSPropOptimizer(AbstractOptimizer):
 
 
 @Register.optimizer()
-class AdamOptimizer(AbstractOptimizer):
+class AdamOptimizer(WrappedOptimizer):
 
     @classmethod
     def optimizer_cls(cls, params=None, lr=0.01, beta1=0.0, beta2=0.0, eps=1e-8, weight_decay=1e-5, amsgrad=False):

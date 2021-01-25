@@ -7,6 +7,7 @@ import torch.nn as nn
 from uninas.model.modules.misc import InputChoiceWrapperModule, DropPathModule
 from uninas.model.blocks.abstract import AbstractBlock, SearchCNNBlockInterface
 from uninas.model.layers.common import SkipLayer
+from uninas.model.primitives.abstract import PrimitiveSet
 from uninas.register import Register
 from uninas.utils.shape import Shape, ShapeList
 
@@ -33,14 +34,21 @@ class Bench201CNNSearchBlock(Bench201CNNBlock, SearchCNNBlockInterface):
     """ all mixed ops for one block """
 
     @classmethod
-    def search_block_instance(cls, primitives: str, arc_key: str, num_inputs: int, stride: int = 1, strategy_name='default'):
+    def search_block_instance(cls, primitives: PrimitiveSet, arc_key: str, num_inputs: int, stride: int = 1) -> 'Bench201CNNSearchBlock':
+        """
+        :param primitives: primitive set for this block
+        :param arc_key: key under which to register architecture parameter names
+        :param num_inputs: number of block inputs
+        :param stride: stride for the CNN ops
+        :return:
+        """
         assert num_inputs >= 1
         path_names, ops = [], []
 
         for i in range(num_inputs):
             s = stride if i < 2 else 1
             path_name = '%s/op-%d' % (arc_key, i)
-            wrapped = Register.get(primitives).mixed_instance(name=path_name, stride=s, strategy_name=strategy_name)
+            wrapped = primitives.instance(name=path_name, stride=s)
             ops.append(InputChoiceWrapperModule(wrapped, idx=i))
             path_names.append(path_name)
         return cls(ops=nn.ModuleList(ops), path_names=path_names)

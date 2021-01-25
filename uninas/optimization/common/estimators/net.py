@@ -4,7 +4,7 @@ common estimator (metric) utils to rank different networks (architecture subsets
 
 import torch
 from uninas.methods.abstract import AbstractMethod
-from uninas.networks.self.search import SearchUninasNetwork
+from uninas.networks.uninas.search import SearchUninasNetwork
 from uninas.training.trainer.simple import SimpleTrainer
 from uninas.optimization.common.estimators.abstract import AbstractEstimator
 from uninas.utils.args import ArgsInterface, Argument, Namespace
@@ -13,10 +13,24 @@ from uninas.register import Register
 
 
 class AbstractNetEstimator(AbstractEstimator, ArgsInterface):
-    def __init__(self, trainer: SimpleTrainer, load_path: str, args: Namespace, index=None, **kwargs):
+    def __init__(self, args: Namespace, index=None,
+                 trainer: SimpleTrainer = None, load_path: str = None,
+                 method: AbstractMethod = None, **kwargs):
         super().__init__(args, index=index, **kwargs)
-        assert isinstance(trainer.method, AbstractMethod)
-        assert isinstance(trainer.get_network(), SearchUninasNetwork)
+
+        # ensure all required parameters are available
+        if (method is None) and (trainer is not None):
+            method = trainer.get_method()
+        reg_kwargs = Register.get_my_kwargs(self.__class__)
+        if reg_kwargs.get('requires_trainer'):
+            assert isinstance(trainer, SimpleTrainer), "%s needs a trainer" % self.__class__.__name__
+            assert isinstance(load_path, str), "%s needs a path to load weights" % self.__class__.__name__
+        if reg_kwargs.get('requires_method'):
+            assert isinstance(method, AbstractMethod), "%s needs a method" % self.__class__.__name__
+            assert isinstance(method.get_network(), SearchUninasNetwork),\
+                "%s's method must use a search network" % self.__class__.__name__
+
+        self.method = method
         self.trainer = trainer
         self.load_path = load_path
 
@@ -26,9 +40,8 @@ class AbstractNetEstimator(AbstractEstimator, ArgsInterface):
         assert isinstance(net, SearchUninasNetwork)
         return net
 
-    @property
-    def method(self) -> AbstractMethod:
-        return self.trainer.get_method()
+    def short_name(self) -> str:
+        raise NotImplementedError
 
     def evaluate_tuple(self, values: tuple, strategy_name: str = None):
         self.net.set_forward_strategy(False)
@@ -42,12 +55,15 @@ class AbstractNetEstimator(AbstractEstimator, ArgsInterface):
         raise NotImplementedError
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_method=True)
 class NetParamsEstimator(AbstractNetEstimator):
     """
     Estimating the network parameter count
-    (does not properly work with shared architecture weights yet)
+    (does not properly work with paths that share weights)
+    (does not properly work with shared architecture weights)
     (does not account for partial network evaluation yet, as needed in blockwisely search/evaluation)
+
+    Can also be achieved by profiling params, then using the ProfilerEstimator (has the same drawbacks)
     """
 
     def __init__(self, *args_, **kwargs_):
@@ -55,6 +71,9 @@ class NetParamsEstimator(AbstractNetEstimator):
         self.is_set_up = False
         self.choices = []
         self.const = 0
+
+    def short_name(self) -> str:
+        return "parameters"
 
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
@@ -97,18 +116,23 @@ class NetParamsEstimator(AbstractNetEstimator):
         return num_params
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_method=True)
 class NetMacsEstimator(AbstractNetEstimator):
     """
     Estimating the network MACs
     (does not account for partial network evaluation yet, as needed in blockwisely search/evaluation)
+
+    Can also be achieved by profiling macs, then using the ProfilerEstimator
     """
+
+    def short_name(self) -> str:
+        return "macs"
 
     def _evaluate_tuple(self, values: tuple):
         return self.method.profile_macs()
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_trainer=True, requires_method=True)
 class NetValueEstimator(AbstractNetEstimator):
     """
     An Estimator for a value returned by forward passes (loss, accuracy, ...)
@@ -119,6 +143,9 @@ class NetValueEstimator(AbstractNetEstimator):
         super().__init__(*args_, **kwargs_)
         self.net_kwargs = {}
 
+    def short_name(self) -> str:
+        return "value(%s)" % self.kwargs['value']
+
     def set_net_kwargs(self, **kwargs):
         self.net_kwargs = kwargs
 
@@ -128,16 +155,30 @@ class NetValueEstimator(AbstractNetEstimator):
         return super().args_to_add(index) + [
             Argument('load', default="False", type=str, help='load the cached weights or continue', is_bool=True),
             Argument('batches_forward', default=0, type=int, help='num batches to forward the network, to adapt bn'),
-            Argument('batches_train', default=0, type=int, help='num batches to train the network'),
-            Argument('batches_eval', default=5, type=int, help='num batches to train the network'),
+            Argument('batches_train', default=0, type=int, help='num batches to train the network, -1 for an epoch'),
+            Argument('batches_eval', default=-1, type=int, help='num batches to train the network, -1 for an epoch'),
             Argument('value', default='val/accuracy/1', type=str, help='which top k value to optimize'),
         ]
 
     def _evaluate_tuple(self, values: tuple):
         if self.kwargs.get('load', False):
             self.trainer.load(self.load_path)
-        self.trainer.forward_steps(steps=self.kwargs.get('batches_forward'), **self.net_kwargs)
-        dct_t = self.trainer.train_steps(steps=self.kwargs.get('batches_train'), **self.net_kwargs)
-        dct_e = self.trainer.eval_steps(steps=self.kwargs.get('batches_eval'), **self.net_kwargs)
-        dct_t.update(dct_e)
-        return dct_t[self.kwargs['value']].cpu().detach().numpy()
+        train, eval, dct = self.kwargs.get('batches_train', 0), self.kwargs.get('batches_eval', 0), {}
+        # forward
+        if self.kwargs.get('batches_forward') > 0:
+            self.trainer.forward_steps(steps=self.kwargs.get('batches_forward'), **self.net_kwargs)
+        # train
+        if train > 0:
+            dct.update(self.trainer.train_steps(steps=train, **self.net_kwargs))
+        elif train < 0:
+            dct.update(self.trainer.train_epochs(epochs=1, run_eval=False, run_test=False, **self.net_kwargs))
+        # eval
+        if eval > 0:
+            dct.update(self.trainer.eval_steps(steps=eval, **self.net_kwargs))
+        elif eval < 0:
+            dct.update(self.trainer.eval_epoch(**self.net_kwargs))
+        # return
+        v = dct.get(self.kwargs['value'], None)
+        if v is None:
+            raise KeyError("key %s not in dict, have keys=(%s)" % (self.kwargs['value'], list(dct.keys())))
+        return v.cpu().detach().numpy()

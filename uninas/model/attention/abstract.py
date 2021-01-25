@@ -28,7 +28,7 @@ class AbstractAttentionModule(nn.Module):
     def module_from_dict(cls, c: int, c_substitute: int = None, att_dict: dict = None) -> nn.Module:
         assert isinstance(att_dict, dict), "att_dict is not a dict"
         att_dict = att_dict.copy()
-        att_cls = Register.get(att_dict.pop('att_cls'))
+        att_cls = Register.attention_modules.get(att_dict.pop('att_cls'))
         return att_cls(c, c_substitute, **att_dict)
 
 
@@ -41,7 +41,7 @@ class AttentionLayer(AbstractLayer):
         self.att_module = None
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        assert s_in.num_features == c_out
+        assert s_in.num_features() == c_out
         self.att_module = AbstractAttentionModule.module_from_dict(c_out, c_substitute=None, att_dict=self.att_dict)
         return s_in
 

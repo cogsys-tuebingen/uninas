@@ -1,6 +1,7 @@
 from pytorch_lightning.callbacks.base import Callback
-from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.methods.abstract import AbstractMethod
+from uninas.training.trainer.abstract import AbstractTrainerFunctions
+from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.utils.torch.ema import ModelEMA
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.args import ArgsInterface, Namespace
@@ -11,6 +12,7 @@ class AbstractCallback(ArgsInterface, Callback):
     def __init__(self, save_dir: str, index: int, **_):
         super().__init__()
         self._save_dir = replace_standard_paths(save_dir)
+        assert isinstance(index, int)
         self._index = index
 
     def on_set_method(self, trainer: AbstractTrainerFunctions, pl_module: AbstractMethod):
@@ -60,9 +62,12 @@ class AbstractCallback(ArgsInterface, Callback):
         return method
 
     @classmethod
-    def from_args(cls, save_dir: str, args: Namespace, index: int):
+    def from_args(cls, save_dir: str, args: Namespace, index: int) -> 'AbstractCallback':
         parsed = cls._all_parsed_arguments(args, index=index)
         return cls(save_dir, index, **parsed)
+
+    def _dict_key(self, key: str) -> str:
+        return 'callback/%d/%s/%s' % (self._index, self.__class__.__name__, key)
 
 
 # this is only here to avoid registering the checkpoint callback class multiple times

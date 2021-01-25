@@ -10,8 +10,10 @@ the actual search space is based on MnasNet which also contains:
 but only kernel sizes of sizes 3x3 and 5x5 and no SE/swish
 """
 
-from uninas.model.primitives.abstract import PrimitiveSet
-from uninas.model.layers.mobilenet import MixedMobileInvertedConvLayer
+from uninas.model.primitives.abstract import PrimitiveSet, CNNPrimitive
+from uninas.model.layers.mobilenet import MobileInvertedConvLayer
+from uninas.model.layers.scarletnas import LinearTransformerLayer
+from uninas.model.layers.mobilenet import FusedMobileInvertedConvLayer
 from uninas.register import Register
 
 
@@ -24,11 +26,28 @@ class EfficientNetPrimitives(PrimitiveSet):
     """
 
     @classmethod
-    def mixed_instance(cls, name: str, strategy_name='default', **primitive_kwargs) -> MixedMobileInvertedConvLayer:
+    def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish')
+        df['att_dict'] = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=True,
+                              c_mul=0.25, squeeze_act='swish', excite_act='sigmoid',
+                              squeeze_bias=True, excite_bias=True, squeeze_bn=False)
+        primitives = [
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=6.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=6.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=6.0, **df)),
+        ]
+        if stride == 1:
+            primitives.append(CNNPrimitive(cls=LinearTransformerLayer, kwargs=dict()))
+        return primitives
+
+    def _fused_instance(self, name: str, **primitive_kwargs) -> FusedMobileInvertedConvLayer:
         att_dict = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=True,
                         c_mul=0.25, squeeze_act='swish', excite_act='sigmoid',
                         squeeze_bias=True, excite_bias=True, squeeze_bn=False)
-        return MixedMobileInvertedConvLayer(name=name, strategy_name=strategy_name, skip_op=None,
+        return FusedMobileInvertedConvLayer(name=name, strategy_name=self.strategy_name, skip_op=None,
                                             k_sizes=(3, 5, 7), expansions=(3, 6),
                                             padding='same', dilation=1, bn_affine=True,
                                             act_fun='swish', act_inplace=True,
@@ -45,9 +64,24 @@ class EfficientNetECAPrimitives(PrimitiveSet):
     """
 
     @classmethod
-    def mixed_instance(cls, name: str, strategy_name='default', **primitive_kwargs) -> MixedMobileInvertedConvLayer:
+    def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish')
+        df['att_dict'] = dict(att_cls='EfficientChannelAttentionModule', use_c_substitute=True)
+        primitives = [
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=6.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=6.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=6.0, **df)),
+        ]
+        if stride == 1:
+            primitives.append(CNNPrimitive(cls=LinearTransformerLayer, kwargs=dict()))
+        return primitives
+
+    def _fused_instance(self, name: str, **primitive_kwargs) -> FusedMobileInvertedConvLayer:
         att_dict = dict(att_cls='EfficientChannelAttentionModule', use_c_substitute=True)
-        return MixedMobileInvertedConvLayer(name=name, strategy_name=strategy_name, skip_op=None,
+        return FusedMobileInvertedConvLayer(name=name, strategy_name=self.strategy_name, skip_op=None,
                                             k_sizes=(3, 5, 7), expansions=(3, 6),
                                             padding='same', dilation=1, bn_affine=True,
                                             act_fun='swish', act_inplace=True,

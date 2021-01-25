@@ -5,6 +5,7 @@ from torch.optim.optimizer import Optimizer
 
 from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract2 import AbstractTrainer
+from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.utils.args import MetaArgument, Argument, Namespace
 from uninas.register import Register
 
@@ -35,8 +36,6 @@ class LightningTrainer(AbstractTrainer):
         self.weights_dir = '%sweights/' % self.save_dir
         os.makedirs(self.weights_dir, exist_ok=True)
 
-        assert self.cg_nv <= 0.0, "This trainer can not clip by norm"
-
         cudnn, cudnn_b, cudnn_d = self._parsed_arguments(['cudnn', 'cudnn_benchmark', 'cudnn_deterministic'], args)
         nodes, gpus, backend = self._parsed_arguments(['distributed_nodes', 'distributed_gpus', 'distributed_backend'], args)
 
@@ -59,7 +58,7 @@ class LightningTrainer(AbstractTrainer):
                                   max_epochs=999999999,
                                   check_val_every_n_epoch=999999999,
                                   # show_progress_bar=False,
-                                  gradient_clip_val=self.cg_v,
+                                  # gradient_clip_val=self.cg_v,  # maybe find callback, replace it?
                                   early_stop_callback=False,
                                   gpus=gpus,
                                   auto_select_gpus=True,
@@ -109,10 +108,6 @@ class LightningTrainer(AbstractTrainer):
         if run_test:
             self.test_epoch()
 
-    def train_steps(self, steps=1) -> dict:
-        """ train 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
     def eval_epoch(self):
         """ eval one epoch """
         try:
@@ -120,23 +115,15 @@ class LightningTrainer(AbstractTrainer):
         except Exception as e:
             self.logger.error('Exception when trying to eval.', exc_info=e)
 
-    def eval_steps(self, steps=1) -> dict:
-        """ eval 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
-    def test_epoch(self):
+    def test_epoch(self) -> 'LightningTrainer':
         """ test one epoch """
         self.trainer.test(self.method)
         return self
 
-    def test_steps(self, steps=1) -> dict:
-        """ test 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
-    def forward_steps(self, steps=1):
-        """ have 'steps' forward passes on the training set without gradients, e.g. to sanitize batchnorm stats """
-        raise NotImplementedError
-
     def get_optimizers(self) -> [Optimizer]:
         """ get optimizers """
+        raise NotImplementedError
+
+    def get_schedulers(self) -> [AbstractScheduler]:
+        """ get schedulers """
         raise NotImplementedError

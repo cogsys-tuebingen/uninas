@@ -4,8 +4,6 @@ https://arxiv.org/abs/1908.06022
 
 The paper is unclear whether the 13 primitives exist in parallel,
 or if the non-SE and its respective SE version share weights.
-The ImageNet search space here is not intended for actual search (only generating known models),
-as it's probably not efficient.
 """
 
 from uninas.model.primitives.abstract import CNNPrimitive, DifferentConfigPrimitive, StrideChoiceCNNPrimitive, PrimitiveSet
@@ -24,7 +22,7 @@ class ScarletDartsPrimitives(PrimitiveSet):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, **primitive_kwargs) -> [CNNPrimitive]:
         act = dict(act_fun='relu', order='act_w_bn')
         df = dict(act_inplace=False, bn_affine=True, use_bn=True)
         dfnb = df.copy()
@@ -48,7 +46,7 @@ class ScarletDartsPrimitives(PrimitiveSet):
 
 
 @Register.primitive_set()
-class DNU_ScarletPrimitives(PrimitiveSet):
+class ScarletPrimitives(PrimitiveSet):
     """
     MobileNetV2 blocks
     expansion size {3, 6}
@@ -58,13 +56,13 @@ class DNU_ScarletPrimitives(PrimitiveSet):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
         df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='hswish', att_dict=None)
         df_att = df.copy()
         df_att['att_dict'] = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=False,
                                   c_mul=0.25, squeeze_act='relu', excite_act='hsigmoid',
                                   squeeze_bias=True, excite_bias=True, squeeze_bn=False)
-        return [
+        primitives = [
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=3.0, **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=3.0, **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=3.0, **df)),
@@ -78,9 +76,7 @@ class DNU_ScarletPrimitives(PrimitiveSet):
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=6.0, **df_att)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=6.0, **df_att)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=6.0, **df_att)),
-
-            StrideChoiceCNNPrimitive([
-                CNNPrimitive(cls=LinearTransformerLayer, kwargs=dict()),
-                CNNPrimitive(cls=FactorizedReductionLayer, kwargs=dict(use_bn=False, order='w', act_fun='identity'))
-            ]),
         ]
+        if stride == 1:
+            primitives.append(CNNPrimitive(cls=LinearTransformerLayer, kwargs=dict()))
+        return primitives

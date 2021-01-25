@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Union
 import torch
 
 
@@ -36,6 +37,12 @@ class Shape:
             n *= s
         return n
 
+    def num_dims(self) -> int:
+        return len(self.shape)
+
+    def num_features(self):
+        return self.shape[0]
+
     def __str__(self):
         return '%s(%s)' % (self.__class__.__name__, ', '.join([str(s) for s in self.shape]))
 
@@ -55,10 +62,6 @@ class Shape:
 
     def __setitem__(self, key: int, value: int):
         self.shape[key-1] = value
-
-    @property
-    def num_features(self):
-        return self.shape[0]
 
     @classmethod
     def same_spatial_sizes(cls, shape1, shape2) -> bool:
@@ -105,7 +108,19 @@ class ShapeList:
             return self.shapes.extend(shapes)
         return self.shapes.extend(shapes.shapes)
 
-    def flatten(self, b: True):
+    def flatten(self, b: True) -> 'ShapeList':
         if b:
             return ShapeList([s[0] if (isinstance(s, ShapeList) and len(s) == 1) else s for s in self.shapes])
         return self
+
+    @property
+    def num_features(self) -> int:
+        assert len(self.shapes) == 1
+        return self.shapes[0].num_features()
+
+    @classmethod
+    def from_tensors(cls, x: [torch.Tensor]):
+        return cls([Shape.from_tensor(xs) for xs in x])
+
+
+ShapeOrList = Union[Shape, ShapeList]

@@ -3,15 +3,14 @@ import shutil
 import numpy as np
 from uninas.tasks.abstract import AbstractTask, AbstractNetTask
 from uninas.optimization.common.task import common_s2_net_args_to_add, common_s2_extend_args, common_s2_prepare_run
-from uninas.optimization.hpo_pymoo.algorithms.abstract import AbstractPymooAlgorithm, Algorithm
+from uninas.optimization.hpo.pymoo.algorithms.abstract import AbstractPymooAlgorithm, Algorithm
 from uninas.optimization.common.estimators.abstract import AbstractEstimator
-from uninas.optimization.hpo_pymoo.problem import PymooProblem, BenchPymooProblem
-from uninas.optimization.hpo_pymoo.terminations import AbstractPymooTermination, Termination
-from uninas.optimization.hpo_pymoo.result import PymooResultWrapper
+from uninas.optimization.hpo.pymoo.problem import PymooProblem, BenchPymooProblem
+from uninas.optimization.hpo.pymoo.terminations import AbstractPymooTermination, Termination
+from uninas.optimization.hpo.pymoo.result import PymooResultWrapper
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.args import MetaArgument, Argument, Namespace
 from uninas.utils.loggers.python import log_headline, Logger
-from uninas.benchmarks.mini import MiniNASBenchApi
 from uninas.register import Register
 from uninas.builder import Builder
 
@@ -34,21 +33,21 @@ class PymooHPOUtils:
         """
 
         # pymoo hpo algorithm
-        cls_algorithm = cls._parsed_meta_argument('cls_hpo_pymoo_algorithm', args, index=index)
+        cls_algorithm = cls._parsed_meta_argument(Register.hpo_pymoo_algorithms, 'cls_hpo_pymoo_algorithm', args, index=index)
         assert issubclass(cls_algorithm, AbstractPymooAlgorithm), 'Method must have class methods to optimize the arc'
         algorithm = cls_algorithm.from_args(args)
 
         # estimators
         log_headline(logger, 'adding network estimators')
         estimators = []
-        for i, e in enumerate(cls._parsed_meta_arguments('cls_hpo_estimators', args, index=index)):
+        for i, e in enumerate(cls._parsed_meta_arguments(Register.hpo_estimators, 'cls_hpo_estimators', args, index=index)):
             estimator = e(args=args, index=i, **estimator_kwargs)
             estimators.append(estimator)
             logger.info(estimator.str())
 
         # termination
         log_headline(logger, 'adding algorithm termination')
-        cls_terminator = cls._parsed_meta_argument('cls_hpo_pymoo_termination', args, index=index)
+        cls_terminator = cls._parsed_meta_argument(Register.hpo_pymoo_terminators, 'cls_hpo_pymoo_termination', args, index=index)
         assert issubclass(cls_terminator, AbstractPymooTermination),\
             "termination must be a subclass of %s" % AbstractPymooTermination.__name__
         termination = cls_terminator.from_args(args=args, index=None)
@@ -57,9 +56,12 @@ class PymooHPOUtils:
         return algorithm, estimators, termination
 
     @classmethod
-    def meta_args_to_add(cls) -> [MetaArgument]:
+    def meta_args_to_add(cls, estimator_filter: dict = None) -> [MetaArgument]:
+        estimators = Register.hpo_estimators
+        if isinstance(estimator_filter, dict):
+            estimators = estimators.filter_match_all(**estimator_filter)
         return [
-            MetaArgument('cls_hpo_estimators', Register.hpo_estimators, help_name='performance estimators', allowed_num=(1, -1)),
+            MetaArgument('cls_hpo_estimators', estimators, help_name='performance estimators', allowed_num=(1, -1), allow_duplicates=True),
             MetaArgument('cls_hpo_pymoo_algorithm', Register.hpo_pymoo_algorithms, help_name='hyper-parameter algorithm', allowed_num=1),
             MetaArgument('cls_hpo_pymoo_termination', Register.hpo_pymoo_terminators, help_name='algorithm termination criteria', allowed_num=1),
         ]
@@ -93,21 +95,19 @@ class MiniBenchPymooHPOTask(AbstractTask):
     A hyper-parameter optimization task without networks/methods, purely on a given mini-bench
     """
 
-    def __init__(self, args: Namespace, wildcards: dict):
-        AbstractTask.__init__(self, args, wildcards)
-        self.mini_bench = MiniNASBenchApi.load(self._parsed_argument('mini_bench_path', args))
-        self.mini_bench_dataset = self._parsed_argument('mini_bench_dataset', args)
+    def __init__(self, args: Namespace, wildcards: dict, *args_, **kwargs):
+        AbstractTask.__init__(self, args, wildcards, *args_, **kwargs)
+        benchmark_set = self._parsed_meta_argument(Register.benchmark_sets, 'cls_benchmark', args, index=None)
+        self.benchmark_set = benchmark_set.from_args(args, index=None)
         self.plot_true_pareto = self._parsed_argument('plot_true_pareto', args)
 
-        estimator_kwargs = dict(mini_api=self.mini_bench, mini_api_set=self.mini_bench_dataset)
+        estimator_kwargs = dict(mini_api=self.benchmark_set)
         self.algorithm, self.estimators, self.termination = PymooHPOUtils.prepare(self, self.logger, estimator_kwargs, args)
 
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return AbstractTask.args_to_add(index) + [
-            Argument('mini_bench_path', default='{path_data}/mini.pt', type=str, help='', is_path=True),
-            Argument('mini_bench_dataset', default='cifar10', type=str, help=''),
             Argument('plot_true_pareto', default='False', type=str, help='add the true pareto front', is_bool=True),
         ]
 
@@ -117,15 +117,18 @@ class MiniBenchPymooHPOTask(AbstractTask):
         list meta arguments to add to argparse for when this class is chosen,
         classes specified in meta arguments may have their own respective arguments
         """
-        return super().meta_args_to_add() + PymooHPOUtils.meta_args_to_add()
+        benchmark_sets = Register.benchmark_sets.filter_match_all(mini=True, tabular=True)
+        return super().meta_args_to_add() + [
+            MetaArgument('cls_benchmark', benchmark_sets, allowed_num=1, help_name='mini benchmark set to optimize on'),
+        ] + PymooHPOUtils.meta_args_to_add(estimator_filter=dict(requires_bench=True))
 
     def get_estimator_kwargs(self) -> dict:
         """ kwargs for each estimator """
-        return dict(mini_api=self.mini_bench, mini_api_set=self.mini_bench_dataset)
+        return dict(mini_api=self.benchmark_set)
 
     def get_problem(self, estimators: [AbstractEstimator]) -> PymooProblem:
         """ define the problem """
-        return BenchPymooProblem(estimators, self.mini_bench, calc_pareto=self.plot_true_pareto)
+        return BenchPymooProblem(estimators, self.benchmark_set, calc_pareto=self.plot_true_pareto)
 
     def run(self):
         return PymooHPOUtils.run(self.get_problem(self.estimators), self.algorithm, self.termination, self.seed,
@@ -133,14 +136,14 @@ class MiniBenchPymooHPOTask(AbstractTask):
 
 
 @Register.task(search=True)
-class NetPymooHPOTask(AbstractNetTask, PymooHPOUtils):
+class NetPymooHPOTask(AbstractNetTask):
     """
     An s2 task (trying to figure out the optimal network architecture of a trained s1 network)
     the chosen algorithm contains the exact optimization approach
     """
 
-    def __init__(self, args: Namespace, wildcards: dict):
-        AbstractNetTask.__init__(self, args, wildcards)
+    def __init__(self, args: Namespace, *args_, **kwargs):
+        super().__init__(args, *args_, **kwargs)
 
         # args
         self.s1_path = replace_standard_paths(self._parsed_argument('s1_path', args))
@@ -152,11 +155,11 @@ class NetPymooHPOTask(AbstractNetTask, PymooHPOUtils):
         shutil.copyfile('%s/data.meta.pt' % self.s1_path, '%s/data.meta.pt' % self.save_dir)
 
         # one method, one trainer... could be executed in parallel in future?
-        log_headline(self.logger, 'adding Method, Trainer, ...')
+        log_headline(self.logger, 'setting up...')
         self.add_method()
-        self.add_trainer(method=self.methods[0], save_dir=self.save_dir, num_devices=-1)
-        self.log_methods_and_trainer()
-        self.methods[0].get_network().set_forward_strategy(False)
+        self.add_trainer(method=self.get_method(), save_dir=self.save_dir, num_devices=-1)
+        self.log_detailed()
+        self.get_method().get_network().set_forward_strategy(False)
 
         # algorithms
         estimator_kwargs = dict(trainer=self.trainer[0], load_path=self.tmp_load_path)
@@ -173,7 +176,7 @@ class NetPymooHPOTask(AbstractNetTask, PymooHPOUtils):
         list meta arguments to add to argparse for when this class is chosen,
         classes specified in meta arguments may have their own respective arguments
         """
-        return super().meta_args_to_add() + PymooHPOUtils.meta_args_to_add()
+        return super().meta_args_to_add() + PymooHPOUtils.meta_args_to_add(estimator_filter=dict(requires_bench=False))
 
     @classmethod
     def extend_args(cls, args_list: [str]):
@@ -186,16 +189,16 @@ class NetPymooHPOTask(AbstractNetTask, PymooHPOUtils):
     def run(self):
         common_s2_prepare_run(self.logger, self.trainer, self.s1_path, self.tmp_load_path, self.reset_bn, self.methods)
         checkpoint_dir = self.checkpoint_dir(self.save_dir)
-        file_candidate = '%s/candidates/%s.network_config' % (checkpoint_dir, 'candidate-%s')
+        candidate_dir = '%s/candidates/' % checkpoint_dir
 
         # get problem, run
-        xu = np.array([n-1 for n in self.methods[0].strategy.ordered_num_choices(unique=True)])
+        xu = np.array([n - 1 for n in self.get_method().strategy_manager.get_num_choices(unique=True)])
         xl = np.zeros_like(xu)
         problem = PymooProblem(estimators=self.estimators, xl=xl, xu=xu, n_var=len(xu))
         wrapper = PymooHPOUtils.run(problem, self.algorithm, self.termination, self.seed, self.logger, checkpoint_dir)
 
         # save results
         for sr in wrapper.sorted_best():
-            self.methods[0].get_network().forward_strategy(fixed_arc=tuple(sr.x))
-            Builder.save_config(self.methods[0].get_network().config(finalize=True),
-                                file_candidate % '-'.join([str(xs) for xs in sr.x]))
+            self.get_method().get_network().forward_strategy(fixed_arc=tuple(sr.x))
+            Builder.save_config(self.get_method().get_network().config(finalize=True),
+                                candidate_dir, 'candidate-%s' % '-'.join([str(xs) for xs in sr.x]))

@@ -1,36 +1,3 @@
-
-#### ICLR 2021 submission notes
-
-Code used to produce the results presented in https://openreview.net/forum?id=J40FkbdldTX
-
-##### Training of the super-networks
-- example script: */experiments/examples/example_run_bench_s1.py*
-- remove/uncomment the example changes that you don't want (e.g. test run, few epochs, batch size, masked cells)
-- you can change lines 3 and 4 to run either strict fairness or uniform random sampling
-
-##### To reproduce their evaluation
-- example script: */experiments/examples/example_run_bench_hpo.py*
-    - run the super-net training first
-    - the script will automatically load settings and checkpoint from the super-net training
-    ("{cls_task}.s1_path"), e.g. masked operations and which parts of the data set are for evaluation
-- remove/uncomment the example changes that you don't want (e.g. test run)
-- requires the mini-bench save file located in {path_data}.
-    - The mini-bench save file is provided in the supplementary material of the ICLR submission.
-    - {path_data} has to be set in global_config.json.
-
-##### Notes
-- the code has been improved since the submission, so the produced log/tensorboard files may differ slightly from the
-ones in the supplementary material
-- you can find the full task descriptions in /experiments/configs/tasks_bench/
-- since the code is designed for more than the submitted evaluation, it is probably quite a lot to get into.
-The most relevant pieces are:
-    - (all the used classes are presented in the respective config files and logged when running the task)
-    - The tasks: */uninas/tasks/single.py* and */uninas/tasks/hpo_self.py*
-    - The network: */uninas/model/networks/stackedcells.py*
-    - The trainer: */uninas/training/trainer/simple.py*
-
-
-
 # UniNAS
 
 A highly modular PyTorch framework with a focus on Neural Architecture Search (NAS). 

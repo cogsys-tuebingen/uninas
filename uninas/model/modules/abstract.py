@@ -1,16 +1,14 @@
 import types
 from collections.abc import Iterator
-import numpy as np
 import torch
 import torch.nn as nn
-import torchprofile
 
 from uninas.register import Register
-from uninas.utils.shape import Shape, ShapeList
+from uninas.utils.shape import Shape, ShapeList, ShapeOrList
 from uninas.utils.args import ArgsInterface
+from uninas.utils.paths import make_base_dirs
 from typing import Union, List
 
-shape_type = Union[Shape, ShapeList]
 tensor_type = Union[torch.Tensor, List[torch.Tensor]]
 
 
@@ -47,6 +45,18 @@ class AbstractModule(nn.Module):
 
     def get_cached(self, k: str, default=None):
         return self.cached.get(k, default)
+
+    def get_shape_in(self, may_be_none=False) -> ShapeOrList:
+        s_in = self.get_cached('shape_in')
+        if not may_be_none:
+            assert isinstance(s_in, ShapeOrList.__args__)
+        return s_in
+
+    def get_shape_out(self, may_be_none=False) -> ShapeOrList:
+        s_out = self.get_cached('shape_out')
+        if not may_be_none:
+            assert isinstance(s_out, ShapeOrList.__args__)
+        return s_out
 
     # listing modules/kwargs to save+restore via configs ---------------------------------------------------------------
 
@@ -223,11 +233,11 @@ class AbstractModule(nn.Module):
             if condition(m):
                 yield m
 
-    def hierarchical_base_modules(self) -> (type, shape_type, shape_type, list):
+    def hierarchical_base_modules(self) -> (type, ShapeOrList, ShapeOrList, list):
         """ get a hierarchical/recursive representation of (class, shapes_in, shapes_out, submodules) """
         submodules = list(self.base_modules(recursive=False))
-        r0 = self.get_cached('shape_in', None)
-        r1 = self.get_cached('shape_out', None)
+        r0 = self.get_shape_in(may_be_none=True)
+        r1 = self.get_shape_out(may_be_none=True)
         r2 = [m.hierarchical_base_modules() for m in submodules]
         return self, r0, r1, r2
 
@@ -246,7 +256,7 @@ class AbstractModule(nn.Module):
 
     # building and running ---------------------------------------------------------------------------------------------
 
-    def probe_outputs(self, s_in: shape_type, module: nn.Module = None, multiple_outputs=False) -> shape_type:
+    def probe_outputs(self, s_in: ShapeOrList, module: nn.Module = None, multiple_outputs=False) -> ShapeOrList:
         """ returning the output shape of one forward pass using zero tensors """
         with torch.no_grad():
             if module is None:
@@ -257,7 +267,7 @@ class AbstractModule(nn.Module):
                 return ShapeList([Shape(list(sx.shape)[1:]) for sx in s])
             return Shape(list(s.shape)[1:])
 
-    def build(self, *args, **kwargs) -> shape_type:
+    def build(self, *args, **kwargs) -> ShapeOrList:
         """ build/compile this module, save input/output shape(s), return output shape """
         for arg in list(args) + list(kwargs.values()):
             if isinstance(arg, (Shape, ShapeList)):
@@ -267,12 +277,17 @@ class AbstractModule(nn.Module):
         self.cached['shape_out'] = s_out.copy(copy_id=True)
         return s_out
 
-    def _build(self, *args, **kwargs) -> shape_type:
+    def _build(self, *args, **kwargs) -> ShapeOrList:
         """ build/compile this module, return output shape """
         raise NotImplementedError
 
     def forward(self, x: tensor_type) -> tensor_type:
         raise NotImplementedError
+
+    def export_onnx(self, save_path: str, **kwargs):
+        save_path = make_base_dirs(save_path)
+        x = self.get_shape_in(may_be_none=False).random_tensor(batch_size=2).to(self.get_device())
+        torch.onnx.export(model=self, args=x, f=save_path, **kwargs)
 
     # can disable state dict
 
@@ -309,7 +324,7 @@ class AbstractArgsModule(AbstractModule, ArgsInterface):
         ArgsInterface.__init__(self)
         self._add_to_kwargs(**kwargs_to_store)
 
-    def _build(self, *args) -> shape_type:
+    def _build(self, *args) -> ShapeOrList:
         raise NotImplementedError
 
     def forward(self, x: tensor_type) -> tensor_type:

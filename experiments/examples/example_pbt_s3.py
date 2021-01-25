@@ -6,7 +6,7 @@ Population Based Training (PBT)
 - multiple clients like this connect to a server and receive instructions to save/load and change hyperparameters
 
 start this n times in different processes
-retraining a network from a .network_config (only referenced via name, e.g. FairNasC)
+retraining a network from a network config (only referenced via name, e.g. FairNasC)
 
 beware that we may be using fake data
 """
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     args["{cls_task}.seed"] = t
     args["{cls_task}.save_dir"] = '%s/%d/' % (args.get("{cls_task}.save_dir"), t)
     task = Main.new_task([], args_changes=args)
-    # print(task.methods[0].get_network())
+    # print(task.get_method().get_network())
     task.load()
     # task.load('{path_tmp}/s3_2/')
     task.run()

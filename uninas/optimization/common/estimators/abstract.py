@@ -3,7 +3,7 @@ estimators (metrics) to rank different networks (architecture subsets of a super
 """
 
 import numpy as np
-from uninas.optimization.hpo_self.candidate import Candidate
+from uninas.optimization.hpo.uninas.candidate import Candidate
 from uninas.utils.args import ArgsInterface, Namespace, Argument
 
 
@@ -13,7 +13,8 @@ class AbstractEstimator(ArgsInterface):
         all_parsed = self._all_parsed_arguments(args, index)
         self.key = all_parsed.pop('key')
         bounds = (all_parsed.pop('min_value'), all_parsed.pop('max_value'))
-        self.bounds = bounds if all_parsed.pop('is_constraint') else None
+        self._is_constraint = all_parsed.pop('is_constraint')
+        self.bounds = bounds if self._is_constraint else None
         self._maximize = all_parsed.pop('maximize')
         self._weighting = all_parsed.pop('weighting', 1.0)
         self._is_objective = all_parsed.pop('is_objective')
@@ -44,7 +45,10 @@ class AbstractEstimator(ArgsInterface):
         return self._is_objective
 
     def is_constraint(self) -> bool:
-        return self.bounds is not None
+        return self._is_constraint
+
+    def is_maximize(self) -> bool:
+        return self._maximize
 
     def name(self, only_minimize=True) -> str:
         if self._maximize and only_minimize:
@@ -56,8 +60,21 @@ class AbstractEstimator(ArgsInterface):
             return self._sign
         return 1
 
-    def is_allowed(self, candidate: Candidate):
-        return self.bounds[0] <= candidate.metrics.get(self.key) <= self.bounds[1]
+    def is_candidate_allowed(self, candidate: Candidate):
+        return self.is_in_constraints(candidate.metrics.get(self.key))
+
+    def is_in_constraints(self, value: float) -> bool:
+        if self._is_constraint:
+            return self.bounds[0] <= value <= self.bounds[1]
+        return True
+
+    def get_constraint_badness(self, value: float) -> float:
+        """ get a number how much 'value' violates the constraints, 0 if it is within """
+        if self.is_in_constraints(value):
+            return 0
+        if value < self.bounds[0]:
+            return self.bounds[0] / (value + 1e-10)
+        return value / self.bounds[1]
 
     def is_dominated(self, candidate1: Candidate, candidate2: Candidate) -> (bool, bool):
         """ check whether candidate1 is dominated by candidate2, or equal """

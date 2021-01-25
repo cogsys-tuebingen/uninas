@@ -20,8 +20,8 @@ class GdasSearchMethod(AbstractBiOptimizationMethod):
             Argument('tauN', default=0.1, type=float, help='final tau value for softmax annealing'),
         ]
 
-    def get_strategy(self):
-        """ get strategy for architecture weights """
+    def setup_strategy(self) -> StrategyManager:
+        """ set up the strategy for architecture weights """
         tau0 = self._parsed_argument('tau0', self.hparams)
         return StrategyManager().add_strategy(GDASStrategy(self.max_epochs, tau0=tau0, use_mask=False))
 
@@ -29,5 +29,5 @@ class GdasSearchMethod(AbstractBiOptimizationMethod):
         log_dict = super()._on_epoch_start()
         tau0, tauN = self._parsed_arguments(['tau0', 'tauN'], self.hparams)
         ce, te = self.current_epoch, self.max_epochs
-        self.strategy.tau = (tau0 - tauN) * (1 - ce/te) + tauN
-        return self._add_to_dict(log_dict, dict(tau=self.strategy.tau))
+        self.strategy_manager.tau = (tau0 - tauN) * (1 - ce / te) + tauN
+        return self._add_to_dict(log_dict, dict(tau=self.strategy_manager.tau))

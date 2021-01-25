@@ -16,7 +16,7 @@ class ShuffleNetV2Primitives(PrimitiveSet):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, **primitive_kwargs) -> [CNNPrimitive]:
         df = dict(dilation=1, bn_affine=True, act_fun='relu', act_inplace=False, expansion=1.0, att_dict=None)
         return [
             CNNPrimitive(cls=ShuffleNetV2Layer, kwargs=dict(k_size=3, **df)),

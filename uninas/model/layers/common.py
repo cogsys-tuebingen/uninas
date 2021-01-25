@@ -14,7 +14,7 @@ class SkipLayer(AbstractLayer):
         super().__init__(**base_kwargs)
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        feature_diff = c_out - s_in.num_features
+        feature_diff = c_out - s_in.num_features()
         assert feature_diff >= 0
         self._add_to_print_kwargs(features=c_out, feature_diff=feature_diff)
         return self.probe_outputs(s_in)
@@ -39,7 +39,7 @@ class LinearLayer(AbstractStepsLayer):
         self._add_to_kwargs(bias=bias)
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
-        wf = list(weight_functions) + [nn.Linear(s_in.num_features, c_out, self.bias)]
+        wf = list(weight_functions) + [nn.Linear(s_in.num_features(), c_out, self.bias)]
         return super()._build(s_in, c_out, weight_functions=wf)
 
 

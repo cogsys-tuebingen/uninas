@@ -10,7 +10,6 @@
     "{cls_device}.num_devices": 1,
     "{cls_device}.use_cudnn": true,
     "{cls_device}.use_cudnn_benchmark": true,
-    "{cls_device}.use_cudnn_deterministic": false,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": false,
@@ -20,9 +19,6 @@
 
     "cls_trainer": "SimpleTrainer",
     "{cls_trainer}.max_epochs": 250,
-    "{cls_trainer}.clip_grad_value": -1,
-    "{cls_trainer}.clip_grad_norm_value": -1,
-    "{cls_trainer}.clip_grad_norm_type": 2,
     "{cls_trainer}.log_fs": true,
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": 10,

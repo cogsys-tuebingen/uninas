@@ -26,8 +26,8 @@ if __name__ == '__main__':
     args.__setattr__('%s.warmup_lr' % Scheduler.__name__, warmup_lr)
     args.__setattr__('%s.eta_min' % Scheduler.__name__, min_lr)
 
-    opt = Optimizer(args, named_params=[('a', a)])
-    scheduler = Scheduler(args, opt, max_epochs)
+    opt = Optimizer.from_args(args, index=None, named_params=[('a', a)])
+    scheduler = Scheduler.from_args(args, opt, max_epochs)
     print(args)
 
     print(opt)

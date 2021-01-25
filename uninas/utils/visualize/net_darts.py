@@ -63,8 +63,7 @@ def visualize_cell(cell: AbstractModule, save_path: str, name: str, show=True):
 
 def visualize_config(config: dict, save_path: str):
     save_path = replace_standard_paths(save_path)
-    cfg_path = replace_standard_paths('{path_tmp}/viz/viz.network_config')
-    Builder.save_config(config, cfg_path)
+    cfg_path = Builder.save_config(config, replace_standard_paths('{path_tmp}/viz/'), 'viz')
     exp = Main.new_task(run_config, args_changes={
         '{cls_data}.fake': True,
         '{cls_data}.batch_size_train': 2,
@@ -74,7 +73,7 @@ def visualize_config(config: dict, save_path: str):
         "{cls_task}.note": "viz",
         "{cls_network}.config_path": cfg_path,
     })
-    net = exp.get_first_method().get_network()
+    net = exp.get_method().get_network()
     for s in ['n', 'r']:
         for cell in net.get_cells():
             if cell.name.startswith(s):
@@ -83,12 +82,12 @@ def visualize_config(config: dict, save_path: str):
     print('Saved cell viz to %s' % save_path)
 
 
-def visualize_file(config_path, save_dir):
-    config_name_ = config_path.split('/')[-1].split('.')[0]
+def visualize_file(config_path: str, save_dir: str):
+    config_name_ = Builder.net_config_name(config_path)
     save_path = save_dir+config_name_+'/'
     config = Builder.load_config(config_path)
     visualize_config(config, save_path)
 
 
 if __name__ == '__main__':
-    visualize_file(replace_standard_paths('{path_conf_net_originals}/DARTS_V1.network_config'), '{path_tmp}/viz/')
+    visualize_file(Builder.find_net_config_path('DARTS_V1'), '{path_tmp}/viz/')

@@ -1,14 +1,17 @@
 import os
 import torch
+from datetime import timedelta
 from typing import Union
 from torch.nn.parallel import DistributedDataParallel as Ddp
 from torch.optim.optimizer import Optimizer
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from pytorch_lightning.accelerators.ddp_accelerator import DDPAccelerator
+from pytorch_lightning.plugins.ddp_plugin import DDPPlugin
 from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.trainer.abstract2 import AbstractTrainer
+from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.training.result import EvalLogResult, TrainLogResult
 from uninas.training.devices.abstract import AbstractDeviceMover
 from uninas.training.callbacks.abstract import AbstractCallback
@@ -26,8 +29,7 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
 
     def __init__(self, rank: int, world_size: int, method: AbstractMethod, save_dir: str, mover: AbstractDeviceMover,
                  callbacks: [AbstractCallback], exp_logger: LightningLoggerBase, epochs=1, eval_last=2, test_last=2,
-                 cg_v=-1, cg_nv=-1, cg_nt=2, is_test_run=False,
-                 ema_decay=0.9999, ema_device='same', use_sync_bn=False, load_state: dict = None):
+                 is_test_run=False, ema_decay=0.9999, ema_device='same', use_sync_bn=False, load_state: dict = None):
         super().__init__()
         self.rank = rank
         self.mover = mover.get_device_subset([rank])
@@ -45,7 +47,7 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
             eval_loader = self.get_method().data_set.valid_loader(dist=True) if eval_last != 0 else None
             test_loader = self.get_method().data_set.test_loader(dist=True) if test_last != 0 else None
 
-            num_steps = SimpleDDPTrainer.num_test_steps if is_test_run else len(train_loader)
+            num_steps = min([SimpleDDPTrainer.num_test_steps, len(train_loader)]) if is_test_run else len(train_loader)
             is_finished = False
             assert len(self.optimizers) == 1
 
@@ -65,7 +67,7 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
                 self._log_dict(log_dict, do_print=False, sync=False, callback_fun='on_train_epoch_start')
 
                 # train
-                log_dict = self._train_steps_ddp(train_loader, num_steps, cg_v, cg_nv, cg_nt, is_test_run)
+                log_dict = self._train_steps_ddp(train_loader, num_steps, is_test_run)
                 self.get_method().training_epoch_end([])
                 if self.method_ema is not None:
                     assert isinstance(self.get_method(), AbstractMethod)
@@ -106,13 +108,14 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
 
     def _setup_ddp(self, world_size: int, method: AbstractMethod, exp_logger: LightningLoggerBase,
                    ema_decay: float, ema_device: str, use_sync_bn: bool) -> (Ddp, ModelEMA):
+        os.environ['NCCL_BLOCKING_WAIT'] = '1'
         os.environ['MASTER_ADDR'] = 'localhost'
         os.environ['MASTER_PORT'] = '12355'
         os.environ['WORLD_SIZE'] = str(world_size)
         os.environ['RANK'] = str(self.rank)
-        dist.init_process_group('nccl', rank=self.rank, world_size=world_size)
+        dist.init_process_group('nccl', rank=self.rank, world_size=world_size, timeout=timedelta(minutes=5))
 
-        accelerator = DDPAccelerator(None)
+        accelerator = DDPAccelerator(None, ddp_plugin=DDPPlugin())
 
         if use_sync_bn:
             method = accelerator.configure_sync_batchnorm(method)
@@ -167,7 +170,7 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
     def _summarize_log_dicts(self, results: [Union[EvalLogResult, TrainLogResult]]) -> EvalLogResult:
         return self.get_method().validation_epoch_end(results)
 
-    def _train_steps_ddp(self, loader, steps=1, cg_v=-1, cg_nv=-1, cg_nt=2, is_test_run=False) -> dict:
+    def _train_steps_ddp(self, loader, steps=1, is_test_run=False) -> dict:
         """ train 'steps' steps, return the method's log dict """
         self.ddp_method.train()
         self.get_method().testing = False
@@ -176,10 +179,10 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
         for i in range(steps):
             result = self.ddp_method(batch=self._next_batch(loader), batch_idx=i)
             result.minimize.backward()
+            result.detach()
             results.append(result)
             self.get_method().optimizer_step(epoch=self.get_method().current_epoch, batch_idx=i,
-                                             optimizer=self.optimizers[0], optimizer_idx=0,
-                                             clip_value=cg_v, clip_norm_value=cg_nv, clip_norm_type=cg_nt)
+                                             optimizer=self.optimizers[0], optimizer_idx=0)
             for scheduler in self.schedulers:
                 scheduler.step_samples(n=n)
         return self._summarize_log_dicts(results).get_log_info()
@@ -189,14 +192,21 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
         main_dict = {}
         with torch.no_grad():
             if loader is not None:
-                for m, fmt in self.iterate_usable_methods(self.ddp_method, self.method_ema):
+                # get usable methods, set them to eval mode
+                methods_fmts = list(self.iterate_usable_methods(self.ddp_method, self.method_ema))
+                results = []
+                for (m, _) in methods_fmts:
                     m.eval()
                     m.module.testing = testing
-                    results = []
-                    for i in range(steps):
-                        results.append(m(batch=self._next_batch(loader), batch_idx=i))
-                    # add suffix to the string before the first /
-                    for k, v in self._summarize_log_dicts(results).get_log_info().items():
+                    results.append([])
+                # iterate num batches, same batch for all methods
+                for i in range(steps):
+                    batch = self._next_batch(loader)
+                    for j, (m, _) in enumerate(methods_fmts):
+                        results[j].append(m(batch=batch, batch_idx=i))
+                # add suffix to the string before the first /
+                for r, (_, fmt) in zip(results, methods_fmts):
+                    for k, v in self._summarize_log_dicts(r).get_log_info().items():
                         ks = k.split('/')
                         ks[0] = fmt % ks[0]
                         main_dict['/'.join(ks)] = v
@@ -206,7 +216,7 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
         """ eval or test one epoch """
         name = 'Test' if testing else 'Eval'
         if loader is not None:
-            num_steps = SimpleDDPTrainer.num_test_steps if is_test_run else len(loader)
+            num_steps = min([SimpleDDPTrainer.num_test_steps, len(loader)]) if is_test_run else len(loader)
             self._log('%s, epoch %d, %d steps' % (name, self.get_method().current_epoch, num_steps))
             return self._eval_or_test_steps_ddp(loader, steps=num_steps, testing=testing)
         return {}
@@ -243,6 +253,10 @@ class SimpleDDPTrainerTrainEpochsImpl(AbstractTrainerFunctions):
         """ get optimizers """
         return self.optimizers
 
+    def get_schedulers(self) -> [AbstractScheduler]:
+        """ get schedulers """
+        return self.schedulers
+
 
 @Register.trainer()
 class SimpleDDPTrainer(AbstractTrainer):
@@ -258,7 +272,7 @@ class SimpleDDPTrainer(AbstractTrainer):
         super().__init__(method, args, *_, **__)
 
         if self.mover.get_num_devices() == 1:
-            self.logger.warning('Using only one GPU for DDP training, consider using SimpleTrainer')
+            self.logger.warning('Using only one device for DDP training, consider using SimpleTrainer')
 
         self._state_to_load = dict()
 
@@ -270,40 +284,31 @@ class SimpleDDPTrainer(AbstractTrainer):
         ]
 
     def train_epochs(self, epochs=1, run_eval=True, run_test=True):
-        """ train 'epochs' epochs """
+        """ train 'epochs' epochs, includes eval/test for the last n epochs """
         assert len(self.callbacks) > 0, "DDP requires a checkpoint callback to recover weights later"
-        mp.spawn(SimpleDDPTrainerTrainEpochsImpl,
-                 args=(self.mover.get_num_devices(), self.method, self.save_dir, self.mover, self.callbacks,
-                       self.exp_logger, epochs, self.eval_last, self.test_last,
-                       self.cg_v, self.cg_nv, self.cg_nt, self.is_test_run,
-                       self.ema_decay, self.ema_device, self.use_sync_bn, self._state_to_load),
-                 nprocs=self.mover.get_num_devices(),
-                 join=True)
-        self.resource_logger.wakeup()
+        self.mover.empty_cache()
+        args = (self.mover.get_num_devices(), self.method, self.save_dir, self.mover, self.callbacks,
+                self.exp_logger, epochs, self.eval_last, self.test_last, self.is_test_run,
+                self.ema_decay, self.ema_device, self.use_sync_bn, self._state_to_load)
+        # create threads, join them, always try to clean up
+        context = mp.spawn(SimpleDDPTrainerTrainEpochsImpl, args=args, nprocs=self.mover.get_num_devices(), join=False)
+        try:
+            while not context.join():
+                pass
+            self.resource_logger.wakeup()
+        except Exception as e:
+            raise e
+        finally:
+            self.mover.empty_cache()
+            self.resource_logger.stop()
         CheckpointCallback.load_last_checkpoint(self.save_dir, self.method)
-
-    def train_steps(self, steps=1) -> dict:
-        """ train 'steps' steps, return the method's log dict """
-        raise NotImplementedError
 
     def eval_epoch(self):
         """ eval one epoch """
         raise NotImplementedError
 
-    def eval_steps(self, steps=1) -> dict:
-        """ eval 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
     def test_epoch(self):
         """ test one epoch """
-        raise NotImplementedError
-
-    def test_steps(self, steps=1) -> dict:
-        """ test 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
-    def forward_steps(self, steps=1):
-        """ have 'steps' forward passes on the training set without gradients, e.g. to sanitize batchnorm stats """
         raise NotImplementedError
 
     def _load_state_dict(self, state: dict):
@@ -312,4 +317,8 @@ class SimpleDDPTrainer(AbstractTrainer):
 
     def get_optimizers(self) -> [Optimizer]:
         """ get optimizers """
+        raise NotImplementedError
+
+    def get_schedulers(self) -> [AbstractScheduler]:
+        """ get schedulers """
         raise NotImplementedError

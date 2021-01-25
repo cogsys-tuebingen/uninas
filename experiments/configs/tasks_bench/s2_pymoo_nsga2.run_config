@@ -5,9 +5,11 @@
     "{cls_task}.note": "NSGA-II bench search",
     "{cls_task}.save_dir": "{path_tmp}/bench/s2/pymoo/nsga2/",
     "{cls_task}.save_del_old": true,
-    "{cls_task}.mini_bench_path": "{path_data}/nasbench201_1.1_mini.pt",
-    "{cls_task}.mini_bench_dataset": "ImageNet16-120",
     "{cls_task}.plot_true_pareto": true,
+
+    "cls_benchmark": "MiniNASTabularBenchmark",
+    "{cls_benchmark}.default_data_set": "ImageNet16-120",
+    "{cls_benchmark}.path": "{path_data}/nats_bench_1.1_mini.pt",
 
     "cls_hpo_pymoo_algorithm": "NSGA2PymooAlgorithm",
     "{cls_hpo_pymoo_algorithm}.pop_size": 30,

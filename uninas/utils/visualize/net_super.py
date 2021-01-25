@@ -4,9 +4,10 @@ visualize a super network
 
 
 from graphviz import Digraph
-from uninas.model.cells.passthrough import PassThroughCNNCell
+from uninas.networks.uninas.search import SearchUninasNetwork
+from uninas.model.cells.single_layer import SingleLayerCell
 from uninas.model.heads.cnn import FeatureMixClassificationHead
-from uninas.utils.generate.super_configs import NetWrapper
+from uninas.utils.generate.networks.super_configs import NetWrapper
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.misc import get_var_name
 
@@ -34,7 +35,8 @@ def width_str(expansion: str):
 def visualize_genotype(wrapper: NetWrapper, save_dir: str):
     config_name = get_var_name(wrapper)
     save_dir = replace_standard_paths('%s%s/' % (save_dir, config_name))
-    wrapper_net, config, _ = wrapper.generate('%s%s' % (save_dir, 'viz.network_config'))
+    wrapper_net, config, _ = wrapper.generate(save_dir, 'viz')
+    assert isinstance(wrapper_net, SearchUninasNetwork)
 
     g = Digraph(format='pdf', engine='dot',
                 edge_attr=dict(fontsize='20', fontname="times"),
@@ -47,8 +49,8 @@ def visualize_genotype(wrapper: NetWrapper, save_dir: str):
            fillcolor=colors.get('misc'))
     node_names = ['stem']
 
-    for i, cell in enumerate(wrapper_net.get_network().cells):
-        assert isinstance(cell, PassThroughCNNCell)
+    for i, cell in enumerate(wrapper_net.get_network().get_cells()):
+        assert isinstance(cell, SingleLayerCell)
         name = cell_order[i]
         op_cfg = config.get('kwargs').get('cell_configs').get(name).get('submodules').get('op')
         cell_cls = op_cfg.get('name')
@@ -88,5 +90,5 @@ def visualize_genotype(wrapper: NetWrapper, save_dir: str):
 
 
 if __name__ == '__main__':
-    from uninas.utils.generate.super_configs import FairNasC
+    from uninas.utils.generate.networks.super_configs import FairNasC
     visualize_genotype(FairNasC, '{path_tmp}/viz/')

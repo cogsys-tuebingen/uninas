@@ -3,6 +3,8 @@
     "{cls_task}.save_dir": "{path_tmp}/pbt_server/",
     "{cls_task}.save_del_old": true,
     "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
 
     "{cls_task}.communication_file": "{path_tmp}/pbt_server/communication_uri",
     "{cls_task}.num_clients": 4,

@@ -70,13 +70,13 @@ class AbstractShuffleNetLayer(AbstractLayer):
 @Register.network_layer()
 class ShuffleNetV2Layer(AbstractShuffleNetLayer):
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        assert not (c_out <= s_in.num_features and self.stride > 1), "must increase num features when stride is >1"
-        assert s_in.num_features % 4 == 0 and c_out % 2 == 0, "num features must be divisible by 4"
+        assert not (c_out <= s_in.num_features() and self.stride > 1), "must increase num features when stride is >1"
+        assert s_in.num_features() % 4 == 0 and c_out % 2 == 0, "num features must be divisible by 4"
 
         padding = get_padding(self.padding, self.k_size, self.stride, self.dilation)
 
         if self.stride >= 2:
-            c_side = c_main_in = s_in.num_features
+            c_side = c_main_in = s_in.num_features()
 
             self.branch_proj = nn.Sequential(*[
                 # dw
@@ -85,10 +85,10 @@ class ShuffleNetV2Layer(AbstractShuffleNetLayer):
                 # pw
                 nn.Conv2d(c_side, c_side, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(c_side, affine=self.bn_affine),
-                Register.get(self.act_fun)(inplace=self.act_inplace),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ])
         else:
-            c_side = c_main_in = s_in.num_features // 2
+            c_side = c_main_in = s_in.num_features() // 2
         c_main_out = c_out - c_side
         c_main_mid = int(c_out // 2 * self.expansion)
 
@@ -96,14 +96,14 @@ class ShuffleNetV2Layer(AbstractShuffleNetLayer):
             # pw
             nn.Conv2d(c_main_in, c_main_mid, 1, 1, 0, bias=False),
             nn.BatchNorm2d(c_main_mid, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             # dw
             nn.Conv2d(c_main_mid, c_main_mid, self.k_size, self.stride, padding, groups=c_main_mid, bias=False),
             nn.BatchNorm2d(c_main_mid, affine=self.bn_affine),
             # pw
             nn.Conv2d(c_main_mid, c_main_out, 1, 1, 0, bias=False),
             nn.BatchNorm2d(c_main_out, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
         ]
         # optional attention module
         if isinstance(self.att_dict, dict):
@@ -118,14 +118,14 @@ class ShuffleNetV2Layer(AbstractShuffleNetLayer):
 @Register.network_layer()
 class ShuffleNetV2XceptionLayer(AbstractShuffleNetLayer):
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        assert not (c_out <= s_in.num_features and self.stride > 1), "must increase num features when stride is >1"
-        assert s_in.num_features % 4 == 0 and c_out % 2 == 0, "num features must be divisible by 4"
+        assert not (c_out <= s_in.num_features() and self.stride > 1), "must increase num features when stride is >1"
+        assert s_in.num_features() % 4 == 0 and c_out % 2 == 0, "num features must be divisible by 4"
 
         padding = get_padding(self.padding, self.k_size, self.stride, self.dilation)
         padding2 = get_padding(self.padding, self.k_size, 1, self.dilation)
 
         if self.stride >= 2:
-            c_side = c_main_in = s_in.num_features
+            c_side = c_main_in = s_in.num_features()
 
             self.branch_proj = nn.Sequential(*[
                 # dw
@@ -134,10 +134,10 @@ class ShuffleNetV2XceptionLayer(AbstractShuffleNetLayer):
                 # pw
                 nn.Conv2d(c_side, c_side, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(c_side, affine=self.bn_affine),
-                Register.get(self.act_fun)(inplace=self.act_inplace),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ])
         else:
-            c_side = c_main_in = s_in.num_features // 2
+            c_side = c_main_in = s_in.num_features() // 2
         c_main_out = c_out - c_side
         c_main_mid = int(c_out // 2 * self.expansion)
 
@@ -148,21 +148,21 @@ class ShuffleNetV2XceptionLayer(AbstractShuffleNetLayer):
             # pw 1
             nn.Conv2d(c_main_in, c_main_mid, 1, 1, 0, bias=False),
             nn.BatchNorm2d(c_main_mid, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             # dw 2
             nn.Conv2d(c_main_mid, c_main_mid, self.k_size, 1, padding2, groups=c_main_mid, bias=False),
             nn.BatchNorm2d(c_main_mid, affine=self.bn_affine),
             # pw 2
             nn.Conv2d(c_main_mid, c_main_mid, 1, 1, 0, bias=False),
             nn.BatchNorm2d(c_main_mid, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             # dw 3
             nn.Conv2d(c_main_mid, c_main_mid, self.k_size, 1, padding2, groups=c_main_mid, bias=False),
             nn.BatchNorm2d(c_main_mid, affine=self.bn_affine),
             # pw 3
             nn.Conv2d(c_main_mid, c_main_out, 1, 1, 0, bias=False),
             nn.BatchNorm2d(c_main_out, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
         ]
         # optional attention module
         if isinstance(self.att_dict, dict):

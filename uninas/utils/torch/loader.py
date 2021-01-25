@@ -3,7 +3,14 @@ specific kinds of data loaders
 """
 
 
-class InfIterator:
+class CustomIterator:
+    def _set_attrs(self, loader):
+        for k in ['dataset', 'batch_size', 'num_workers', 'collate_fn', 'pin_memory', 'drop_last',
+                  'timeout', 'worker_init_fn', 'sampler']:
+            self.__setattr__(k, loader.__getattribute__(k))
+
+
+class InfIterator(CustomIterator):
     """
     prevents exceptions from exhausted iterators
     """
@@ -11,9 +18,7 @@ class InfIterator:
     def __init__(self, loader):
         self.loader = loader
         self.iterator = None
-        for k in ['dataset', 'batch_size', 'num_workers', 'collate_fn', 'pin_memory', 'drop_last',
-                  'timeout', 'worker_init_fn', 'sampler']:
-            self.__setattr__(k, self.loader.__getattribute__(k))
+        self._set_attrs(self.loader)
 
     def __iter__(self):
         for _ in range(len(self)):
@@ -36,7 +41,7 @@ class InfIterator:
         return len(self.loader)
 
 
-class MultiLoader:
+class MultiLoader(CustomIterator):
     """
     iterates multiple loaders at the same time
     will likely not work with PyTorch Lightning ddp/ddp2 distribution
@@ -44,9 +49,7 @@ class MultiLoader:
 
     def __init__(self, loaders: list):
         self.iterators = [InfIterator(loader) for loader in loaders]
-        for k in ['dataset', 'batch_size', 'num_workers', 'collate_fn', 'pin_memory', 'drop_last',
-                  'timeout', 'worker_init_fn', 'sampler']:
-            self.__setattr__(k, self.iterators[0].__getattribute__(k))
+        self._set_attrs(self.iterators[0])
 
     def __next__(self):
         return [it.next() for it in self.iterators]
@@ -62,7 +65,7 @@ class MultiLoader:
         return min([len(it) for it in self.iterators])
 
 
-class InterleavedLoader:
+class InterleavedLoader(CustomIterator):
     """
     iterates multiple loaders at the same time, interleaving batches
     will likely not work with PyTorch Lightning ddp/ddp2 distribution
@@ -78,9 +81,7 @@ class InterleavedLoader:
         self.iterators = [InfIterator(loader) for loader in loaders]
         self.multiples = multiples
         self._loader_idx, self._mult = 0, 0
-        for k in ['dataset', 'batch_size', 'num_workers', 'collate_fn', 'pin_memory', 'drop_last',
-                  'timeout', 'worker_init_fn', 'sampler']:
-            self.__setattr__(k, self.iterators[0].__getattribute__(k))
+        self._set_attrs(self.iterators[0])
 
     def set_multiples(self, multiples: list):
         self.multiples = multiples

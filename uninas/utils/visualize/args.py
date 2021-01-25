@@ -18,12 +18,13 @@ colors = {
 def _visualize_args_tree(node: ArgsTreeNode, g: Digraph):
     g.node(node.name, label=node.name, fillcolor=colors.get('cls'))
     for meta_name, meta_children in node.children.items():
-        lim = node.metas[meta_name].limit_str()
-        g.node(meta_name, label="%s (%s)" % (meta_name, lim), fillcolor=colors.get('meta'))
-        g.edge(node.name, meta_name)
-        for child in meta_children:
-            _visualize_args_tree(child, g)
-            g.edge(meta_name, child.name)
+        if node.metas.get(meta_name):
+            lim = node.metas[meta_name].limit_str()
+            g.node(meta_name, label="%s (%s)" % (meta_name, lim), fillcolor=colors.get('meta'))
+            g.edge(node.name, meta_name)
+            for child in meta_children:
+                _visualize_args_tree(child, g)
+                g.edge(meta_name, child.name)
 
 
 def visualize_args_tree(node: ArgsTreeNode):

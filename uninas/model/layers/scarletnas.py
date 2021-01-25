@@ -24,8 +24,8 @@ class LinearTransformerLayer(AbstractLayer):
         self.conv = None
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        assert c_out - s_in.num_features >= 0
-        self.conv = nn.Conv2d(s_in.num_features, c_out, kernel_size=1, stride=1, padding=0, bias=False)
+        assert c_out - s_in.num_features() >= 0
+        self.conv = nn.Conv2d(s_in.num_features(), c_out, kernel_size=1, stride=1, padding=0, bias=False)
         return self.probe_outputs(s_in)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

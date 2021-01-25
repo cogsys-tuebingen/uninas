@@ -2,16 +2,12 @@ import os
 import json
 import inspect
 from typing import Union
-from glob import glob
-from collections.abc import Callable
 from urllib.request import urlretrieve
 from enum import Enum
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
 
 
-logger = get_logger()
-
-
+name_task_config = 'task.run_config'
 project_dir = '%s/' % ('/'.join(__file__.split('/')[:-3]))
 
 global_config_path = '{}global_config.json'.format(project_dir)
@@ -37,6 +33,7 @@ standard_paths = {
     # global_config
     'path_data': None,
     'path_pretrained': None,
+    "path_profiled": None,
     'path_tmp': None,
     'path_downloads_misc': None,
 }
@@ -55,9 +52,18 @@ def get_class_path(cls: type) -> str:
 def replace_standard_paths(path: str) -> str:
     """ replace common path wildcards in the string to avoid awkward relative paths in different files... """
     endswith = path.endswith('/')
-    path = os.path.abspath(path.format(**standard_paths))
+    if path.startswith("."):
+        path = os.path.abspath(path)
+    path = path.format(**standard_paths)
     if os.path.isdir(path) or endswith:
         path += '/'
+    return path
+
+
+def make_base_dirs(path: str) -> str:
+    """ create the dir and return the path """
+    path = replace_standard_paths(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     return path
 
 
@@ -74,7 +80,7 @@ def maybe_download(path_or_url: str, file_type: FileType = FileType.MISC) -> Uni
     try to use a cached download, otherwise download it,
     then return the path
     """
-    path_or_url = path_or_url.format(**standard_paths)
+    path_or_url = replace_standard_paths(path_or_url)
     if os.path.isfile(path_or_url):
         return path_or_url
     else:
@@ -83,27 +89,25 @@ def maybe_download(path_or_url: str, file_type: FileType = FileType.MISC) -> Uni
             file_path = '%s/%s' % (file_type.value, path_or_url.split('/')[-1])
             if not os.path.isfile(file_path):
                 urlretrieve(path_or_url, file_path)
+                LoggerManager().get_logger().info("downloaded %s to %s" % (path_or_url, file_path))
             return file_path
         except:
             return None
 
 
-def split(string: str, cast_fun: Callable = None) -> list:
-    """ split a comma-separated string into a list, maybe cast list elements to desired type """
-    if string is None or len(string) == 0:
-        return []
-    re = list(string.replace(' ', '').split(','))
-    if cast_fun is not None:
-        re = [cast_fun(s) for s in re]
-    return re
+def get_task_config_path(dir_: str) -> str:
+    return "%s/%s" % (replace_standard_paths(dir_), name_task_config)
 
 
 def get_net_config_dir(config_source: str) -> str:
     """ determine the path to put a network config """
-    return {
+    splits = config_source.split('/')
+    splits[0] = {
         'original': replace_standard_paths('{path_conf_net_originals}/'),
+        'originals': replace_standard_paths('{path_conf_net_originals}/'),
         'discovered': replace_standard_paths('{path_conf_net_discovered}/'),
-    }.get(config_source, '__unknown_source__')
+    }.get(splits[0], '__unknown_source__')
+    return '/'.join(splits)
 
 
 def find_all_files(dir_: str, extension='.t7') -> list:
@@ -114,39 +118,3 @@ def find_all_files(dir_: str, extension='.t7') -> list:
             if file_name.endswith(extension):
                 file_paths.append('%s/%s' % (sub_dir, file_name))
     return file_paths
-
-
-def find_net_config_path(config_name: str) -> str:
-    """ find a network config, get its full path """
-    if '/' in config_name:
-        return config_name
-    p = replace_standard_paths('{path_conf_net}') + '/*/' + config_name + '*'
-    paths = glob(p)
-    if len(paths) != 1:
-        raise FileNotFoundError('must have exactly one config in %s, found %s' % (p, str(paths)))
-    return paths[0]
-
-
-def find_net_config_name(config_name: str) -> str:
-    """ find a network config, return its name """
-    cfg_path = find_net_config_path(config_name)
-    return cfg_path.split('/')[-1].split('.')[0]
-
-
-def find_pretrained_weights_path(path: str, name: str, raise_missing=True) -> str:
-    """
-    find path to pretrained weights in folder or URL
-    """
-    maybe_path = maybe_download(path, FileType.WEIGHTS)
-    if isinstance(maybe_path, str):
-        return maybe_path
-    path = replace_standard_paths(path)
-    if len(path) == 0 or os.path.isfile(path):
-        return path
-    p = '%s/**/*%s*' % (path, name)
-    paths = glob(p, recursive=True)
-    if len(paths) < 1:
-        if raise_missing:
-            raise FileNotFoundError('can not find pretrained weights in %s' % p)
-        return ''
-    return paths[0]

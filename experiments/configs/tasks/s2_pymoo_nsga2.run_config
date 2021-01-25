@@ -2,6 +2,7 @@
     "cls_task": "NetPymooHPOTask",
     "{cls_task}.is_test_run": false,
     "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
     "{cls_task}.note": "s2 NSGA-II search",
     "{cls_task}.save_dir": "{path_tmp}/s2/nsga2/",
     "{cls_task}.save_del_old": false,
@@ -12,7 +13,6 @@
     "{cls_device}.num_devices": 1,
     "{cls_device}.use_cudnn": true,
     "{cls_device}.use_cudnn_benchmark": true,
-    "{cls_device}.use_cudnn_deterministic": false,
 
     "cls_hpo_pymoo_algorithm": "NSGA2PymooAlgorithm",
     "{cls_hpo_pymoo_algorithm}.pop_size": 100,
@@ -32,7 +32,7 @@
     "{cls_hpo_estimators#1}.load": false,
     "{cls_hpo_estimators#1}.batches_forward": 0,
     "{cls_hpo_estimators#1}.batches_train": 0,
-    "{cls_hpo_estimators#1}.batches_eval": 100,
+    "{cls_hpo_estimators#1}.batches_eval": -1,
     "{cls_hpo_estimators#1}.value": "val/accuracy/1",
 
     "cls_hpo_pymoo_termination": "NIterPymooTermination",

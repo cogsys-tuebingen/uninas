@@ -5,8 +5,9 @@ from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.devices.abstract import AbstractDeviceMover
 from uninas.training.callbacks.checkpoint import CheckpointCallback
+from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.utils.loggers.resources import ResourceLogThread
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.loggers.exp import AbstractExpLogger
 from uninas.utils.args import ArgsInterface, MetaArgument, Argument, Namespace
 from uninas.utils.torch.ema import ModelEMA
@@ -33,12 +34,8 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
         super().__init__()
         # args
         self.args = args
-        self.max_epoch = self._parsed_argument('max_epochs', args)
+        self.max_epoch, self.stop_epoch = self._parsed_arguments(['max_epochs', 'stop_epoch'], args)
         log_fs, log_ram, log_device = self._parsed_arguments(['log_fs', 'log_ram', 'log_device'], args)
-        # gradient clipping
-        self.cg_v = self._parsed_argument('clip_grad_value', args)
-        self.cg_nv, self.cg_nt = self._parsed_arguments(['clip_grad_norm_value', 'clip_grad_norm_type'], args)
-        assert self.cg_v <= 0 or self.cg_nv <= 0, "Should not clip gradients both by norm and by value"
 
         # other
         self.method = None
@@ -60,8 +57,7 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
 
         # log resources
         td = 5 if self.is_test_run else 300
-        exp_logger = AbstractExpLogger.collection(logger_save_dir, args,
-                                                  self._parsed_meta_arguments('cls_exp_loggers', args, index=None))
+        exp_logger = AbstractExpLogger.collection(logger_save_dir, args, self._parsed_meta_arguments(Register.exp_loggers, 'cls_exp_loggers', args, index=None))
         self.resource_logger = ResourceLogThread(exp_logger=exp_logger, seconds=td,
                                                  mover=self.mover if log_device else None,
                                                  log_fs=log_fs, log_ram=log_ram)
@@ -70,8 +66,7 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
                          (str(self.mover.indices), str(log_ram), str(log_fs), td))
 
         # log experiment data to e.g. tensorboard
-        self.exp_logger = AbstractExpLogger.collection(logger_save_dir, args,
-                                                       self._parsed_meta_arguments('cls_exp_loggers', args, index=None))
+        self.exp_logger = AbstractExpLogger.collection(logger_save_dir, args, self._parsed_meta_arguments(Register.exp_loggers, 'cls_exp_loggers', args, index=None))
 
         # eval/test the last n steps
         self.eval_last, self.test_last = self._parsed_arguments(['eval_last', 'test_last'], args)
@@ -85,7 +80,7 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
 
         # callbacks
         self.callbacks = [cls.from_args(self.save_dir, self.args, index=i)
-                          for i, cls in enumerate(self._parsed_meta_arguments('cls_callbacks', args, index=None))]
+                          for i, cls in enumerate(self._parsed_meta_arguments(Register.training_callbacks, 'cls_callbacks', args, index=None))]
 
         # more warnings
         if not self.can_step_opt_n:
@@ -93,6 +88,11 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
 
         # set the method
         self.set_method(method)
+
+    def _str_dict(self) -> dict:
+        dct = super()._str_dict()
+        dct.update(dict(max_epoch=self.max_epoch, eval_last=self.eval_last, test_last=self.test_last))
+        return dct
 
     def set_method(self, method: AbstractMethod):
         """ give the trainer a method to optimize """
@@ -111,8 +111,8 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
         """ new logger if required """
         if logger is not None:
             return logger
-        return get_logger(default_level=logging.DEBUG if is_test_run else logging.INFO,
-                          save_file='%slog_trainer%s.txt' % (save_dir, suffix))
+        return LoggerManager().get_logger(default_level=logging.DEBUG if is_test_run else logging.INFO,
+                                          save_file='%slog_trainer%s.txt' % (save_dir, suffix))
 
     @classmethod
     def num_opt_steps(cls, loader, num_gpus=1, is_test_run=False) -> float:
@@ -126,10 +126,7 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
             Argument('max_epochs', default=1, type=int, help='max training epochs, affects schedulers + regularizers'),
-
-            Argument('clip_grad_value', default=-1, type=float, help='clip gradient to +- value, <=0 to disable'),
-            Argument('clip_grad_norm_value', default=-1, type=float, help='clip gradient norm value, <=0 to disable'),
-            Argument('clip_grad_norm_type', default=2, type=float, help='clip gradient norm type'),
+            Argument('stop_epoch', default=-1, type=int, help='stop after training n epochs anyway, if > 0'),
 
             Argument('log_fs', default='True', type=str, help='log file system usage', is_bool=True),
             Argument('log_ram', default='True', type=str, help='log RAM usage', is_bool=True),
@@ -170,42 +167,40 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
         """ train all remaining epochs """
         self.train_until_epoch(self.max_epoch)
 
-    def train_until_epoch(self, epoch: int):
-        rem_epochs = epoch - self.method.trained_epochs
-        if rem_epochs > 0:
-            self.train_epochs(rem_epochs)
-        else:
-            self.logger.info('Already trained %d epochs! (task: train to %d)' % (self.method.trained_epochs, epoch))
-        return self
+    def train_until_epoch(self, epoch: int) -> 'AbstractTrainer':
+        try:
+            if epoch >= self.stop_epoch > 0:
+                epoch = min([epoch, self.stop_epoch])
+                self.logger.info('Will stop training early after %d epochs (scheduler, regularizer, etc. '
+                                 'are subject to max_epochs=%d)!' % (self.stop_epoch, self.max_epoch))
+            rem_epochs = epoch - self.method.trained_epochs
+            if rem_epochs > 0:
+                self.train_epochs(rem_epochs)
+            else:
+                self.logger.info('Already trained %d epochs! (task: train to %d)' % (self.method.trained_epochs, epoch))
+            return self
+        finally:
+            self.cleanup()
 
     def train_epochs(self, epochs=1, run_eval=True, run_test=True):
         """ train 'epochs' epochs """
-        raise NotImplementedError
-
-    def train_steps(self, steps=1) -> dict:
-        """ train 'steps' steps, return the method's log dict """
         raise NotImplementedError
 
     def eval_epoch(self):
         """ eval one epoch """
         raise NotImplementedError
 
-    def eval_steps(self, steps=1) -> dict:
-        """ eval 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
     def test_epoch(self):
         """ test one epoch """
-        raise NotImplementedError
-
-    def test_steps(self, steps=1) -> dict:
-        """ test 'steps' steps, return the method's log dict """
-        raise NotImplementedError
-
-    def forward_steps(self, steps=1):
-        """ have 'steps' forward passes on the training set without gradients, e.g. to sanitize batchnorm stats """
         raise NotImplementedError
 
     def get_optimizers(self) -> [Optimizer]:
         """ get optimizers """
         raise NotImplementedError
+
+    def get_schedulers(self) -> [AbstractScheduler]:
+        """ get schedulers """
+        raise NotImplementedError
+
+    def cleanup(self):
+        self.resource_logger.stop()

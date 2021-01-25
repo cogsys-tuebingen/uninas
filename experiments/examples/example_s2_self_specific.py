@@ -11,8 +11,8 @@ beware that s1 is using fake data
 
 args = {
     "cls_task": "NetHPOTask",
-    "{cls_task}.s1_path": "{path_tmp}/s1/",
-    # "{cls_task}.s1_path": "{path_tmp}/from_config/",
+    # "{cls_task}.s1_path": "{path_tmp}/s1/",
+    "{cls_task}.s1_path": "{path_tmp}/run_config/",
 
     "{cls_task}.save_dir": "{path_tmp}/s2/",
     "{cls_task}.save_del_old": True,
@@ -22,8 +22,8 @@ args = {
     "{cls_device}.num_devices": 1,
 
     "cls_hpo_self_algorithm": "SpecificHPO",
-    "{cls_hpo_self_algorithm}.values": "0, 0, 0, 0;"
-                                       "0, 0, 3, x;",
+    "{cls_hpo_self_algorithm}.values": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;"
+                                       "0, 0, 3, x, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;",
 
     "{cls_data}.dir": "{path_data}/ImageNet_ILSVRC2012/",
     "{cls_data}.fake": True,
@@ -45,7 +45,7 @@ args = {
     "{cls_hpo_estimators#1}.load": False,
     "{cls_hpo_estimators#1}.batches_forward": 0,
     "{cls_hpo_estimators#1}.batches_train": 0,
-    "{cls_hpo_estimators#1}.batches_eval": 5,
+    "{cls_hpo_estimators#1}.batches_eval": -1,
     "{cls_hpo_estimators#1}.value": "val/accuracy/1",
     # params
     "{cls_hpo_estimators#2}.key": "params",

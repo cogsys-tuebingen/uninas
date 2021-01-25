@@ -1,7 +1,7 @@
 import torch
 from torch.optim.sgd import SGD
 from uninas.utils.args import Argument
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.register import Register
 
 
@@ -33,7 +33,7 @@ class SGDDebug(SGD):
             counts = [0, 0, 0, 0]
             for p in group['params']:
                 if not p.requires_grad:
-                    counts[-1] += 1
+                    counts[3] += 1
                     continue
                 if p.grad is None:
                     counts[0] += 1
@@ -51,7 +51,7 @@ class SGDDebug(SGD):
 
 
 @Register.optimizer()
-class DebugOptimizer(AbstractOptimizer):
+class DebugOptimizer(WrappedOptimizer):
     optimizer_cls = SGDDebug
 
     @classmethod

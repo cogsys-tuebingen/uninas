@@ -3,6 +3,7 @@ from collections import defaultdict, Sequence
 import torch
 import torch.nn as nn
 from uninas.utils.args import ArgsInterface
+from uninas.register import Register
 
 
 class RequestedWeight:
@@ -13,8 +14,8 @@ class RequestedWeight:
     def __init__(self, name: str):
         self.name = name
         self.requested_by = []
-        self._num_choices = -1
         self._num_requests = 0
+        self._choice_indices = []
 
     def add_request(self, choices: nn.ModuleList = None, num_choices: int = None):
         assert isinstance(choices, nn.ModuleList) or isinstance(num_choices, int)
@@ -22,7 +23,7 @@ class RequestedWeight:
         if len(self.requested_by) > 0:
             assert self.num_choices() == num_choices,\
                 "Multiple weights with the same name need to have the same number of choices!"
-        self._num_choices = num_choices
+        self._choice_indices = list(range(num_choices))
         self._num_requests += 1
         if isinstance(choices, nn.ModuleList):
             self.requested_by.append(choices)
@@ -31,7 +32,13 @@ class RequestedWeight:
         return self._num_requests
 
     def num_choices(self) -> int:
-        return self._num_choices
+        return len(self._choice_indices)
+
+    def get_choices(self) -> [int]:
+        return self._choice_indices.copy()
+
+    def mask_index(self, idx: int):
+        self._choice_indices.remove(idx)
 
 
 class AbstractWeightStrategy(nn.Module, ArgsInterface):
@@ -45,6 +52,7 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         self.name = name
 
         self._requested = {}            # {name: RequestedWeight}
+        self._ordered = []              # RequestedWeights in order of requests
         self._ordered_unique = []       # RequestedWeights in order of requests, ignoring duplicates
 
     def on_epoch_start(self, current_epoch: int):
@@ -65,8 +73,7 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         return sizes
 
     def str(self) -> str:
-        return '%s("%s", %d arc choices of sizes %s)' %\
-               (self.__class__.__name__, self.name, len(self._ordered_unique), list(self._requested_sizes().keys()))
+        return '%s("%s", %d architecture weights)' % (self.__class__.__name__, self.name, len(self._ordered_unique))
 
     def make_weight(self, name: str, choices: nn.ModuleList = None, num_choices: int = None):
         """
@@ -80,15 +87,23 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
             self._requested[name] = RequestedWeight(name)
             self._ordered_unique.append(self._requested[name])
         self._requested[name].add_request(choices, num_choices)
+        self._ordered.append(self._requested[name])
 
     def max_num_choices(self) -> int:
         return max([r.num_choices() for r in self._ordered_unique])
 
-    def ordered_num_choices(self) -> [int]:
+    def get_num_choices(self) -> [int]:
         """
         num choices per weight, by request order
         """
         return [r.num_choices() for r in self._ordered_unique]
+
+    def ordered_names(self, unique=True) -> [str]:
+        """
+        name of each weight, by request order
+        """
+        lst = self._ordered_unique if unique else self._ordered
+        return [r.name for r in lst]
 
     def get_weight_names(self) -> [str]:
         return [r.name for r in self._ordered_unique]
@@ -131,6 +146,12 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         """ {name: value} of the highest weight probability value """
         raise NotImplementedError
 
+    def get_finalized_index(self, name: str) -> int:
+        """ return index of the module that should constitute the new architecture, for this specific weight """
+        indices = self.get_finalized_indices(name)
+        assert len(indices) == 1, "Have %d indices but must select one, which is ambiguous" % len(indices)
+        return indices[0]
+
     def get_finalized_indices(self, name: str) -> [int]:
         """ return indices of the modules that should constitute the new architecture, for this specific weight """
         raise NotImplementedError
@@ -171,6 +192,7 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         weight_names = [weight_name] if isinstance(weight_name, str) else self.get_weight_names()
         for n in weight_names:
             self._mask_index(idx, n)
+            self.get_requested_weight(n).mask_index(idx)
 
     def _mask_index(self, idx: int, weight_name: str):
         raise NotImplementedError
@@ -187,3 +209,7 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         :return:
         """
         pass
+
+    @classmethod
+    def is_single_path(cls) -> bool:
+        return Register.get_my_kwargs(cls).get('single_path', False)

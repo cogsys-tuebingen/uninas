@@ -40,9 +40,9 @@ class SqueezeExcitationChannelModule(AbstractAttentionModule):
         if squeeze_bn:
             ops.append(nn.BatchNorm2d(c_red, affine=squeeze_bn_affine))
         ops.extend([
-            Register.get(squeeze_act)(inplace=True),
+            Register.act_funs.get(squeeze_act)(inplace=True),
             nn.Conv2d(c_red, c, kernel_size=1, stride=1, bias=excite_bias),
-            Register.get(excite_act)(inplace=True),
+            Register.act_funs.get(excite_act)(inplace=True),
         ])
         self.op = nn.Sequential(*ops)
 

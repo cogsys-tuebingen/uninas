@@ -3,6 +3,7 @@ import torch
 from torch.optim.optimizer import Optimizer
 from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract2 import AbstractTrainer
+from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.training.result import EvalLogResult, TrainLogResult
 from uninas.utils.args import Namespace
 from uninas.utils.torch.misc import itemize
@@ -13,7 +14,7 @@ from uninas.register import Register
 @Register.trainer()
 class SimpleTrainer(AbstractTrainer):
     """
-    A simple trainer for a single device (GPU)
+    A simple trainer for a single device (e.g. GPU)
     """
 
     def __init__(self, method: AbstractMethod, args: Namespace, *_, **__):
@@ -31,6 +32,7 @@ class SimpleTrainer(AbstractTrainer):
         self.method = self.mover.move_module(method)
         assert isinstance(self.method, AbstractMethod)
         self.method_ema = ModelEMA.maybe_init(self.logger, self.method, self.ema_decay, self.ema_device)
+        self.mover.empty_cache()
         self.optimizers, self.schedulers = self.method.configure_optimizers()
         self.method.logger = self.exp_logger
 
@@ -70,7 +72,8 @@ class SimpleTrainer(AbstractTrainer):
             for c in self.callbacks:
                 c.setup(self, self.method, "fit+test")
             self.resource_logger.wakeup()
-            num_steps = self.num_test_steps if self.is_test_run else len(self.loader_train)
+            num_steps = min([self.num_test_steps, len(self.loader_train)])\
+                if self.is_test_run else len(self.loader_train)
             is_finished = False
 
             for i in range(epochs):
@@ -120,10 +123,10 @@ class SimpleTrainer(AbstractTrainer):
             for i in range(steps):
                 result = self.method.training_step(batch=self._next_batch(self.loader_train), batch_idx=i, **net_kwargs)
                 result.minimize.backward()
+                result.detach()
                 results.append(result)
                 self.method.optimizer_step(epoch=self.method.current_epoch, batch_idx=i,
-                                           optimizer=self.optimizers[0], optimizer_idx=0,
-                                           clip_value=self.cg_v, clip_norm_value=self.cg_nv, clip_norm_type=self.cg_nt)
+                                           optimizer=self.optimizers[0], optimizer_idx=0)
                 for scheduler in self.schedulers:
                     scheduler.step_samples(n=n)
             return self.summarize_results(results).get_log_info()
@@ -133,57 +136,61 @@ class SimpleTrainer(AbstractTrainer):
         """ eval one epoch """
         if self.loader_eval is not None:
             self.resource_logger.wakeup()
-            num_steps = self.num_test_steps if self.is_test_run else len(self.loader_eval)
+            num_steps = min([self.num_test_steps, len(self.loader_eval)]) if self.is_test_run else len(self.loader_eval)
             self.logger.info('Eval, epoch %d, %d steps' % (self.method.current_epoch, num_steps))
             log_dict = self.eval_steps(num_steps, **net_kwargs)
             self.log_dict(log_dict)
             for c in self.callbacks:
                 c.on_validation_epoch_end(self, self.method, self.method_ema, log_dict=log_dict)
-
-    def eval_steps(self, steps=1, **net_kwargs) -> dict:
-        """ eval 'steps' steps, return the method's log dict """
-        main_dict = {}
-        with torch.no_grad():
-            if self.loader_eval is not None and steps > 0:
-                for m, fmt in self.iterate_usable_methods(self.method, self.method_ema):
-                    m.eval()
-                    results = []
-                    for i in range(steps):
-                        results.append(m.validation_step(batch=self._next_batch(self.loader_eval), batch_idx=i, **net_kwargs))
-                    # add suffix to the string before the first /
-                    for k, v in self.summarize_results(results).get_log_info().items():
-                        ks = k.split('/')
-                        ks[0] = fmt % ks[0]
-                        main_dict['/'.join(ks)] = v
-            return main_dict
+            return log_dict
+        return {}
 
     def test_epoch(self, **net_kwargs):
         """ test one epoch """
         if self.loader_test is not None:
             self.resource_logger.wakeup()
-            num_steps = self.num_test_steps if self.is_test_run else len(self.loader_test)
+            num_steps = min([self.num_test_steps, len(self.loader_test)]) if self.is_test_run else len(self.loader_test)
             self.logger.info('Test, epoch %d, %d steps' % (self.method.current_epoch, num_steps))
             log_dict = self.test_steps(num_steps, **net_kwargs)
             self.log_dict(log_dict)
             for c in self.callbacks:
                 c.on_test_epoch_end(self, self.method, self.method_ema, log_dict=log_dict)
+            return log_dict
+        return {}
 
-    def test_steps(self, steps=1, **net_kwargs) -> dict:
-        """ test 'steps' steps, return the method's log dict """
+    def _eval_or_test_steps(self, steps=1, is_eval=True, **net_kwargs) -> dict:
+        """ eval or test 'steps' steps, return the method's log dict """
         main_dict = {}
+        loader = self.loader_eval if is_eval else self.loader_test
         with torch.no_grad():
-            if self.loader_test is not None and steps > 0:
-                for m, fmt in self.iterate_usable_methods(self.method, self.method_ema):
+            if loader is not None and steps > 0:
+                # get usable methods, set them to eval mode
+                methods_fmts = list(self.iterate_usable_methods(self.method, self.method_ema))
+                funs, results = [], []
+                for (m, _) in methods_fmts:
                     m.eval()
-                    results = []
-                    for i in range(steps):
-                        results.append(m.test_step(batch=self._next_batch(self.loader_test), batch_idx=i, **net_kwargs))
-                    # add suffix to the string before the first /
-                    for k, v in self.summarize_results(results).get_log_info().items():
+                    results.append([])
+                    funs.append(m.validation_step if is_eval else m.test_step)
+                # iterate num batches, same batch for all methods
+                for i in range(steps):
+                    batch = self._next_batch(loader)
+                    for j in range(len(methods_fmts)):
+                        results[j].append(funs[j](batch=batch, batch_idx=i, **net_kwargs))
+                # add suffix to the string before the first /
+                for r, (_, fmt) in zip(results, methods_fmts):
+                    for k, v in self.summarize_results(r).get_log_info().items():
                         ks = k.split('/')
                         ks[0] = fmt % ks[0]
                         main_dict['/'.join(ks)] = v
             return main_dict
+
+    def eval_steps(self, steps=1, **net_kwargs) -> dict:
+        """ eval 'steps' steps, return the method's log dict """
+        return self._eval_or_test_steps(steps=steps, is_eval=True, **net_kwargs)
+
+    def test_steps(self, steps=1, **net_kwargs) -> dict:
+        """ test 'steps' steps, return the method's log dict """
+        return self._eval_or_test_steps(steps=steps, is_eval=False, **net_kwargs)
 
     def forward_steps(self, steps=1, **net_kwargs):
         """ have 'steps' forward passes on the training set without gradients, e.g. to sanitize batch-norm stats """
@@ -196,3 +203,7 @@ class SimpleTrainer(AbstractTrainer):
     def get_optimizers(self) -> [Optimizer]:
         """ get optimizers """
         return self.optimizers
+
+    def get_schedulers(self) -> [AbstractScheduler]:
+        """ get schedulers """
+        return self.schedulers

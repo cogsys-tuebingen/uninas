@@ -82,7 +82,9 @@ class Main(ArgsInterface):
         :param raise_unparsed: raise an exception if there are unparsed arguments left
         :return: new task as defined by the command line arguments
         """
-        # reset plotting
+        print("Creating new task")
+
+        # reset any plotting
         plt.clf()
         plt.cla()
 
@@ -103,7 +105,7 @@ class Main(ArgsInterface):
         parser = argparse.ArgumentParser(description='UniNAS Project')
         node = ArgsTreeNode(Main)
         node.build_from_args(args_list, parser)
-        args, wildcards, failed_args = node.parse(args_list, parser, raise_unparsed=raise_unparsed)
+        args, wildcards, failed_args, descriptions = node.parse(args_list, parser, raise_unparsed=raise_unparsed)
 
         # note failed wildcards
         if len(failed_args) > 0:
@@ -120,9 +122,9 @@ class Main(ArgsInterface):
 
         # clean up, create and return the task
         Argument.reset_cached()
-        cls_task = cls._parsed_meta_argument('cls_task', args, index=None)
+        cls_task = cls._parsed_meta_argument(Register.tasks, 'cls_task', args, index=None)
         print('Starting %s!' % cls_task.__name__)
-        return cls_task(args, wildcards)
+        return cls_task(args, wildcards, descriptions=descriptions)
 
     @classmethod
     def meta_args_to_add(cls) -> [MetaArgument]:

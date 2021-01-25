@@ -5,13 +5,12 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
 
 from uninas.utils.args import ArgsInterface, Argument, Namespace
-from uninas.utils.misc import split
 from uninas.register import Register
 
 
 class AbstractExpLogger(ArgsInterface):
     @classmethod
-    def from_args(cls, save_dir: str, args: Namespace, index: int = None, version=0):
+    def from_args(cls, save_dir: str, args: Namespace, index: int = None, version=0) -> LightningLoggerBase:
         parsed = cls._all_parsed_arguments(args, index=index)
         return cls.get_logger(save_dir, version=version, **parsed)
 

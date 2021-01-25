@@ -5,12 +5,12 @@ verify the top1/top5 test accuracy of a network
 import argparse
 import torch
 from uninas.training.metrics.accuracy import accuracy
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.torch.standalone import get_network, get_imagenet
 
 
 def verify():
-    logger = get_logger()
+    logger = LoggerManager().get_logger()
 
     parser = argparse.ArgumentParser('get_network')
     parser.add_argument('--config_path', type=str, default='FairNasC')
@@ -27,7 +27,7 @@ def verify():
         num_workers=args.data_num_workers,
         batch_size=args.data_batch_size,
         aug_dict={
-            "cls_augmentations": "DartsImagenetAug",
+            "cls_augmentations": "TimmImagenetAug",
             "DartsImagenetAug#0.crop_size": 224,
         },
     )

@@ -44,6 +44,12 @@ class AbstractDeviceMover:
         assert self._is_alive, "Can not move to device after de-allocating it"
         return self._move(t)
 
+    def empty_cache(self):
+        """
+        empty the cache
+        """
+        raise NotImplementedError
+
     def synchronize(self, original=True):
         """
         make sure all operations are complete
@@ -74,7 +80,7 @@ class AbstractDevicesManager(ArgsInterface):
     """
     _mover_cls = AbstractDeviceMover
 
-    def __init__(self, seed: int, num_devices: int):
+    def __init__(self, seed: int, is_deterministic: bool, num_devices: int):
         super().__init__()
         assert num_devices > 0, "Must have more than zero devices!"
         self.num_devices = num_devices
@@ -127,6 +133,6 @@ class AbstractDevicesManager(ArgsInterface):
         ]
 
     @classmethod
-    def from_args(cls, seed: int, args: Namespace, index: int = None):
+    def from_args(cls, seed: int, is_deterministic: bool, args: Namespace, index: int = None) -> 'AbstractDevicesManager':
         parsed = cls._all_parsed_arguments(args, index=index)
-        return cls(seed, **parsed)
+        return cls(seed, is_deterministic, **parsed)

@@ -11,8 +11,8 @@ class UniformRandomMethod(AbstractOptimizationMethod):
     Randomly sample 1 out of the available options
     """
 
-    def get_strategy(self):
-        """ get strategy for architecture weights """
+    def setup_strategy(self) -> StrategyManager:
+        """ set up the strategy for architecture weights """
         return StrategyManager().add_strategy(RandomChoiceStrategy(self.max_epochs))
 
 
@@ -25,15 +25,15 @@ class StrictlyFairRandomMethod(AbstractOptimizationMethod):
 
     def __init__(self, hparams: Namespace):
         super().__init__(hparams)
-        self.steps_for_update = self.strategy.max_num_choices()
+        self.steps_for_update = self.strategy_manager.max_num_choices()
         self.steps_last_update = 0
 
-    def get_strategy(self):
-        """ get strategy for architecture weights """
+    def setup_strategy(self) -> StrategyManager:
+        """ set up the strategy for architecture weights """
         return StrategyManager().add_strategy(FairRandomChoiceStrategy(self.max_epochs, assert_same_length=True))
 
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, **__):
+    def optimizer_step(self, *args, **kwargs):
         """ only have a parameter update every n steps, when every path has received exactly one gradient """
         self.steps_last_update = (self.steps_last_update + 1) % self.steps_for_update
         if self.steps_last_update == 0:
-            super().optimizer_step(epoch, batch_idx, optimizer, optimizer_idx, **__)
+            super().optimizer_step(*args, **kwargs)

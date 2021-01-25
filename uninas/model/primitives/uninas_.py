@@ -19,21 +19,18 @@ class UninasMixedEcaHswishPrimitives(PrimitiveSet):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
         df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='hswish')
         att_dict = dict(att_cls='EfficientChannelAttentionModule', use_c_substitute=False,
                         k_size=-1, gamma=2, b=1, excite_act='sigmoid')
-
-        return [
+        primitives = [
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(expansion=3, att_dict=att_dict, k_size=(3,), **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(expansion=3, att_dict=att_dict, k_size=(3, 5), **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(expansion=3, att_dict=att_dict, k_size=(3, 5, 7), **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(expansion=6, att_dict=att_dict, k_size=(3,), **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(expansion=6, att_dict=att_dict, k_size=(3, 5), **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(expansion=6, att_dict=att_dict, k_size=(3, 5, 7), **df)),
-
-            StrideChoiceCNNPrimitive([
-                CNNPrimitive(cls=LinearTransformerLayer, kwargs=dict()),
-                CNNPrimitive(cls=FactorizedReductionLayer, kwargs=dict(use_bn=False, order='w', act_fun='identity'))
-            ]),
         ]
+        if stride == 1:
+            primitives.append(CNNPrimitive(cls=LinearTransformerLayer, kwargs=dict()))
+        return primitives

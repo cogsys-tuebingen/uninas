@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-from uninas.utils.loggers.python import get_logger
-
-
-logger = get_logger(__name__)
 
 
 class SqueezeModule(nn.Module):

@@ -13,14 +13,14 @@ args = {
     "{cls_task}.is_test_run": False,
 
     # device on which the profiling function operates
-    "cls_device": "CudaDevicesManager",   # CpuDevicesManager, CudaDevicesManager
+    "cls_device": "CpuDevicesManager",   # CpuDevicesManager, CudaDevicesManager
     "{cls_device}.num_devices": 1,
 
     # profiler to select how the profiling and prediction works
-    "cls_profiler": "TabularCellsProfiler",
+    "cls_profiler": "NetworkSurrogateProfiler",  # TabularCellsProfiler, NetworkSurrogateProfiler
 
     # function to profile one specific architecture in the super-network
-    "cls_profile_fun": "LatencyProfileFunction",
+    "cls_profile_fun": "LatencyProfileFunction",  # ParamsProfileFunction
     "{cls_profile_fun}.num_warmup": 5,
     "{cls_profile_fun}.num_measure": 10,
 
@@ -38,25 +38,24 @@ args = {
     "cls_network_body": "StackedCellsNetworkBody",
     "{cls_network_body}.cell_order": "s0-n, s0-n, s1-r, s1-n, s1-n",
 
-    "cls_network_cells": "PassThroughCNNSearchCell, PassThroughCNNSearchCell, PassThroughCNNSearchCell",
+    "cls_network_cells": "SingleLayerCNNSearchCell, SingleLayerCNNSearchCell, SingleLayerCNNSearchCell",
     "{cls_network_cells#0}.name": "s0-n",
     "{cls_network_cells#0}.arc_key": "s0-n",
     "{cls_network_cells#0}.arc_shared": False,
-    "{cls_network_cells#0}.primitives": "MobileNetV2Primitives",
     "{cls_network_cells#0}.features_fixed": 16,
     "{cls_network_cells#0}.stride": 2,
     "{cls_network_cells#1}.name": "s1-r",
     "{cls_network_cells#1}.arc_key": "s1-r",
     "{cls_network_cells#1}.arc_shared": False,
-    "{cls_network_cells#1}.primitives": "MobileNetV2Primitives",
     "{cls_network_cells#1}.features_fixed": 32,
     "{cls_network_cells#1}.stride": 2,
     "{cls_network_cells#2}.name": "s1-n",
     "{cls_network_cells#2}.arc_key": "s1-n",
     "{cls_network_cells#2}.arc_shared": False,
-    "{cls_network_cells#2}.primitives": "MobileNetV2Primitives",
     "{cls_network_cells#2}.features_fixed": 32,
     "{cls_network_cells#2}.stride": 1,
+
+    "cls_network_cells_primitives": "MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives",
 
     "cls_network_stem": "MobileNetV2Stem",
     "{cls_network_stem}.features": 16,

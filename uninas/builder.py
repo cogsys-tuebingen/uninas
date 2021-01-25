@@ -12,37 +12,47 @@ import os
 from glob import glob
 import importlib
 from uninas.utils.paths import replace_standard_paths
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.meta import Singleton
 from uninas.register import Register
 
-logger = get_logger()
-
 
 class Builder(metaclass=Singleton):
+    extension_net_config = '.network_config'
 
-    def __init__(self):
+    def __init__(self, ignore_files=()):
         """
         A class to save+rebuild network_configs,
         automatically crawls all classes in the directory its in, including sub directories
+
+        :param ignore_files:
+            useful to ignore the current file, if the Builder is created for the first time
+            (i.e. due to a locally run __main__ there) in a file where also something is registered,
+            to avoid an error due to registering it twice
         """
         self.classes = {}
         own_path = os.path.abspath(__file__)
         own_dir = os.path.dirname(own_path)
         offset = len(os.path.abspath(own_dir + '/../') + '/')
         ignore_dirs = ['/gui/']
+        ignore_files = [own_path] + list(ignore_files)
+        Register.builder = self
 
         for file in glob(own_dir + '/**', recursive=True):
+            if file in ignore_files:
+                continue
             skip = False
             for ignore_dir in ignore_dirs:
                 if ignore_dir in file:
                     skip = True
-            if (not skip) and (file != own_path) and ('__' not in file) and file.endswith('.py'):
+                    break
+            if skip:
+                continue
+            if ('__' not in file) and file.endswith('.py'):
                 module_name = file[offset:-3].replace('/', '.')
                 module = importlib.import_module(module_name)
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     self.classes[name] = obj
-        Register.builder = self
 
     def add_modules(self, modules: list):
         """ add class references from external modules """
@@ -56,22 +66,28 @@ class Builder(metaclass=Singleton):
         name = cfg.pop('name')
         return self.classes[name].from_config(**cfg)
 
+    def load_from_config(self, config_file_path: str):
+        """ load a json config file from given path and try to restore a corresponding net topology """
+        return self.from_config(self.load_config(config_file_path))
+
     def print_available_cls(self):
         for k, v in self.classes.items():
             print(k, v)
 
-    @staticmethod
-    def save_config(config: dict, config_file_path: str):
-        """ save the config of the net as a json file """
-        if config is not None:
-            path_dir = '/'.join(config_file_path.split('/')[:-1])
-            os.makedirs(path_dir, exist_ok=True)
-            with open(config_file_path, 'w+') as outfile:
-                json.dump(config, outfile, ensure_ascii=False, indent=2)
-            logger.info('Wrote net config to %s' % config_file_path)
+    @classmethod
+    def save_config(cls, config: dict, config_dir: str, config_name: str) -> str:
+        if config is None:
+            return ''
+        os.makedirs(config_dir, exist_ok=True)
+        path = '%s/%s%s' % (replace_standard_paths(config_dir), config_name, cls.extension_net_config)
+        path = os.path.abspath(path)
+        with open(path, 'w+') as outfile:
+            json.dump(config, outfile, ensure_ascii=False, indent=2)
+        LoggerManager().get_logger().info('Wrote net config to %s' % path)
+        return path
 
-    @staticmethod
-    def load_config(config_file_path: str) -> dict:
+    @classmethod
+    def load_config(cls, config_file_path: str) -> dict:
         """ load a json config file from given path """
         config_file_path = replace_standard_paths(config_file_path)
         if os.path.isfile(config_file_path):
@@ -81,12 +97,39 @@ class Builder(metaclass=Singleton):
             raise FileNotFoundError('Could not find file "%s" / "%s"' %
                                     (config_file_path, os.path.abspath(config_file_path)))
 
-    def load_from_config(self, config_file_path: str):
-        """ load a json config file from given path and try to restore a corresponding net topology """
-        return self.from_config(self.load_config(config_file_path))
+    @classmethod
+    def find_net_config_path(cls, config_name_or_dir: str, pattern: str = '') -> str:
+        """
+        find a standard network config, get its full path, try:
+            1) look up if config_name_or_dir matches a name (e.g. DARTS) in the common configs
+            2) otherwise assume it is a dir, try to return a network config which name contains the pattern
 
-    @staticmethod
-    def _rec_list_attr(dct: dict, attr_name: str) -> [str]:
+        :param config_name_or_dir: dir or full path of a config
+        :param pattern: if a config has to be searched in the dir 
+        """
+        # already done?
+        if '/' in config_name_or_dir and config_name_or_dir.endswith(cls.extension_net_config):
+            return config_name_or_dir
+        # search in the common configs for a given name
+        p = replace_standard_paths('{path_conf_net}') + '/**/' + config_name_or_dir + '*' + cls.extension_net_config
+        paths = glob(p, recursive=True)
+        if len(paths) == 1:
+            return paths[0]
+        # find any unique network config in the given path
+        p = '%s/**/*%s*%s' % (replace_standard_paths(config_name_or_dir), pattern, cls.extension_net_config)
+        paths = glob(p, recursive=True)
+        if len(paths) == 1:
+            return paths[0]
+        raise FileNotFoundError('can not find (unique) network config with given name/path "%s"' % config_name_or_dir)
+
+    @classmethod
+    def net_config_name(cls, config_name_or_path: str) -> str:
+        """ find a network config, return its name """
+        cfg_path = cls.find_net_config_path(config_name_or_path)
+        return cfg_path.split('/')[-1].split('.')[0]
+
+    @classmethod
+    def _rec_list_attr(cls, dct: dict, attr_name: str) -> [str]:
         attrs = []
         if isinstance(dct, dict):
             attr = dct.get(attr_name, None)

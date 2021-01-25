@@ -22,7 +22,7 @@ class OptimizationTarget(ArgsInterface):
         ]
 
     @classmethod
-    def from_args(cls, args: Namespace, index=None):
+    def from_args(cls, args: Namespace, index=None) -> 'OptimizationTarget':
         return cls(**cls._all_parsed_arguments(args, index=index))
 
     def get_key(self) -> str:

@@ -1,0 +1,29 @@
+{
+    "cls_task": "CreateSearchNetBenchTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.note": "full bench eval",
+    "{cls_task}.save_dir": "{path_tmp}/bench/s2/create/",
+    "{cls_task}.s1_path": "{path_tmp}/run_config/",
+    "{cls_task}.save_del_old": true,
+    "{cls_task}.measure_min": 1000,
+
+    "cls_benchmarks": "MiniNASTabularBenchmark",
+    "{cls_benchmarks#0}.path": "{path_data}/SIN_fairnas_mini_only1.pt",
+
+    "cls_hpo_self_algorithm": "RandomHPO",
+    "{cls_hpo_self_algorithm}.num_eval": 1000,
+
+    "cls_hpo_estimators": "NetValueEstimator, NetMacsEstimator",
+    "{cls_hpo_estimators#0}.key": "acc1",
+    "{cls_hpo_estimators#0}.is_constraint": false,
+    "{cls_hpo_estimators#0}.is_objective": true,
+    "{cls_hpo_estimators#0}.maximize": true,
+    "{cls_hpo_estimators#0}.load": false,
+    "{cls_hpo_estimators#0}.batches_forward": 0,
+    "{cls_hpo_estimators#0}.batches_train": 0,
+    "{cls_hpo_estimators#0}.batches_eval": -1,
+    "{cls_hpo_estimators#0}.value": "val/accuracy/1",
+    "{cls_hpo_estimators#1}.key": "flops",
+    "{cls_hpo_estimators#1}.is_objective": true
+}

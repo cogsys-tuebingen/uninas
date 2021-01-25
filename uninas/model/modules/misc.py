@@ -1,10 +1,9 @@
 import torch
 from torch import nn as nn
-from uninas.model.modules.abstract import AbstractModule, shape_type, tensor_type
+from uninas.model.modules.abstract import AbstractModule, tensor_type
 from uninas.register import Register
-from uninas.methods.strategies.manager import StrategyManager
 from uninas.utils.torch.misc import drop_path
-from uninas.utils.shape import Shape, ShapeList
+from uninas.utils.shape import Shape, ShapeList, ShapeOrList
 
 
 class DropPathModule(AbstractModule):
@@ -25,7 +24,7 @@ class DropPathModule(AbstractModule):
     def set_drop_rate(self, p: float):
         self.set(drop_p=p)
 
-    def _build(self, *args, **kwargs) -> shape_type:
+    def _build(self, *args, **kwargs) -> ShapeOrList:
         return self.module.build(*args, **kwargs)
 
     def forward(self, x: tensor_type) -> tensor_type:
@@ -62,7 +61,7 @@ class MultiModules(AbstractModule):
     def is_layer_path(self, cls) -> [bool]:
         return [m.is_layer(cls) for m in self.submodules]
 
-    def _build(self, s_in: shape_type, c_out: int) -> Shape:
+    def _build(self, s_in: ShapeOrList, c_out: int) -> Shape:
         raise NotImplementedError
 
     def forward(self, x: tensor_type) -> tensor_type:
@@ -72,7 +71,7 @@ class MultiModules(AbstractModule):
 class SequentialModules(MultiModules):
     has_layer_fun = any
 
-    def _build(self, s_in: shape_type, c_out: int) -> Shape:
+    def _build(self, s_in: ShapeOrList, c_out: int) -> Shape:
         raise NotImplementedError
 
     def forward(self, x: tensor_type) -> tensor_type:
@@ -85,7 +84,7 @@ class SequentialModules(MultiModules):
 class SequentialModulesF(SequentialModules):
     """ if c_in != c_out, always correct the difference in the first module """
 
-    def _build(self, s_in: shape_type, c_out: int) -> Shape:
+    def _build(self, s_in: ShapeOrList, c_out: int) -> Shape:
         s = self.submodules[0].build(s_in, c_out)
         for i in range(1, len(self.submodules)):
             s = self.submodules[i].build(s, c_out)
@@ -96,9 +95,9 @@ class SequentialModulesF(SequentialModules):
 class SequentialModulesL(SequentialModules):
     """ if c_in != c_out, always correct the difference in the last module """
 
-    def _build(self, s_in: shape_type, c_out: int) -> Shape:
+    def _build(self, s_in: ShapeOrList, c_out: int) -> Shape:
         s = s_in
-        num_features = s.num_features if isinstance(s, Shape) else s[0].num_features
+        num_features = s.num_features() if isinstance(s, Shape) else s[0].num_features()
         for i in range(0, len(self.submodules)-1):
             s = self.submodules[i].build(s, num_features)
         return self.submodules[-1].build(s, c_out)
@@ -108,7 +107,7 @@ class SequentialModulesL(SequentialModules):
 class ParallelModules(MultiModules):
     has_layer_fun = all
 
-    def _build(self, s_in: shape_type, c_out: int) -> Shape:
+    def _build(self, s_in: ShapeOrList, c_out: int) -> Shape:
         shapes = [self.submodules[i].build(s_in, c_out) for i in range(0, len(self.submodules))]
         for s0, s1 in zip(shapes[:-1], shapes[1:]):
             assert s0 == s1, "shape mismatch: %s, %s" % (str(s0), str(s1))
@@ -137,7 +136,7 @@ class InputChoiceWrapperModule(AbstractModule):
     def is_layer(self, cls) -> bool:
         return isinstance(self, cls) or self.wrapped.is_layer(cls)
 
-    def _build(self, s_ins: ShapeList, *_, **__) -> shape_type:
+    def _build(self, s_ins: ShapeList, *_, **__) -> ShapeOrList:
         return self.wrapped.build(s_ins[self.idx], *_, **__)
 
     def forward(self, x: [torch.Tensor]) -> tensor_type:
@@ -166,25 +165,3 @@ class ConcatChoiceModule(AbstractModule):
         # replaces standard forward of BaseLayer, therefore no dropout/bn
         selected = [x[idx] for idx in self.idxs]
         return torch.cat(selected, dim=self.dim)
-
-
-@Register.network_module()
-class MixedOp(SumParallelModules):
-    """ all op choices on one path in parallel """
-
-    def __init__(self, submodules: list, name: str, strategy_name='default'):
-        super().__init__(submodules)
-        self._add_to_kwargs(name=name, strategy_name=strategy_name)
-        self.ws = StrategyManager().make_weight(self.strategy_name, name, choices=self.submodules)
-
-    def config(self, finalize=True, **_) -> dict:
-        if finalize:
-            indices = self.ws.get_finalized_indices(self.name)
-            if len(indices) == 1:
-                return self.submodules[indices[0]].config(finalize=finalize, **_)
-            return SumParallelModules([self.submodules[i] for i in indices]).config(finalize=finalize, **_)
-        else:
-            return super().config(finalize=finalize, **_)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.ws.combine(self.name, x, self.submodules)

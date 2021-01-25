@@ -7,6 +7,7 @@ import torch.nn as nn
 from uninas.model.modules.misc import ConcatChoiceModule
 from uninas.model.cells.abstract import AbstractCell, SearchCNNCellInterface
 from uninas.model.layers.cnn import FactorizedReductionLayer, ConvLayer
+from uninas.model.primitives.abstract import PrimitiveSet
 from uninas.register import Register
 from uninas.utils.args import Argument, Namespace
 from uninas.utils.shape import ShapeList
@@ -76,25 +77,30 @@ class DartsCNNSearchCell(DartsCNNCell, SearchCNNCellInterface):
         ]
 
     @classmethod
-    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, strategy_name='default'):
+    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, primitives: PrimitiveSet) -> DartsCNNCell:
+        """
+        :param args: global argparse namespace
+        :param index: index of this cell
+        :param cell_index: index of the cell in the network
+        :param primitives: primitives to use in this cell
+        :return: search cell
+        """
         all_args = cls._all_parsed_arguments(args, index=index)
         arc_key = all_args.pop('arc_key')
         arc_shared = all_args.pop('arc_shared')
-        primitives = all_args.pop('primitives')
         stride = all_args.pop('stride')
         num_concat = all_args.pop('num_concat')
         num_blocks = all_args.pop('num_blocks')
         cls_block = all_args.pop('cls_block')
         all_args, arc_key = cls._updated_args(all_args, arc_key, arc_shared, cell_index)
 
-        cls_block = Register.get(cls_block)
+        cls_block = Register.network_blocks.get(cls_block)
 
         blocks = []
         for i in range(num_blocks):
             num_inputs = i + cls._num_inputs
             block_arc_key = '%s/block-%d/%d' % (arc_key, i, num_inputs)
-            block = cls_block.search_block_instance(primitives, arc_key=block_arc_key,
-                                                    num_inputs=num_inputs, stride=stride, strategy_name=strategy_name)
+            block = cls_block.search_block_instance(primitives, arc_key=block_arc_key, num_inputs=num_inputs, stride=stride)
             blocks.append(block)
         concat_output = list(range(len(blocks)+cls._num_inputs))[-num_concat:]
         concat = ConcatChoiceModule(idxs=concat_output, dim=1)

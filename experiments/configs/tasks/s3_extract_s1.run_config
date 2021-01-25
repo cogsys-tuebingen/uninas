@@ -1,0 +1,76 @@
+{
+    "cls_task": "SingleRetrainTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
+    "{cls_task}.note": "s3 retraining",
+    "{cls_task}.save_dir": "{path_tmp}/s3/",
+    "{cls_task}.save_del_old": false,
+
+    "cls_device": "CudaDevicesManager",
+    "{cls_device}.num_devices": 1,
+    "{cls_device}.use_cudnn": true,
+    "{cls_device}.use_cudnn_benchmark": true,
+
+    "cls_exp_loggers": "TensorBoardExpLogger",
+    "{cls_exp_loggers#0}.log_graph": false,
+
+    "cls_method": "RetrainMethod",
+
+    "cls_network": "RetrainFromSearchUninasNetwork",
+    "{cls_network}.search_config_path": "{path_tmp}/s1/",
+    "{cls_network}.gene": "random",
+
+    "cls_data": "Imagenet1000Data",
+    "{cls_data}.dir": "{path_tmp}/data/",
+    "{cls_data}.download": false,
+    "{cls_data}.fake": false,
+    "{cls_data}.batch_size_train": 128,
+    "{cls_data}.batch_size_test": -1,
+    "{cls_data}.num_workers": 8,
+    "{cls_data}.valid_split": 0.0,
+    "{cls_data}.valid_shuffle": false,
+
+    "cls_augmentations": "TimmImagenetAug",
+    "{cls_augmentations#0}.crop_size": 224,
+
+    "cls_trainer": "SimpleTrainer",
+    "{cls_trainer}.max_epochs": 240,
+    "{cls_trainer}.log_fs": true,
+    "{cls_trainer}.log_ram": true,
+    "{cls_trainer}.eval_last": 10,
+    "{cls_trainer}.test_last": 10,
+    "{cls_trainer}.ema_decay": 0.9999,
+    "{cls_trainer}.ema_device": "same",
+
+    "cls_callbacks": "CheckpointCallback",
+    "{cls_callbacks#0}.save_ema": true,
+    "{cls_callbacks#0}.top_n": 1,
+    "{cls_callbacks#0}.key": "test/accuracy/1",
+    "{cls_callbacks#0}.minimize_key": false,
+
+    "cls_criterion": "CrossEntropyCriterion",
+    "{cls_criterion}.smoothing_epsilon": 0.1,
+
+    "cls_metrics": "AccuracyMetric",
+    "{cls_metrics#0}.topk": "1, 5",
+
+    "cls_initializers": "FairNasInitializer",
+
+    "cls_regularizers": "DropOutRegularizer",
+    "{cls_regularizers#0}.prob": 0.2,
+
+    "cls_optimizers": "SGDOptimizer",
+    "{cls_optimizers#0}.lr": 0.05,
+    "{cls_optimizers#0}.momentum": 0.9,
+    "{cls_optimizers#0}.nesterov": false,
+    "{cls_optimizers#0}.weight_decay": 4e-5,
+    "{cls_optimizers#0}.weight_decay_filter": true,
+
+    "cls_schedulers": "CosineScheduler",
+    "{cls_schedulers#0}.eta_min": 1e-5,
+    "{cls_schedulers#0}.each_samples": -1,
+    "{cls_schedulers#0}.cooldown_epochs": 0,
+    "{cls_schedulers#0}.warmup_epochs": 5,
+    "{cls_schedulers#0}.warmup_lr": 0.0
+}

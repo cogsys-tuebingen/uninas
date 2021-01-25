@@ -10,6 +10,6 @@ class DartsSearchMethod(AbstractBiOptimizationMethod):
     Executes all choices, learns how to weights them in a weighted sum
     """
 
-    def get_strategy(self):
-        """ get strategy for architecture weights """
+    def setup_strategy(self) -> StrategyManager:
+        """ set up the strategy for architecture weights """
         return StrategyManager().add_strategy(DifferentiableStrategy(self.max_epochs, use_mask=False))

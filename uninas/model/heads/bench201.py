@@ -19,12 +19,12 @@ class Bench201Head(AbstractHead):
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         self.head_module = nn.Sequential(*[
-            nn.BatchNorm2d(s_in.num_features),
+            nn.BatchNorm2d(s_in.num_features()),
             nn.ReLU(inplace=True),
             nn.AdaptiveAvgPool2d(1),
             SqueezeModule(),
             nn.Dropout(p=0.0),
-            nn.Linear(s_in.num_features, s_out.num_features, bias=True)
+            nn.Linear(s_in.num_features(), s_out.num_features(), bias=True)
         ])
         return self.probe_outputs(s_in)
 

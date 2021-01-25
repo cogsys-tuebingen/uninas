@@ -12,6 +12,7 @@ class DartsCifarAug(AbstractAug):
 
     @classmethod
     def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+        assert ds.data_raw_shape.num_dims() == 3
         all_transforms = [
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -20,6 +21,7 @@ class DartsCifarAug(AbstractAug):
 
     @classmethod
     def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+        assert ds.data_raw_shape.num_dims() == 3
         return [], []
 
 
@@ -38,6 +40,7 @@ class DartsImagenetAug(AbstractAug):
 
     @classmethod
     def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+        assert ds.data_raw_shape.num_dims() == 3
         crop_size = cls._parsed_argument('crop_size', args, index=index)
         all_transforms = [
             transforms.RandomResizedCrop(crop_size, scale=(0.08, 1.0)),
@@ -52,6 +55,7 @@ class DartsImagenetAug(AbstractAug):
 
     @classmethod
     def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+        assert ds.data_raw_shape.num_dims() == 3
         crop_size = cls._parsed_argument('crop_size', args, index=index)
         all_transforms = [
             transforms.Resize(int(crop_size / 0.875)),

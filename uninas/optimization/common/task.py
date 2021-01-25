@@ -3,7 +3,7 @@ import torch
 from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.simple import SimpleTrainer
 from uninas.utils.loggers.python import Logger, log_headline
-from uninas.utils.paths import replace_standard_paths
+from uninas.utils.paths import replace_standard_paths, get_task_config_path
 from uninas.utils.misc import split
 from uninas.utils.args import Argument, find_in_args_list, all_meta_args
 
@@ -29,9 +29,8 @@ def common_s2_extend_args(cls, args_list: [str]):
     s1_path = split(s1_path)
     if len(s1_path) > 1:
         print('\t\thave multiple s1_paths, will use the arguments of the first path')
-    s1_path = s1_path[0]
-    arguments_path = '%s/task.run_config' % replace_standard_paths(s1_path)
-    with open(replace_standard_paths(arguments_path)) as args_file:
+    arguments_path = get_task_config_path(s1_path[0])
+    with open(arguments_path) as args_file:
         args_in_file = json.load(args_file)
         all_meta_args_ = all_meta_args(args_list=None, args_in_file=args_in_file)
         to_ignore = ['cls_task', 'cls_trainer', 'cls_initializers', 'cls_schedulers']
@@ -54,7 +53,7 @@ def common_s2_extend_args(cls, args_list: [str]):
     # set fixed method and trainer, disable EMA models
     print('\tfixed:')
     args_list.append('--cls_trainer=%s' % SimpleTrainer.__name__)
-    args_list.append('--{cls_trainer}.ema_decay=-1')
+    args_list.append('--{cls_trainer}.ema_device=disabled')
     print('\t\tusing %s as cls_trainer, disabling EMA weights' % SimpleTrainer.__name__)
     args_list.append('--cls_initializers=""')
     args_list.append('--cls_scheduler=""')

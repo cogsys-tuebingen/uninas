@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from uninas.data.abstract import AbstractDataSet, AbstractAug, BatchAugmentations, AbstractBatchAugmentation
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
@@ -11,8 +12,8 @@ class MixUp(AbstractBatchAugmentation):
 
     def __call__(self, data: torch.Tensor, labels: torch.Tensor):
         indices = torch.randperm(data.size(0)).to(data.device)
-        labels_oh1 = torch.nn.functional.one_hot(labels, self.num_classes)
-        labels_oh2 = torch.nn.functional.one_hot(labels[indices], self.num_classes)
+        labels_oh1 = F.one_hot(labels, self.num_classes)
+        labels_oh2 = F.one_hot(labels[indices], self.num_classes)
         data2 = data[indices]
         lambda_ = self.distribution.sample(sample_shape=(1,)).to(data.device)
         mixed_data = data * lambda_ + data2 * (1 - lambda_)

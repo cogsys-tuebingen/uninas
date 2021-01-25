@@ -2,6 +2,7 @@
     "cls_task": "SingleRetrainTask",
     "{cls_task}.is_test_run": false,
     "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
     "{cls_task}.note": "DARTS-like retraining",
     "{cls_task}.save_dir": "{path_tmp}/d2/cifar/",
     "{cls_task}.save_del_old": false,
@@ -10,18 +11,14 @@
     "{cls_device}.num_devices": 1,
     "{cls_device}.use_cudnn": true,
     "{cls_device}.use_cudnn_benchmark": true,
-    "{cls_device}.use_cudnn_deterministic": false,
 
     "cls_method": "RetrainMethod",
 
     "cls_network": "RetrainInsertConfigUninasNetwork",
-    "{cls_network}.config_path": "{path_conf_net_originals}/DARTS_V1.network_config",
+    "{cls_network}.config_path": "DARTS_V1",
 
     "cls_trainer": "SimpleTrainer",
     "{cls_trainer}.max_epochs": 600,
-    "{cls_trainer}.clip_grad_value": -1,
-    "{cls_trainer}.clip_grad_norm_value": 5.0,
-    "{cls_trainer}.clip_grad_norm_type": 2,
     "{cls_trainer}.log_fs": true,
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": -1,
@@ -84,6 +81,8 @@
     "{cls_optimizers#0}.nesterov": false,
     "{cls_optimizers#0}.weight_decay": 3e-4,
     "{cls_optimizers#0}.weight_decay_filter": false,
+    "{cls_optimizers#0}.clip_norm_value": 5.0,
+    "{cls_optimizers#0}.clip_norm_type": 2,
 
     "cls_schedulers": "ConstantScheduler"
 }

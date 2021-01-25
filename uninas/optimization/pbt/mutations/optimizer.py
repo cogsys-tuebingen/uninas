@@ -1,6 +1,6 @@
 from uninas.optimization.pbt.mutations.abstract import AbstractFloatMultiplierMutation
 from uninas.optimization.pbt.response import PbtServerResponse
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.utils.args import Argument
 from uninas.register import Register
 
@@ -28,7 +28,7 @@ class OptimizerPbtMutation(AbstractFloatMultiplierMutation):
         perform the mutation of the given training state
         :param copied_log_dict: log dict of the checkpoint that is continued from
         """
-        return AbstractOptimizer.filter_values_in_dict(copied_log_dict, self.optimizer_index)
+        return WrappedOptimizer.filter_values_in_dict(copied_log_dict, self.optimizer_index)
 
     def _set_mutated_value(self, response: PbtServerResponse, value: float) -> PbtServerResponse:
         """

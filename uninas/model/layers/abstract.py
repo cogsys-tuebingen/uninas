@@ -41,7 +41,7 @@ class AbstractStepsLayer(AbstractLayer):
         steps = []
         for s in self.order.split('_'):
             if s == 'bn' and self.use_bn and self.batchnorm_fun is not None:
-                bn = self._get_bn(s_in.num_features, c_out)
+                bn = self._get_bn(s_in.num_features(), c_out)
                 if bn is not None:
                     steps.append(bn)
             if s == 'w':
@@ -51,10 +51,10 @@ class AbstractStepsLayer(AbstractLayer):
                     self.dropout_rate = 0.0
                 steps.extend(weight_functions)
             if s == 'act':
-                act = Register.get(self.act_fun)(inplace=self.act_inplace)
+                act = Register.act_funs.get(self.act_fun)(inplace=self.act_inplace)
                 if act is not None:
                     steps.append(act)
-        if (c_out > s_in.num_features) and not self.changes_c:
+        if (c_out > s_in.num_features()) and not self.changes_c:
             steps.append(PaddingToValueModule(c_out, dim=1))
         self.steps = nn.ModuleList(steps)
         return self.probe_outputs(s_in, multiple_outputs=False)

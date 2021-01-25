@@ -4,7 +4,7 @@ initializing weights of a network
 
 from uninas.model.modules.abstract import AbstractModule
 from uninas.utils.args import ArgsInterface, Namespace
-from uninas.utils.loggers.python import logging, get_logger
+from uninas.utils.loggers.python import logging, LoggerManager
 
 
 class AbstractInitializer(ArgsInterface):
@@ -12,7 +12,7 @@ class AbstractInitializer(ArgsInterface):
         ArgsInterface.__init__(self)
 
     def initialize_weights(self, net: AbstractModule):
-        logger = get_logger()
+        logger = LoggerManager().get_logger()
         logger.info('Initializing: %s' % self.__class__.__name__)
         self._initialize_weights(net, logger)
 

@@ -118,3 +118,4 @@ class ResourceLogThread(threading.Thread):
 
     def stop(self):
         self.keep_running = False
+        self._abortable_sleep.abort()

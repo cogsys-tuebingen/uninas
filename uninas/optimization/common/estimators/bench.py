@@ -1,18 +1,18 @@
 """
 estimators (metrics) to rank different networks (architecture subsets of a supernet)
-using the mini NAS-Bench-201 data
+using the mini-benchmark data
 """
 
 from uninas.optimization.common.estimators.abstract import AbstractEstimator
-from uninas.benchmarks.mini import MiniNASBenchApi
+from uninas.optimization.benchmarks.mini.benchmark import MiniNASBenchmark
 from uninas.register import Register
 
 
 class AbstractMiniBenchEstimator(AbstractEstimator):
-    def __init__(self, *args_, mini_api: MiniNASBenchApi, mini_api_set='cifar10', **kwargs):
+    def __init__(self, *args_, mini_api: MiniNASBenchmark, data_set: str = None, **kwargs):
         super().__init__(*args_, **kwargs)
         self.mini_api = mini_api
-        self.mini_api_set = mini_api_set
+        self.data_set = data_set
 
     def evaluate_tuple(self, values: tuple, strategy_name: str = None):
         """
@@ -26,51 +26,51 @@ class AbstractMiniBenchEstimator(AbstractEstimator):
         raise NotImplementedError
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_bench=True)
 class MiniBenchLossEstimator(AbstractMiniBenchEstimator):
     """
     Checking the network loss in the mini-bench
     """
 
     def _evaluate_tuple(self, values: tuple):
-        return self.mini_api.get_by_arch_tuple(values).get_loss(self.mini_api_set)
+        return self.mini_api.get_by_arch_tuple(values).get_loss(self.data_set)
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_bench=True)
 class MiniBenchAcc1Estimator(AbstractMiniBenchEstimator):
     """
     Checking the network top-1 accuracy in the mini-bench
     """
 
     def _evaluate_tuple(self, values: tuple):
-        return self.mini_api.get_by_arch_tuple(values).get_acc1(self.mini_api_set)
+        return self.mini_api.get_by_arch_tuple(values).get_acc1(self.data_set)
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_bench=True)
 class MiniBenchParamsEstimator(AbstractMiniBenchEstimator):
     """
     Checking the network parameter count in the mini-bench
     """
 
     def _evaluate_tuple(self, values: tuple):
-        return self.mini_api.get_by_arch_tuple(values).get_params(self.mini_api_set)
+        return self.mini_api.get_by_arch_tuple(values).get_params(self.data_set)
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_bench=True)
 class MiniBenchFlopsEstimator(AbstractMiniBenchEstimator):
     """
     Checking the network FLOPs in the mini-bench
     """
 
     def _evaluate_tuple(self, values: tuple):
-        return self.mini_api.get_by_arch_tuple(values).get_flops(self.mini_api_set)
+        return self.mini_api.get_by_arch_tuple(values).get_flops(self.data_set)
 
 
-@Register.hpo_estimator()
+@Register.hpo_estimator(requires_bench=True)
 class MiniBenchLatencyEstimator(AbstractMiniBenchEstimator):
     """
     Checking the network latency in the mini-bench
     """
 
     def _evaluate_tuple(self, values: tuple):
-        return self.mini_api.get_by_arch_tuple(values).get_latency(self.mini_api_set)
+        return self.mini_api.get_by_arch_tuple(values).get_latency(self.data_set)

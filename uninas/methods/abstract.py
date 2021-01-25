@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Union
 import os
 import time
 import numpy as np
@@ -7,16 +8,16 @@ import pytorch_lightning as pl
 from torch.cuda.amp import autocast, GradScaler
 from uninas.data.abstract import AbstractBatchAugmentation, AbstractDataSet
 from uninas.networks.abstract import AbstractNetwork
+from uninas.methods.strategies.manager import StrategyManager
 from uninas.training.result import EvalLogResult, TrainLogResult
 from uninas.training.criteria.common import AbstractCriterion
 from uninas.training.regularizers.abstract import AbstractRegularizer
-from uninas.training.optimizers.abstract import MultiOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer, MultiWrappedOptimizer, Optimizer
 from uninas.utils.args import Argument, MetaArgument, ArgsInterface, Namespace, find_in_args
 from uninas.utils.misc import split
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager, Logger, log_in_columns
+from uninas.utils.torch.decorators import use_eval
 from uninas.register import Register
-
-logger = get_logger()
 
 
 class AbstractMethod(pl.LightningModule, ArgsInterface):
@@ -25,24 +26,32 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
         super().__init__()
         ArgsInterface.__init__(self)
         assert isinstance(hparams, Namespace)
-        self.hparams = hparams
+        self.save_hyperparameters(hparams)
         for k, v in vars(self.hparams).items():
             assert isinstance(v, (int, float, str, bool)), 'Namespace argument "%s" is of type %s' % (k, type(v))
 
         # data
-        self.data_set = self._parsed_meta_argument('cls_data', self.hparams, index=None)(self.hparams)
+        data_set_cls = self._parsed_meta_argument(Register.data_sets, 'cls_data', self.hparams, index=None)
+        self.data_set = data_set_cls.from_args(self.hparams, index=None)
 
         # model
         _, self.max_epochs = find_in_args(self.hparams, '.max_epochs')
-        self.strategy = self.get_strategy()
+        self.strategy_manager = self.setup_strategy()
         self.net = self._get_new_network()
         self.net.build(s_in=self.data_set.get_data_shape(), s_out=self.data_set.get_label_shape())
+
+        # method forward function
+        self._forward_fun = 0
+        self._forward_mode_names = {
+            'default': 0,
+            'custom': 1,
+        }
 
         # criterion
         weights, self.criterion = self.get_weights_criterion()
 
         # weight initializers
-        initializers = self.init_multiple(hparams, 'cls_initializers')
+        initializers = self.init_multiple(Register.initializers, hparams, 'cls_initializers')
         assert (not self.net.has_loaded_weights()) or (len(initializers) == 0),\
             "Using weight initializers on a network with pre-trained weights!"
         for initializer in initializers:
@@ -50,8 +59,8 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
 
         # metrics, regularizers
         self.metrics = [m(hparams, i, weights)
-                        for i, m in enumerate(self._parsed_meta_arguments('cls_metrics', self.hparams, index=None))]
-        self.regularizers = self.init_multiple(hparams, 'cls_regularizers')
+                        for i, m in enumerate(self._parsed_meta_arguments(Register.metrics, 'cls_metrics', self.hparams, index=None))]
+        self.regularizers = self.init_multiple(Register.regularizers, hparams, 'cls_regularizers')
 
         # epoch stats
         self._current_epoch = 0
@@ -60,8 +69,8 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
         self._time_epoch_start = None
 
         # classes, since Register does not work with ddp anymore
-        self._cls_optimizers = self._parsed_meta_arguments('cls_optimizers', self.hparams, index=None)
-        self._cls_schedulers = self._parsed_meta_arguments('cls_schedulers', self.hparams, index=None)
+        self._cls_optimizers = self._parsed_meta_arguments(Register.optimizers, 'cls_optimizers', self.hparams, index=None)
+        self._cls_schedulers = self._parsed_meta_arguments(Register.schedulers, 'cls_schedulers', self.hparams, index=None)
 
         # possibly early stopping
         self._is_finished = False
@@ -119,7 +128,7 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
         ]
 
     def _get_new_network(self) -> AbstractNetwork:
-        return self._parsed_meta_argument('cls_network', self.hparams, index=None).from_args(self.hparams)
+        return self._parsed_meta_argument(Register.networks, 'cls_network', self.hparams, index=None).from_args(self.hparams)
 
     def on_save_checkpoint(self, checkpoint: dict):
         checkpoint['trained_epochs'] = self.trained_epochs
@@ -134,8 +143,26 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     # training and logging
     # ---------------------------------------------------------------------------------------------------------------- #
 
-    def forward(self, x):
+    def use_forward_mode(self, mode='default'):
+        """
+        :param mode:
+            default: default pass from input to all head outputs
+            custom: some methods may require custom training (e.g. (self-)distillation)
+        """
+        v = self._forward_mode_names.get(mode)
+        assert v is not None, "unknown mode %s" % mode
+        self._forward_fun = v
+
+    def forward(self, *args, **kwargs):
+        if self._forward_fun == 0:
+            return self.forward_default(*args, **kwargs)
+        return self.forward_custom(*args, **kwargs)
+
+    def forward_default(self, x: torch.Tensor) -> [torch.Tensor]:
         return self.net(x)
+
+    def forward_custom(self, *args, **kwargs):
+        return self.net(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, key='train', **net_kwargs) -> TrainLogResult:
         loss, dct = self._generic_step(batch, batch_idx, key, self.data_set.train_batch_augmentations, **net_kwargs)
@@ -167,19 +194,17 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             dct = {key + '/loss': loss.clone().detach(), 'num': inputs.size(0)}
             for metric in self.metrics:
                 dct.update(metric.evaluate(self.net, inputs, logits, targets, key))
-        if self.strategy is not None:
-            self.strategy.feedback(key, dct, self.current_epoch, batch_idx)
+        if self.strategy_manager is not None:
+            self.strategy_manager.feedback(key, dct, self.current_epoch, batch_idx)
         return self.amp_scaler.scale(loss), dct
 
     def _loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """ un-squeezed loss value """
         return self.criterion(logits, targets).unsqueeze(0)
 
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None,
-                       clip_value=-1, clip_norm_value=-1, clip_norm_type=-1, **__):
-        optimizer.clip_grad(self.amp_scaler, clip_value, clip_norm_value, clip_norm_type)
-        self.amp_scaler.step(optimizer)
-        self.amp_scaler.update()
+    def optimizer_step(self, *args, epoch: int = None, optimizer: WrappedOptimizer = None, **kwargs):
+        if optimizer.step():
+            self.amp_scaler.update()
         optimizer.zero_grad()
 
     def optimizer_zero_grad(self, *_, **__):
@@ -235,8 +260,8 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             for reg in self.get_regularizers():
                 log_dict.update(reg.on_start(self.max_epochs, self.net))
         # strategy
-        if self.strategy is not None:
-            self.strategy.on_epoch_start(self.current_epoch)
+        if self.strategy_manager is not None:
+            self.strategy_manager.on_epoch_start(self.current_epoch)
         # regularizers
         for reg in self.get_regularizers():
             log_dict.update(reg.on_epoch_start(self.current_epoch, self.max_epochs, self.net))
@@ -252,9 +277,9 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     def _on_epoch_end(self) -> dict:
         log_dict = {}
         # strategy
-        if self.strategy is not None:
-            self._is_finished = self._is_finished or self.strategy.on_epoch_end(self.current_epoch)
-            log_dict = self._add_to_dict(log_dict, self.strategy.highest_value_per_weight(), suffix='max_weight')
+        if self.strategy_manager is not None:
+            self._is_finished = self._is_finished or self.strategy_manager.on_epoch_end(self.current_epoch)
+            log_dict = self._add_to_dict(log_dict, self.strategy_manager.highest_value_per_weight(), suffix='max_weight')
         # regularizers
         for reg in self.get_regularizers():
             log_dict.update(reg.on_epoch_end(self.current_epoch, self.max_epochs, self.net))
@@ -289,6 +314,38 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             log_dict['%s/%s' % (key, k)] = v
         return log_dict
 
+    def log_detailed(self, logger: Logger):
+        rows = [
+            ("Method", self.str()),
+            ("Data set", self.data_set.str()),
+            (" > train", self.data_set.list_train_transforms()),
+            (" > test", self.data_set.list_test_transforms()),
+            ("Criterion", self.criterion),
+        ]
+
+        if len(self.metrics) > 0:
+            rows.append(("Metrics", ""))
+            for i, x in enumerate(self.metrics):
+                rows.append((" (%d)" % i, x.str()))
+
+        if len(self.regularizers) > 0:
+            rows.append(("Regularizers", ""))
+            for i, x in enumerate(self.regularizers):
+                rows.append((" (%d)" % i, x.str()))
+
+        optimizers, schedulers = self.configure_optimizers()
+        if len(optimizers) > 0:
+            rows.append(("Optimizers", ""))
+            for i, x in enumerate(optimizers):
+                rows.append((" (%d)" % i, str(x)))
+        if len(schedulers) > 0:
+            rows.append(("Schedulers", ""))
+            for i, x in enumerate(schedulers):
+                rows.append((" (%d)" % i, x.str()))
+        del optimizers, schedulers
+
+        log_in_columns(logger, rows)
+
     # ---------------------------------------------------------------------------------------------------------------- #
     # data, optimizers, schedulers, criterion
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -308,45 +365,46 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     def configure_optimizers(self) -> (list, list):
         """ get optimizers/schedulers """
         assert len(self._cls_optimizers) == 1
-        optimizer = self._cls_optimizers[0](self.hparams, named_params=self.net.named_parameters(), index=0)
+        optimizer = self._cls_optimizers[0].from_args(self.hparams, 0, self.amp_scaler,
+                                                      named_params=self.net.named_parameters())
         assert len(self._cls_schedulers) <= 1
         if len(self._cls_schedulers) == 1:
-            return [optimizer], [self._cls_schedulers[0](self.hparams, optimizer, self.max_epochs, index=0)]
+            return [optimizer], [self._cls_schedulers[0].from_args(self.hparams, optimizer, self.max_epochs, index=0)]
         return [optimizer], []
 
     def get_weights_criterion(self) -> (list, AbstractCriterion):
         weights = self.net.get_head_weightings()
-        cls_criterion = self._parsed_meta_argument('cls_criterion', self.hparams, index=None)
+        cls_criterion = self._parsed_meta_argument(Register.criteria, 'cls_criterion', self.hparams, index=None)
         criterion = cls_criterion(weights, self.hparams, self.data_set)
         if len(weights) > 1:
-            logger.info("Weighting model heads: %s" % str(weights))
+            LoggerManager().get_logger().info("Weighting model heads: %s" % str(weights))
         return weights, criterion
 
     # ---------------------------------------------------------------------------------------------------------------- #
     # network
     # ---------------------------------------------------------------------------------------------------------------- #
 
+    @use_eval
     def profile_macs(self) -> np.int64:
         """ profile the macs for a single forward pass on a single data point """
-        is_training = self.net.training
-        if is_training:
-            self.net.eval()
-        macs = self.net.profile_macs(self.data_set.sample_random_data(batch_size=1).to(self.net.get_device()))
-        if is_training:
-            self.net.train()
+        macs = -1
+        try:
+            macs = self.net.profile_macs()
+        except Exception as e:
+            LoggerManager().get_logger().error("Failed profiling macs:\n%s\n..." % str(e)[:500])
         return macs
 
-    def get_strategy(self):
-        """ get strategy for architecture weights """
+    def setup_strategy(self) -> Union[None, StrategyManager]:
+        """ set up the strategy for architecture weights """
         return None
 
     def save_configs(self, cfg_dir: str):
         os.makedirs(cfg_dir, exist_ok=True)
-        if self.strategy is not None:
-            Register.builder.save_config(self.net.config(finalize=False), '%s/search.network_config' % cfg_dir)
-            Register.builder.save_config(self.net.config(finalize=True), '%s/finalized.network_config' % cfg_dir)
+        if self.strategy_manager is not None:
+            Register.builder.save_config(self.net.config(finalize=False), cfg_dir, 'search')
+            Register.builder.save_config(self.net.config(finalize=True), cfg_dir, 'finalized')
         else:
-            Register.builder.save_config(self.net.config(finalize=True), '%s/network.network_config' % cfg_dir)
+            Register.builder.save_config(self.net.config(finalize=True), cfg_dir, 'network')
 
 
 class AbstractOptimizationMethod(AbstractMethod):
@@ -361,8 +419,8 @@ class AbstractOptimizationMethod(AbstractMethod):
 
         # mask
         for idx in split(self._parsed_argument('mask_indices', self.hparams), cast_fun=int):
-            self.strategy.mask_index(idx)
-            logger.info("Globally masking arc choices with index %d" % idx)
+            self.strategy_manager.mask_index(idx)
+            LoggerManager().get_logger().info("Globally masking arc choices with index %d" % idx)
 
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
@@ -389,12 +447,10 @@ class AbstractBiOptimizationMethod(AbstractOptimizationMethod):
         """
         return super().meta_args_to_add(num_optimizers=2)
 
-    def optimizer_step(self, epoch, batch_idx, optimizer: MultiOptimizer, optimizer_idx, second_order_closure=None,
-                       clip_value=-1, clip_norm_value=-1, clip_norm_type=-1, **__):
-        optimizer.clip_grad(self.opt_idx, self.amp_scaler, clip_value, clip_norm_value, clip_norm_type)
-        self.amp_scaler.step(optimizer.at_index(self.opt_idx))
-        self.amp_scaler.update()
-        optimizer.zero_grad_all()
+    def optimizer_step(self, *args, epoch: int = None, optimizer: MultiWrappedOptimizer = None, **kwargs):
+        if optimizer.step(index=self.opt_idx):
+            self.amp_scaler.update()
+            optimizer.zero_grad_all(force=True)
 
     def training_step(self, batch, batch_idx, key='train', **net_kwargs) -> TrainLogResult:
         self.opt_idx, real_batch = batch
@@ -409,18 +465,19 @@ class AbstractBiOptimizationMethod(AbstractOptimizationMethod):
     def val_dataloader(self):
         return None
 
-    def configure_optimizers(self) -> ([MultiOptimizer], list):
+    def configure_optimizers(self) -> ([MultiWrappedOptimizer], list):
         """ get optimizers/schedulers """
         optimizers, schedulers = [], []
         named_params = self.net.named_net_arc_parameters()
         for i in range(2):
-            optimizers.append(self._cls_optimizers[i](self.hparams, index=i, named_params=named_params[i]))
+            optimizers.append(self._cls_optimizers[i].from_args(self.hparams, i, self.amp_scaler,
+                                                                named_params=named_params[i]))
             if len(self._cls_schedulers) > i:
-                scheduler = self._cls_schedulers[i](self.hparams, optimizers[-1], self.max_epochs, index=i)
+                scheduler = self._cls_schedulers[i].from_args(self.hparams, optimizers[-1], self.max_epochs, index=i)
                 if scheduler is not None:
                     schedulers.append(scheduler)
         assert len(schedulers) <= len(optimizers) == 2
-        return [MultiOptimizer(optimizers)], schedulers
+        return [MultiWrappedOptimizer(optimizers)], schedulers
 
     def set_loader_multiples(self, multiples=(1, 1)):
         if self.train_loader is not None:

@@ -4,8 +4,9 @@ from torch.optim.optimizer import Optimizer
 from torch.nn.parallel import DistributedDataParallel as Ddp
 from uninas.methods.abstract import AbstractMethod
 from uninas.networks.abstract import AbstractNetwork
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.training.regularizers.abstract import AbstractRegularizer
+from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.utils.torch.ema import ModelEMA
 
 
@@ -29,11 +30,16 @@ class AbstractTrainerFunctions:
         """ get optimizers """
         raise NotImplementedError
 
+    def get_schedulers(self) -> [AbstractScheduler]:
+        """ get schedulers """
+        raise NotImplementedError
+
     def get_optimizer_log_dict(self) -> dict:
-        return AbstractOptimizer.get_optimizer_log_dict(self.get_optimizers())
+        return WrappedOptimizer.get_optimizer_log_dict(self.get_optimizers())
 
     @classmethod
-    def choose_method(cls, method: AbstractMethod, method_ema: Union[ModelEMA, None], prefer_ema=True) -> AbstractMethod:
+    def choose_method(cls, method: Union[Ddp, AbstractMethod, None],
+                      method_ema: Union[ModelEMA, AbstractMethod, None], prefer_ema=True) -> AbstractMethod:
         """ get module or module_ema, using preference and avoiding None """
         ms = [method_ema, method] if prefer_ema else [method, method_ema]
         for m in ms:

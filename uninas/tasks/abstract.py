@@ -7,8 +7,8 @@ import numpy as np
 import torch
 from uninas.utils.args import ArgsInterface, Argument, MetaArgument, Namespace, sanitize, save_as_json
 from uninas.utils.misc import split
-from uninas.utils.loggers.python import get_logger, log_headline, log_args
-from uninas.utils.torch.misc import count_parameters
+from uninas.utils.loggers.python import LoggerManager, log_headline, log_in_columns, log_args
+from uninas.utils.paths import get_task_config_path
 from uninas.utils.system import dump_system_info
 from uninas.methods.abstract import AbstractMethod
 from uninas.methods.strategies.manager import StrategyManager
@@ -19,7 +19,7 @@ cla_type = Union[str, List, None]
 
 class AbstractTask(ArgsInterface):
 
-    def __init__(self, args: Namespace, wildcards: dict):
+    def __init__(self, args: Namespace, wildcards: dict, descriptions: dict = None):
         super().__init__()
 
         # args, seed
@@ -27,21 +27,27 @@ class AbstractTask(ArgsInterface):
         self.save_dir = self._parsed_argument('save_dir', args)
         self.is_test_run = self._parsed_argument('is_test_run', args)
         self.seed = self._parsed_argument('seed', args)
+        self.is_deterministic = self._parsed_argument('is_deterministic', args)
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
+        if self.is_deterministic:
+            # see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
+            os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+            torch.set_deterministic(self.is_deterministic)
 
         # maybe delete old dir, note arguments, save run_config
         if self._parsed_argument('save_del_old', args):
             shutil.rmtree(self.save_dir, ignore_errors=True)
         os.makedirs(self.save_dir, exist_ok=True)
-        save_as_json(args, self.save_dir + 'task.run_config', wildcards)
+        save_as_json(args, get_task_config_path(self.save_dir), wildcards)
         dump_system_info(self.save_dir + 'sysinfo.txt')
 
         # logging
         self.log_file = '%slog_task.txt' % self.save_dir
-        self.logger = self.new_logger(None)
-        log_args(self.logger, None, self.args, add_git_hash=True)
+        LoggerManager().set_logging(default_save_file=self.log_file)
+        self.logger = self.new_logger(index=None)
+        log_args(self.logger, None, self.args, add_git_hash=True, descriptions=descriptions)
         Register.log_all(self.logger)
 
         # reset weight strategies so that consecutive tasks do not conflict with each other
@@ -55,6 +61,7 @@ class AbstractTask(ArgsInterface):
         return super().args_to_add(index) + [
             Argument('is_test_run', default='False', type=str, help='test runs stop epochs early', is_bool=True),
             Argument('seed', default=0, type=int, help='random seed for the experiment'),
+            Argument('is_deterministic', default='False', type=str, help='use deterministic operations', is_bool=True),
             Argument('note', default='note', type=str, help='just to take notes'),
 
             # saving
@@ -82,18 +89,21 @@ class AbstractTask(ArgsInterface):
                         if key_meta == k:
                             print('\t\tusing "%s" as %s, copying arguments' % (v, key_meta))
 
-    def get_first_method(self) -> AbstractMethod:
-        raise NotImplementedError("This task may not use methods/networks at all")
+    def get_method(self) -> AbstractMethod:
+        """ get the only existing method """
+        assert len(self.methods) == 1, "Must have exactly one method, but %d exist" % len(self.methods)
+        return self.methods[0]
 
     def checkpoint_dir(self, save_dir: str = None) -> str:
         return save_dir if save_dir is not None else self.save_dir
 
-    def new_logger(self, index=None):
-        return get_logger(name=index if index is None else str(index),
-                          default_level=logging.DEBUG if self.is_test_run else logging.INFO,
-                          save_file=self.log_file)
+    def new_logger(self, index: int = None):
+        return LoggerManager().get_logger(
+            name=index if index is None else str(index),
+            default_level=logging.DEBUG if self.is_test_run else logging.INFO,
+            save_file=self.log_file)
 
-    def load(self, checkpoint_dir: str = None):
+    def load(self, checkpoint_dir: str = None) -> 'AbstractTask':
         """ load """
         log_headline(self.logger, 'Loading')
         checkpoint_dir = self.checkpoint_dir(checkpoint_dir)
@@ -108,13 +118,18 @@ class AbstractTask(ArgsInterface):
         """ load """
         return False
 
-    def run(self):
+    def run(self) -> 'AbstractTask':
         """ execute the task """
-        self._run()
-        for method in self.methods:
-            method.flush_logging()
-        self.logger.info("Done!")
-        return self
+        try:
+            self._run()
+            for method in self.methods:
+                method.flush_logging()
+            self.logger.info("Done!")
+            return self
+        except Exception as e:
+            raise e
+        finally:
+            LoggerManager().cleanup()
 
     def _run(self):
         """ execute the task """
@@ -123,15 +138,16 @@ class AbstractTask(ArgsInterface):
 
 class AbstractNetTask(AbstractTask):
 
-    def __init__(self, args: Namespace, wildcards: dict):
-        AbstractTask.__init__(self, args, wildcards)
+    def __init__(self, args: Namespace, *args_, **kwargs):
+        AbstractTask.__init__(self, args, *args_, **kwargs)
 
         # device handling
-        self.devices_handler = self._parsed_meta_argument('cls_device', args, None).from_args(self.seed, args, index=None)
+        cls_dev_handler = self._parsed_meta_argument(Register.devices_managers, 'cls_device', args, None)
+        self.devices_handler = cls_dev_handler.from_args(self.seed, self.is_deterministic, args, index=None)
 
         # classes
-        self.cls_method = self._parsed_meta_argument('cls_method', args, None)
-        self.cls_trainer = self._parsed_meta_argument('cls_trainer', args, None)
+        self.cls_method = self._parsed_meta_argument(Register.methods, 'cls_method', args, None)
+        self.cls_trainer = self._parsed_meta_argument(Register.trainers, 'cls_trainer', args, None)
 
         # methods and trainers
         self.trainer = []
@@ -150,9 +166,6 @@ class AbstractNetTask(AbstractTask):
             MetaArgument('cls_trainer', Register.trainers, help_name='trainer', allowed_num=1),
             MetaArgument('cls_method', methods, help_name='method', allowed_num=1),
         ]
-
-    def get_first_method(self) -> AbstractMethod:
-        return self.methods[0]
 
     def add_method(self):
         """ adds a new method (lightning module) """
@@ -175,50 +188,19 @@ class AbstractNetTask(AbstractTask):
                                    is_test_run=self.is_test_run)
         self.trainer.append(trainer)
 
-    def log_methods_and_trainer(self):
+    def log_detailed(self):
         # log some things
         log_headline(self.logger, 'Trainer, Method, Data, ...')
-        log_str = '{:<20}{}'
+        rows = [('Trainer', '')]
         for i, trainer in enumerate(self.trainer):
-            self.logger.info(log_str.format('Trainer', trainer.str()))
-            if hasattr(trainer, 'optimizers'):
-                for j, optimizer in enumerate(trainer.optimizers):
-                    self.logger.info(log_str.format('Optimizer (%d)' % j, str(optimizer)))
-                for j, scheduler in enumerate(trainer.schedulers):
-                    self.logger.info(log_str.format('Scheduler (%d)' % j, scheduler.str()))
-        for j, method in enumerate(self.methods):
-            self.logger.info(log_str.format('Method', method.str()))
-            self.logger.info(log_str.format('Data set', method.data_set.str()))
-            self.logger.info(log_str.format(' > train/eval', method.data_set.list_train_transforms()))
-            self.logger.info(log_str.format(' > test', method.data_set.list_test_transforms()))
-            self.logger.info(log_str.format('Criterion', str(method.criterion)))
-            for i, m in enumerate(method.metrics):
-                self.logger.info(log_str.format('Metric (%d)' % i, m.str()))
-            for i, r in enumerate(method.regularizers):
-                self.logger.info(log_str.format('Regularizer (%d)' % i, r.str()))
+            rows.append((' (%d)' % i, trainer.str()))
+        log_in_columns(self.logger, rows)
 
-            strategies = StrategyManager().get_strategies_list()
-            if len(strategies) > 0:
-                if len(self.methods) > 1:
-                    self.logger.info('Weight strategies:')
-                else:
-                    log_headline(self.logger, 'Weight strategies')
-                for strategy in strategies:
-                    self.logger.info('%s' % strategy.str())
-                    for r in strategy.get_requested_weights():
-                        self.logger.info(
-                            '\t{:<30} {:>2} choices, used {}x'.format(r.name, r.num_choices(), r.num_requests()))
-                self.logger.info('All weights in request order (not unique):')
-                self.logger.info('\t%s', str(StrategyManager().ordered_names(unique=False)))
-                self.logger.info('All weights in request order (unique):')
-                self.logger.info('\t%s', str(StrategyManager().ordered_names(unique=True)))
+        for i, method in enumerate(self.methods):
+            log_headline(self.logger, "Method %d/%d" % (i+1, len(self.methods)), target_len=80)
+            method.log_detailed(self.logger)
 
-            if len(self.methods) > 1:
-                self.logger.info('Model:')
-            else:
-                log_headline(self.logger, 'Model')
-            self.logger.info(method.get_network().str())
-            self.logger.info("Param count: %d", count_parameters(method.get_network()))
+        StrategyManager().log_detailed(self.logger)
 
     def _run(self):
         """ execute the task """

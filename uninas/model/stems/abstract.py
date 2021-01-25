@@ -3,11 +3,7 @@ from uninas.model.modules.abstract import AbstractModule, AbstractArgsModule
 from uninas.model.layers.common import SkipLayer
 from uninas.utils.args import Argument, Namespace
 from uninas.utils.shape import Shape, ShapeList
-from uninas.utils.loggers.python import get_logger
 from uninas.register import Register
-
-
-logger = get_logger(__name__)
 
 
 class AbstractStem(AbstractArgsModule):

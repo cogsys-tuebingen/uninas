@@ -45,6 +45,7 @@ class CutoutAug(AbstractAug):
 
     @classmethod
     def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+        assert ds.data_raw_shape.num_dims() == 3
         size = cls._parsed_argument('size', args, index=index)
         if size > 0:
             return [Cutout(size)], []
@@ -52,4 +53,5 @@ class CutoutAug(AbstractAug):
 
     @classmethod
     def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+        assert ds.data_raw_shape.num_dims() == 3
         return [], []

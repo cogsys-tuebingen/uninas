@@ -58,11 +58,11 @@ class AbstractPbtSelector(ArgsInterface):
         ]
 
     @classmethod
-    def from_args(cls, save_dir: str, logger: Logger, args: Namespace, index=None):
+    def from_args(cls, save_dir: str, logger: Logger, args: Namespace, index=None) -> 'AbstractPbtSelector':
         targets = [cls_target.from_args(args, index=i) for
-                   i, cls_target in enumerate(cls._parsed_meta_arguments('cls_pbt_targets', args, index))]
+                   i, cls_target in enumerate(cls._parsed_meta_arguments(Register.optimization_targets, 'cls_pbt_targets', args, index))]
         mutations = [cls_mutations.from_args(args, index=i) for
-                     i, cls_mutations in enumerate(cls._parsed_meta_arguments('cls_pbt_mutations', args, index))]
+                     i, cls_mutations in enumerate(cls._parsed_meta_arguments(Register.pbt_mutations, 'cls_pbt_mutations', args, index))]
         return cls(save_dir, logger, targets, mutations, **cls._all_parsed_arguments(args, index=index))
 
     @classmethod
@@ -327,6 +327,6 @@ class AbstractPbtSelector(ArgsInterface):
 
 if __name__ == '__main__':
     sel = AbstractPbtSelector('', Logger('__main__'), [], [], 4, 20, False, False)
-    for i in range(100):
-        if sel.is_interesting(i, {}):
-            print(i, end=', ')
+    for i_ in range(100):
+        if sel.is_interesting(i_, {}):
+            print(i_, end=', ')

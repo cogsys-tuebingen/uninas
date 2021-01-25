@@ -1,6 +1,6 @@
 import unittest
-from uninas.utils.generate.darts_configs import generate_from_name as generate_darts_from_name
-from uninas.utils.generate.super_configs import generate_from_name as generate_super_from_name
+from uninas.utils.generate.networks.darts_configs import generate_from_name as generate_darts_from_name
+from uninas.utils.generate.networks.super_configs import generate_from_name as generate_super_from_name
 from uninas.utils.torch.misc import count_parameters
 from uninas.utils.paths import replace_standard_paths
 from uninas.builder import Builder
@@ -13,8 +13,8 @@ retrain_super_config = '{path_conf_tasks}/s3.run_config'
 
 
 def assert_stats_match(name, task_cfg, cfg: dict, num_params=None, num_macs=None):
-    cfg_path = replace_standard_paths('{path_tmp}/tests/cfgs/%s.network_config' % name)
-    Builder.save_config(cfg, cfg_path)
+    cfg_dir = replace_standard_paths('{path_tmp}/tests/cfgs/')
+    cfg_path = Builder.save_config(cfg, cfg_dir, name)
     exp = Main.new_task(task_cfg, args_changes={
         '{cls_data}.fake': True,
         '{cls_data}.batch_size_train': 2,
@@ -25,8 +25,8 @@ def assert_stats_match(name, task_cfg, cfg: dict, num_params=None, num_macs=None
         "{cls_trainer}.ema_decay": -1,
         'cls_network_heads': 'ClassificationHead',  # necessary for the DARTS search space to disable the aux heads
     }, raise_unparsed=False)
-    net = exp.get_first_method().get_network()
-    macs = exp.get_first_method().profile_macs()
+    net = exp.get_method().get_network()
+    macs = exp.get_method().profile_macs()
     net.eval()
     # print(net)
     cp = count_parameters(net)
@@ -68,6 +68,7 @@ class TestModel(unittest.TestCase):
         differences to originals:
             (1) they use x.mean(3).mean(2) while we use nn.AdaptiveAvgPool2d(1)
             (2) We use the new torch 1.6 swish/hswish/htanh/hsigmoid activation functions
+            (3) TODO marginal macs difference for SPOS after changing search-network/primitives code (maybe act fun?)
         the numbers matched exactly when these were accounted for
         """
         Builder()
@@ -80,10 +81,10 @@ class TestModel(unittest.TestCase):
         assert_super_stats_match('MobileNetV2',             num_params=3504872, num_macs=300775552)
 
         # measured via https://github.com/megvii-model/SinglePathOneShot
-        assert_super_stats_match('SPOSNet',                 num_params=3558464, num_macs=322919776)
+        assert_super_stats_match('SPOSNet',                 num_params=3558464, num_macs=322919776-16)  # (3)
 
         # measured via https://github.com/megvii-model/ShuffleNet-Series
-        assert_super_stats_match('ShuffleNetV2PlusMedium',  num_params=5679840, num_macs=224038432-1531648)  # (2)
+        assert_super_stats_match('ShuffleNetV2PlusMedium',  num_params=5679840, num_macs=224038432-1531648-16)  # (2), (3)
 
         # measured via https://github.com/rwightman/pytorch-image-models
         # requires replacing the swish function, otherwise torchprofile tracing fails
@@ -119,6 +120,8 @@ class TestModel(unittest.TestCase):
         # measured via https://github.com/tanglang96/MDENAS
         assert_darts_cifar10_stats_match('MdeNAS',          num_params=3786742, num_macs=599110848)
         assert_darts_imagenet_stats_match('MdeNAS',         num_params=5329024, num_macs=595514304)
+
+        # bench201 would be nice
 
 
 if __name__ == '__main__':

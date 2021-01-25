@@ -32,7 +32,7 @@ class ClassificationLayer(AbstractStepsLayer):
         wf = list(weight_functions)
         if self.use_gap:
             wf += [GapSqueezeModule()]
-        wf += [nn.Linear(s_in.num_features, c_out, bias=self.bias)]
+        wf += [nn.Linear(s_in.num_features(), c_out, bias=self.bias)]
         return super()._build(s_in, c_out, weight_functions=wf)
 
 
@@ -84,7 +84,7 @@ class PoolingConvLayer(AbstractStepsLayer):
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
         padding = get_padding(self.padding, self.k_size, self.stride, 1)
         pool = (nn.AvgPool2d if self.pool_type == 'avg' else nn.MaxPool2d)(self.k_size, self.stride, padding)
-        conv = nn.Conv2d(s_in.num_features, c_out, kernel_size=1, stride=1, padding=0, bias=self.bias)
+        conv = nn.Conv2d(s_in.num_features(), c_out, kernel_size=1, stride=1, padding=0, bias=self.bias)
         wf = list(weight_functions) + [pool, conv]
         return super()._build(s_in, c_out, weight_functions=wf)
 
@@ -98,8 +98,8 @@ class ConvLayer(AbstractStepsLayer):
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
         padding = get_padding(self.padding, self.k_size, self.stride, self.dilation)
-        conv = nn.Conv2d(s_in.num_features, c_out, kernel_size=self.k_size, stride=self.stride, padding=padding,
-                         dilation=self.dilation, groups=get_number(self.groups, s_in.num_features), bias=self.bias)
+        conv = nn.Conv2d(s_in.num_features(), c_out, kernel_size=self.k_size, stride=self.stride, padding=padding,
+                         dilation=self.dilation, groups=get_number(self.groups, s_in.num_features()), bias=self.bias)
         wf = list(weight_functions) + [conv]
         return super()._build(s_in, c_out, weight_functions=wf)
 
@@ -125,10 +125,10 @@ class SepConvLayer(AbstractStepsLayer):
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
         padding = get_padding(self.padding, self.k_size, self.stride, self.dilation)
-        depth_conv = nn.Conv2d(s_in.num_features, s_in.num_features, kernel_size=self.k_size, stride=self.stride,
-                               padding=padding, dilation=self.dilation, groups=s_in.num_features, bias=False)
-        point_conv = nn.Conv2d(s_in.num_features, c_out, kernel_size=1,
-                               groups=get_number(self.groups, s_in.num_features), bias=self.bias)
+        depth_conv = nn.Conv2d(s_in.num_features(), s_in.num_features(), kernel_size=self.k_size, stride=self.stride,
+                               padding=padding, dilation=self.dilation, groups=s_in.num_features(), bias=False)
+        point_conv = nn.Conv2d(s_in.num_features(), c_out, kernel_size=1,
+                               groups=get_number(self.groups, s_in.num_features()), bias=self.bias)
         wf = list(weight_functions) + [depth_conv, point_conv]
         return super()._build(s_in, c_out, weight_functions=wf)
 
@@ -142,5 +142,5 @@ class FactorizedReductionLayer(AbstractStepsLayer):
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
         assert c_out % 2 == 0
-        wf = list(weight_functions) + [FactorizedReductionModule(s_in.num_features, c_out, stride=2)]
+        wf = list(weight_functions) + [FactorizedReductionModule(s_in.num_features(), c_out, stride=2)]
         return super()._build(s_in, c_out, weight_functions=wf)

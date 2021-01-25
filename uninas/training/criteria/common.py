@@ -13,19 +13,19 @@ def maybe_one_hot(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return F.one_hot(targets, outputs.shape[-1]).to(outputs.dtype)
 
 
-@Register.criterion(only_head=True)
+@Register.criterion()
 class L1Criterion(AbstractCriterion):
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         return F.l1_loss(outputs, maybe_one_hot(outputs, targets))
 
 
-@Register.criterion(only_head=True)
+@Register.criterion()
 class L2Criterion(AbstractCriterion):
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(outputs, maybe_one_hot(outputs, targets))
 
 
-@Register.criterion(only_head=True)
+@Register.criterion()
 class CrossEntropyCriterion(AbstractCriterion):
     """
     Cross-Entropy with optionally smoothed labels

@@ -38,7 +38,7 @@ def sigmoid(inplace=False) -> nn.Module:
 
 @Register.act_fun()
 def hsigmoid(inplace=False) -> nn.Module:
-    return nn.Hardsigmoid()
+    return nn.Hardsigmoid(inplace=inplace)
 
 
 @Register.act_fun()

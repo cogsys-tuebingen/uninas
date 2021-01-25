@@ -6,9 +6,9 @@ import torch
 from collections.abc import Callable
 from functools import partial
 from uninas.model.modules.abstract import AbstractArgsModule
+from uninas.model.primitives.abstract import PrimitiveSet
 from uninas.utils.args import ArgsInterface, Argument, Namespace
 from uninas.utils.shape import ShapeList
-from uninas.register import Register
 
 
 class AbstractCell(AbstractArgsModule):
@@ -31,7 +31,7 @@ class AbstractCell(AbstractArgsModule):
         elif self.features_fixed > 0:
             nf = self.features_fixed
         else:
-            nf = s_ins[-1].num_features * self.features_mult
+            nf = s_ins[-1].num_features() * self.features_mult
         nf = nf * features_mul
         _, r = divmod(nf, 8)
         return nf-r
@@ -75,24 +75,25 @@ class SearchCellFunctions(ArgsInterface):
         return all_args, arc_key
 
     @classmethod
-    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, strategy_name='default'):
+    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, primitives: PrimitiveSet) -> AbstractCell:
         """
         :param args: global argparse namespace
         :param index: index of this cell
         :param cell_index: index of the cell in the network
-        :param strategy_name: name of the strategy object to register the search parameters with
+        :param primitives: primitives to use in this cell
         :return: search cell
         """
         raise NotImplementedError
 
     @classmethod
-    def partial_search_cell_instance(cls, args: Namespace, index: int) -> Callable:
+    def partial_search_cell_instance(cls, args: Namespace, index: int, primitives: PrimitiveSet) -> Callable:
         """
         :param args: global argparse namespace
         :param index: index of this cell
+        :param primitives: primitives to use in this cell
         :return: Callable that requires only the cell_index to complete the search_cell_instance method
         """
-        return partial(cls.search_cell_instance, args=args, index=index)
+        return partial(cls.search_cell_instance, args=args, index=index, primitives=primitives)
 
 
 class SearchCellInterface(SearchCellFunctions):
@@ -103,16 +104,15 @@ class SearchCellInterface(SearchCellFunctions):
         return super().args_to_add(index) + [
             Argument('arc_shared', type=str, default='False', help='whether to use arc_key to share architecture/topology', is_bool=True),
             Argument('arc_key', type=str, default='c', help='key for sharing arc weights'),
-            Argument('primitives', type=str, default='not_set', help='primitive set for this cell', choices=Register.primitive_sets.names()),
         ]
 
     @classmethod
-    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, strategy_name='default'):
+    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, primitives: PrimitiveSet) -> AbstractCell:
         """
         :param args: global argparse namespace
         :param index: index of this cell
         :param cell_index: index of the cell in the network
-        :param strategy_name: name of the strategy object to register the search parameters with
+        :param primitives: primitives to use in this cell
         :return: search cell
         """
         raise NotImplementedError
@@ -128,12 +128,12 @@ class SearchCNNCellInterface(SearchCellInterface):
         ]
 
     @classmethod
-    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, strategy_name='default'):
+    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, primitives: PrimitiveSet) -> AbstractCell:
         """
         :param args: global argparse namespace
-        :param index: index of the cell in args
+        :param index: index of this cell
         :param cell_index: index of the cell in the network
-        :param strategy_name: name of the strategy object to register the search parameters with
+        :param primitives: primitives to use in this cell
         :return: search cell
         """
         raise NotImplementedError
@@ -145,11 +145,12 @@ class FixedSearchCellInterface(SearchCellFunctions):
     """
 
     @classmethod
-    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, strategy_name='default'):
+    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, primitives: PrimitiveSet):
         """
         :param args: global argparse namespace
         :param index: index of this cell
         :param cell_index: index of the cell in the network
+        :param primitives: primitives to use in this cell
         :return: search cell
         """
         raise NotImplementedError
@@ -165,11 +166,12 @@ class FixedSearchCNNCellInterface(FixedSearchCellInterface):
         ]
 
     @classmethod
-    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, strategy_name='default'):
+    def search_cell_instance(cls, args: Namespace, index: int, cell_index: int, primitives: PrimitiveSet):
         """
         :param args: global argparse namespace
         :param index: index of this cell
         :param cell_index: index of the cell in the network
+        :param primitives: primitives to use in this cell
         :return: search cell
         """
         raise NotImplementedError

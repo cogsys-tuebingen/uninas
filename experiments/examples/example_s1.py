@@ -12,8 +12,9 @@ args = {
     "{cls_task}.save_dir": "{path_tmp}/s1/",
     "{cls_task}.save_del_old": True,
     "{cls_task}.is_test_run": True,
+    "{cls_task}.is_deterministic": False,
 
-    "cls_device": "CpuDevicesManager",  # CpuDevicesManager, CudaDevicesManager, TestCpuDevicesManager
+    "cls_device": "CudaDevicesManager",  # CpuDevicesManager, CudaDevicesManager, TestCpuDevicesManager
     "{cls_device}.num_devices": 1,
 
     "cls_trainer": "SimpleTrainer",
@@ -22,7 +23,6 @@ args = {
     "{cls_trainer}.test_last": 2,
     "{cls_trainer}.ema_decay": 0.9,
     "{cls_trainer}.ema_device": "same",
-    "{cls_trainer}.clip_grad_norm_value": 0.0,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
 
@@ -33,15 +33,14 @@ args = {
     "{cls_callbacks#0}.minimize_key": True,
 
     "cls_data": "Imagenet1000Data",
-    "{cls_data}.fake": False,
+    "{cls_data}.fake": True,
     "{cls_data}.valid_split": 12800,
     "{cls_data}.batch_size_train": 2,
-    "{cls_data}.dir": "{path_data}/ImageNet_ILSVRC2012/",
 
     "cls_augmentations": "TimmImagenetAug",
     "{cls_augmentations#0}.crop_size": 224,
 
-    "cls_method": "StrictlyFairRandomMethod",  # StrictlyFairRandomMethod, UniformRandomMethod
+    "cls_method": "UniformRandomMethod",  # StrictlyFairRandomMethod, UniformRandomMethod
     "{cls_method}.mask_indices": "",
 
     "cls_network": "SearchUninasNetwork",
@@ -49,25 +48,28 @@ args = {
     "cls_network_body": "StackedCellsNetworkBody",
     "{cls_network_body}.cell_order": "s0-n, s0-n, s1-r, s1-n, s1-n",
 
-    "cls_network_cells": "PassThroughCNNSearchCell, PassThroughCNNSearchCell, PassThroughCNNSearchCell",
+    "cls_network_cells": "SingleLayerCNNSearchCell, SingleLayerCNNSearchCell, SingleLayerCNNSearchCell",
     "{cls_network_cells#0}.name": "s0-n",
     "{cls_network_cells#0}.arc_key": "s0-n",
     "{cls_network_cells#0}.arc_shared": True,
-    "{cls_network_cells#0}.primitives": "MobileNetV2Primitives",
     "{cls_network_cells#0}.features_fixed": 16,
     "{cls_network_cells#0}.stride": 2,
     "{cls_network_cells#1}.name": "s1-r",
     "{cls_network_cells#1}.arc_key": "s1-r",
     "{cls_network_cells#1}.arc_shared": True,
-    "{cls_network_cells#1}.primitives": "MobileNetV2Primitives",
     "{cls_network_cells#1}.features_fixed": 32,
     "{cls_network_cells#1}.stride": 2,
     "{cls_network_cells#2}.name": "s1-n",
     "{cls_network_cells#2}.arc_key": "s1-n",
     "{cls_network_cells#2}.arc_shared": False,
-    "{cls_network_cells#2}.primitives": "MobileNetV2Primitives",
     "{cls_network_cells#2}.features_fixed": 32,
     "{cls_network_cells#2}.stride": 1,
+
+    "cls_network_cells_primitives": "MobileNetV2SkipLTPrimitives, MobileNetV2SkipLTPrimitives, MobileNetV2SkipLTPrimitives",
+    "{cls_network_cells_primitives#0}.subset": "3, 4, 5",
+    "{cls_network_cells_primitives#0}.mixed_cls": "MixedOp",
+    "{cls_network_cells_primitives#1}.mixed_cls": "MixedOp",
+    "{cls_network_cells_primitives#2}.mixed_cls": "MixedOp",
 
     "cls_network_stem": "MobileNetV2Stem",
     "{cls_network_stem}.features": 16,
@@ -75,7 +77,7 @@ args = {
     "{cls_network_stem}.k_size": 3,
     "{cls_network_stem}.act_fun": "swish",
     "{cls_network_stem}.k_size1": 3,
-    "{cls_network_stem}.act_fun1": "hswish",
+    "{cls_network_stem}.act_fun1": "swish",
 
     "cls_network_heads": "FeatureMixClassificationHead",
     "{cls_network_heads#0}.weight": 1.0,
@@ -97,6 +99,7 @@ args = {
     "cls_optimizers": "SGDOptimizer",
     "{cls_optimizers#0}.lr": 0.05,
     "{cls_optimizers#0}.momentum": 0.9,
+    "{cls_optimizers#0}.clip_abs_value": 5.0,
 
     "cls_schedulers": "ExponentialScheduler",
     "{cls_schedulers#0}.gamma": 0.9,
@@ -106,6 +109,6 @@ args = {
 if __name__ == "__main__":
     # ignore the command line, use "args" instead
     task = Main.new_task([], args_changes=args)
-    # print(task.methods[0].get_network())
+    # print(task.get_method().get_network())
     task.load()
     task.run()

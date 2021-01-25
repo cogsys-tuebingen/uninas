@@ -1,4 +1,4 @@
-from uninas.networks.self.search import SearchUninasNetwork
+from uninas.networks.uninas.search import SearchUninasNetwork
 from uninas.methods.strategies.manager import StrategyManager
 from uninas.optimization.common.profilers.abstract import AbstractProfiler
 from uninas.training.devices.abstract import AbstractDeviceMover
@@ -28,13 +28,13 @@ class TabularCellsProfiler(AbstractProfiler):
             self.logger.info('Measuring the stem')
             stem = network.get_stem()
             self.data['measured']['stem'] =\
-                self.profile_fun.profile(stem, stem.get_cached('shape_in'), mover, batch_size)
+                self.profile_fun.profile(stem, stem.get_shape_in(), mover, batch_size)
 
         # cells
         self.data['measured']['cells'] = self.data.get('measured').get('cells', {})
         sm = StrategyManager()
         cells = network.get_cells()
-        n_choices = sm.ordered_num_choices()
+        n_choices = sm.get_num_choices()
         if len(cells) != len(n_choices):
             raise ValueError("Number of cells (%d) must match number of arc choices (%d)" % (len(cells), len(n_choices)))
         network.set_forward_strategy(False)
@@ -45,16 +45,19 @@ class TabularCellsProfiler(AbstractProfiler):
                     self.logger.info('Measuring cell %d, option %d' % (i1, i2))
                     sm.forward_const(i2)
                     self.data['measured']['cells'][i1][i2] =\
-                        self.profile_fun.profile(cell, cell.get_cached('shape_in'), mover, batch_size)
+                        self.profile_fun.profile(cell, cell.get_shape_in(), mover, batch_size)
 
         # final head
         if self.data.get('measured').get('head', None) is None:
             self.logger.info('Measuring the final head')
             head = network.get_heads()[-1]
             self.data['measured']['head'] =\
-                self.profile_fun.profile(head, head.get_cached('shape_in'), mover, batch_size)
+                self.profile_fun.profile(head, head.get_shape_in(), mover, batch_size)
 
     def predict(self, values: tuple) -> float:
         """ predict the network's profile value with the given architecture """
-        cells = [self.data.get('measured').get('cells').get(i).get(v) for i, v in enumerate(values)]
+        cell_data = self.data.get('measured').get('cells')
+        assert len(cell_data) == len(values), "Have %d cells, but %d values to get" % (len(cell_data), len(values))
+        cells = [cell_data.get(i, {}).get(v, -1) for i, v in enumerate(values)]
+        assert all([c > 0 for c in cells]), "Missing tabular entry"
         return self.data.get('measured').get('stem') + self.data.get('measured').get('head') + sum(cells)

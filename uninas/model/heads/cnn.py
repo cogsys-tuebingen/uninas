@@ -29,7 +29,7 @@ class ClassificationHead(AbstractHead):
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         self.head_module = ClassificationLayer(bias=self.bias, use_bn=False, use_gap=True, dropout_rate=self.dropout)
-        return self.head_module.build(s_in, s_out.num_features)
+        return self.head_module.build(s_in, s_out.num_features())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.head_module(x)
@@ -65,20 +65,20 @@ class FeatureMixClassificationHead(AbstractHead):
         ]
         if self.gap_first:
             after = [
-                nn.Linear(s_in.num_features, self.features, bias=True),  # no affine bn -> use bias
-                Register.get(self.act_fun)(inplace=True)
+                nn.Linear(s_in.num_features(), self.features, bias=True),  # no affine bn -> use bias
+                Register.act_funs.get(self.act_fun)(inplace=True)
             ]
             self.cached['shape_inner'] = Shape([self.features])
         else:
             before = [
-                nn.Conv2d(s_in.num_features, self.features, 1, 1, 0, bias=False),
+                nn.Conv2d(s_in.num_features(), self.features, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(self.features, affine=True),
-                Register.get(self.act_fun)(inplace=True)
+                Register.act_funs.get(self.act_fun)(inplace=True)
             ]
             self.cached['shape_inner'] = Shape([self.features, s_in.shape[1], s_in.shape[2]])
         ops = before + squeeze + after + [
             nn.Dropout(p=self.dropout),
-            nn.Linear(self.features, s_out.num_features, bias=self.bias)
+            nn.Linear(self.features, s_out.num_features(), bias=self.bias)
         ]
         self.head_module = nn.Sequential(*ops)
         return self.probe_outputs(s_in)
@@ -117,7 +117,7 @@ class SeFeatureMixClassificationHead(AbstractHead):
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         ops = [nn.AdaptiveAvgPool2d(1)]
         if self.se_cmul > 0:
-            ops.append(SqueezeExcitationChannelModule(s_in.num_features,
+            ops.append(SqueezeExcitationChannelModule(s_in.num_features(),
                                                       c_mul=self.se_cmul,
                                                       squeeze_act=self.se_act_fun,
                                                       squeeze_bias=self.se_squeeze_bias and not self.se_bn,
@@ -126,10 +126,10 @@ class SeFeatureMixClassificationHead(AbstractHead):
                                                       squeeze_bn_affine=self.se_squeeze_bias))
         ops.extend([
             SqueezeModule(),
-            nn.Linear(s_in.num_features, self.features, bias=self.bias0),
-            Register.get(self.act_fun)(inplace=True),
+            nn.Linear(s_in.num_features(), self.features, bias=self.bias0),
+            Register.act_funs.get(self.act_fun)(inplace=True),
             nn.Dropout(p=self.dropout),
-            nn.Linear(self.features, s_out.num_features, bias=self.bias1)
+            nn.Linear(self.features, s_out.num_features(), bias=self.bias1)
         ])
         self.head_module = nn.Sequential(*ops)
         self.cached['shape_inner'] = Shape([self.features])

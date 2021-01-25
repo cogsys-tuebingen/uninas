@@ -19,8 +19,8 @@ try:
         A task that hosts a Population-based-training (PBT) server, where network training can connect to (via callback)
         """
 
-        def __init__(self, args: Namespace, wildcards: dict):
-            super().__init__(args, wildcards)
+        def __init__(self, args: Namespace, *args_, **kwargs):
+            super().__init__(args, *args_, **kwargs)
 
             # necessities
             self.num_clients = self._parsed_argument('num_clients', args)
@@ -40,7 +40,7 @@ try:
                 os.makedirs(d, exist_ok=True)
 
             # selector
-            cls_selector = self._parsed_meta_argument('cls_pbt_selector', args, index=None)
+            cls_selector = self._parsed_meta_argument(Register.pbt_selectors, 'cls_pbt_selector', args, index=None)
             self.selector = cls_selector.from_args(self.weights_dir, self.logger, args, index=None)
             assert isinstance(self.selector, AbstractPbtSelector)
 

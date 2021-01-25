@@ -3,6 +3,7 @@ import platform
 import subprocess
 import GPUtil
 from pip._internal.operations.freeze import freeze
+import torch.utils.collect_env as collect_env
 import torch.backends.cudnn as cudnn
 
 
@@ -27,6 +28,9 @@ def dump_system_info(file_path: str):
     if os.path.isfile(file_path):
         os.remove(file_path)
     with open(file_path, 'w+') as o:
+        o.write(headline('torch collect_env'))
+        o.write(collect_env.get_pretty_env_info())
+
         o.write(headline('system info'))
         o.write('platform: %s\n' % platform.platform())
         o.write('python: %s\n' % platform.python_version())

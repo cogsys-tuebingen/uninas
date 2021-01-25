@@ -2,25 +2,295 @@
 abstract optimizer with some default args
 """
 
-import types
-from typing import Union, List
+from copy import deepcopy
+from typing import Union, List, Tuple
+import torch
 import torch.nn as nn
 from torch.optim.optimizer import Optimizer
 from torch.cuda.amp import GradScaler
-from uninas.utils.args import ArgsInterface, Argument
+from uninas.utils.args import ArgsInterface, Argument, Namespace
 
 
-class MultiOptimizer:
+class AbstractOptimizerFunctions:
+    def set_optimizer_lr(self, lr: float, update_initial=True, is_multiplier=False, at_index=0):
+        """
+        set the (initial) learning rate to 'lr'
+
+        :param lr: new (initial) learning rate
+        :param update_initial: if 'lr' should also apply to the initial learning rate
+        :param is_multiplier: if set just multiply the current value in optimizer with 'lr' instead
+        :param at_index: compatibility for multi optimizers
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def set_optimizer_lr_by_index(cls, optimizers: ['AbstractOptimizerFunctions'], index: int, lr: float, is_multiplier=False):
+        """
+        set the learning rate and initial learning rate of all optimizers to 'lr'
+
+        :param optimizers:
+        :param index: index of the optimizer to adapt
+        :param lr: new (initial) learning rate
+        :param is_multiplier: if set just multiply the current value in optimizer with 'lr' instead
+        """
+        for optimizer in optimizers:
+            optimizer.set_optimizer_lr(lr, update_initial=True, is_multiplier=is_multiplier, at_index=index)
+
+    def get_all_weights(self) -> [nn.Parameter]:
+        raise NotImplementedError
+
+    def get_all_gradients(self, make_copy=True) -> List[Union[torch.Tensor, None]]:
+        """
+        get a list of the gradients optimized
+        """
+        grads = []
+        for p in self.get_all_weights():
+            if p.grad is None:
+                grads.append(None)
+            elif make_copy:
+                grads.append(deepcopy(p.grad.detach()))
+            else:
+                grads.append(p.grad)
+        return grads
+
+    def get_my_log_dict(self, my_index=0) -> dict:
+        raise NotImplementedError
+
+    @classmethod
+    def get_optimizer_log_dict(cls, optimizers: ['AbstractOptimizerFunctions']) -> dict:
+        log_dict = {}
+        for i, optimizer in enumerate(optimizers):
+            log_dict.update(optimizer.get_my_log_dict(my_index=i))
+        return log_dict
+
+    @classmethod
+    def filter_values_in_dict(cls, log_dict: dict, optimizer_index: int) -> dict:
+        """ return only the log_dict entries that match this optimizer """
+        filtered, s = {}, ("learning_rate/%d" % optimizer_index)
+        for k, v in log_dict.items():
+            if k.startswith(s):
+                filtered[k] = v
+        return filtered
+
+    # lightning compatibility
+
+    def items(self):
+        raise NotImplementedError
+
+    def keys(self):
+        for k, v in self.items():
+            yield k
+
+    def values(self):
+        for k, v in self.items():
+            yield v
+
+
+class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
+    optimizer_cls = None  # callable to create a torch optimizer
+
+    # creation
+
+    def __init__(self, torch_optimizer: Optimizer, scaler: GradScaler,
+                 clip_abs_value: float = -1, clip_norm_value: float = -1, clip_norm_type: float = -1,
+                 accumulate_batches: int = 1):
+        super().__init__()
+        self.torch_optimizer = torch_optimizer
+        self.scaler = scaler
+
+        self.clip_abs_value = clip_abs_value
+        self.clip_norm_value = clip_norm_value
+        self.clip_norm_type = clip_norm_type
+        self._do_clip_abs = self.clip_abs_value > 0
+        self._do_clip_norm = (self.clip_norm_value > 0) and (self.clip_norm_type > 0)
+        assert not (self._do_clip_abs and self._do_clip_norm), "Can not clip both, absolute and norm values"
+
+        self.accumulate_batches = accumulate_batches
+        self._took_steps = 0
+        self._can_zero = False
+
+    @classmethod
+    def from_args(cls, namespace: Namespace, index: Union[int, None] = 0, scaler: Union[GradScaler, None] = None,
+                  named_params: Union[List[tuple], Tuple[tuple]] = (()), kwargs_changes: dict = None):
+        o_args = cls._all_parsed_arguments(args=namespace, index=index)
+        if isinstance(kwargs_changes, dict):
+            o_args.update(kwargs_changes)
+
+        # grad scaler
+        if not isinstance(scaler, GradScaler):
+            scaler = GradScaler(enabled=False)
+
+        # clipping
+        clip_abs_value = o_args.pop('clip_abs_value')
+        clip_norm_value = o_args.pop('clip_norm_value')
+        clip_norm_type = o_args.pop('clip_norm_type')
+
+        # accumulate gradients
+        accumulate_batches = o_args.pop('accumulate_batches')
+
+        # possibly disable weight decay for certain types of parameters
+        weight_decay = o_args.pop('weight_decay')
+        weight_decay_filter = o_args.pop('weight_decay_filter')
+        params, weight_decay = cls._decay_and_params(named_params, weight_decay, weight_decay_filter)
+        torch_optimizer = cls.optimizer_cls(params=params, **o_args, weight_decay=weight_decay)
+
+        return cls(torch_optimizer, scaler,
+                   clip_abs_value=clip_abs_value, clip_norm_value=clip_norm_value, clip_norm_type=clip_norm_type,
+                   accumulate_batches=accumulate_batches)
+
+    @classmethod
+    def args_to_add(cls, index=None) -> [Argument]:
+        """ list arguments to add to argparse when this class (or a child class) is chosen """
+        return super().args_to_add(index) + [
+            Argument('weight_decay', default=0.0, type=float, help='weight decay'),
+            Argument('weight_decay_filter', default='True', type=str, help='filter bias/bn from decay', is_bool=True),
+            Argument('clip_abs_value', default=-1, type=float, help='clip gradient to +- value, <=0 to disable'),
+            Argument('clip_norm_value', default=-1, type=float, help='clip gradient norm value, <=0 to disable'),
+            Argument('clip_norm_type', default=2, type=float, help='clip gradient norm type'),
+            Argument('accumulate_batches', default=1, type=int,
+                     help='accumulate gradients over n batches before stepping/zeroing, '
+                          'does not change the learning rate'),
+        ]
+
+    @classmethod
+    def _decay_and_params(cls, named_params: list, weight_decay: float, weight_decay_filter: bool) -> (list, float):
+        """
+        possibly filter bias and bn params so that they don't have weight decay
+        the original (?) idea is from https://github.com/rwightman/pytorch-image-models
+        """
+        if weight_decay_filter and weight_decay > 0.0:
+            decay, no_decay = [], []
+            for n, param in named_params:
+                # keep params with no_grad, may be enabled later
+                if len(param.shape) == 1 or n.endswith('.bias'):
+                    no_decay.append(param)
+                else:
+                    decay.append(param)
+            if len(decay) == 0:
+                return no_decay, 0.0
+            if len(no_decay) == 0:
+                return decay, weight_decay
+            return [dict(params=decay, weight_decay=weight_decay), dict(params=no_decay, weight_decay=0.0)], 0.0
+        return [p for _, p in named_params], weight_decay
+
+    # imitate an optimizer, execute the wrapped torch optimizer
+
+    @property
+    def param_groups(self):
+        return self.torch_optimizer.param_groups
+
+    def __getstate__(self):
+        return self.torch_optimizer.__getstate__()
+
+    def __setstate__(self, state):
+        self.torch_optimizer.__setstate__(state)
+
+    def __repr__(self) -> str:
+        clip_str, acc_str = '', ''
+        if self._do_clip_norm:
+            clip_str = 'clip_norm=(%.2f, %.2f), ' % (self.clip_norm_value, self.clip_norm_type)
+        if self._do_clip_abs:
+            clip_str = 'clip_abs=%.2f, ' % self.clip_abs_value
+        if self.accumulate_batches > 1:
+            acc_str = 'acc batches: %d, ' % self.accumulate_batches
+        return '%s ( %s%s%s )' % (self.__class__.__name__, clip_str, acc_str, self.torch_optimizer.__repr__())
+
+    def state_dict(self):
+        return self.torch_optimizer.state_dict()
+
+    def load_state_dict(self, state_dict):
+        return self.torch_optimizer.load_state_dict(state_dict)
+
+    def zero_grad(self, set_to_none=False, force=False):
+        if self._can_zero or force:
+            self.torch_optimizer.zero_grad(set_to_none=set_to_none)
+            self._can_zero = False
+
+    def step(self, closure=None) -> bool:
+        self._took_steps += 1
+        self._took_steps %= self.accumulate_batches
+        if self._should_step():
+            # unscale
+            self.scaler.unscale_(self.torch_optimizer)
+            # clip gradients, then step
+            if self._do_clip_abs:
+                for group in self.param_groups:
+                    nn.utils.clip_grad_value_(group['params'], self.clip_abs_value)
+            if self._do_clip_norm:
+                for group in self.param_groups:
+                    nn.utils.clip_grad_norm_(group['params'], self.clip_norm_value, self.clip_norm_type)
+            # step
+            self.scaler.step(optimizer=self.torch_optimizer, closure=closure)
+            # allow zero grad again
+            self._can_zero = True
+            return True
+        return False
+
+    def add_param_group(self, param_group):
+        self.torch_optimizer.add_param_group(param_group)
+
+    # utilities
+
+    def _should_step(self) -> bool:
+        return self._took_steps == 0
+
+    def get_lr_ratio(self) -> float:
+        """ get ratio of current to initial learning rate """
+        return self.param_groups[0]['lr'] / self.param_groups[0]['initial_lr']
+
+    def set_optimizer_lr(self, lr: float, update_initial=True, is_multiplier=False, at_index=0):
+        """
+        set the (initial) learning rate to 'lr'
+
+        :param lr: new (initial) learning rate
+        :param update_initial: if 'lr' should also apply to the initial learning rate
+        :param is_multiplier: if set just multiply the current value in optimizer with 'lr' instead
+        :param at_index: compatibility for multi optimizers
+        """
+        assert at_index == 0
+        for pg in self.torch_optimizer.param_groups:
+            used_lr = lr * (pg['lr'] if is_multiplier else 1)
+            pg['lr'] = used_lr
+            if update_initial:
+                pg['initial_lr'] = used_lr
+
+    def get_all_weights(self) -> [nn.Parameter]:
+        """
+        get a list of the parameters optimized by the given optimizer
+        """
+        params = []
+        for group in self.torch_optimizer.param_groups:
+            params.extend(group['params'])
+        return params
+
+    def get_my_log_dict(self, my_index=0) -> dict:
+        return {'learning_rate/%d/%s' % (my_index, self.__class__.__name__): self.param_groups[0]['lr']}
+
+    # lightning compatibility
+
+    @property
+    def state(self) -> dict:
+        return self.torch_optimizer.state
+
+    def items(self):
+        return self.torch_optimizer.state.items()
+
+
+class MultiWrappedOptimizer(AbstractOptimizerFunctions):
     """
     wraps multiple optimizers in one interface to sidestep some lightning restrictions
     """
 
     # behave like an optimizer
 
-    def __init__(self, optimizers: list):
+    def __init__(self, optimizers: [WrappedOptimizer]):
         self.optimizers = optimizers
+        self.param_groups = []
+        for opt in self.optimizers:
+            self.param_groups.extend(opt.param_groups)
+            assert opt.accumulate_batches == 1, "multi opt can not figure out correct handling of accumulating batches"
 
-    def at_index(self, index: int):
+    def at_index(self, index: int) -> WrappedOptimizer:
         return self.optimizers[index]
 
     def __getstate__(self):
@@ -47,18 +317,41 @@ class MultiOptimizer:
     def add_param_group(self, index, param_group):
         self.optimizers[index].add_param_group(param_group)
 
-    def zero_grad_all(self):
+    def zero_grad_all(self, force=False):
         for o in self.optimizers:
-            o.zero_grad()
+            o.zero_grad(force=force)
 
     def zero_grad(self, index: int):
         self.optimizers[index].zero_grad()
 
-    def clip_grad(self, index: int, scaler: GradScaler, value: float, norm_value: float, norm_type: float):
-        self.optimizers[index].clip_grad(scaler, value, norm_value, norm_type)
+    def step(self, index: int, closure=None) -> bool:
+        return self.optimizers[index].step(closure)
 
-    def step(self, index: int, closure=None):
-        self.optimizers[index].step(closure)
+    def step_any(self, closure=None) -> bool:
+        return any([optimizer.step(closure=closure) for optimizer in self.optimizers])
+
+    # utilities
+
+    def set_optimizer_lr(self, lr: float, update_initial=True, is_multiplier=False, at_index=0):
+        """
+        set the (initial) learning rate to 'lr'
+
+        :param lr: new (initial) learning rate
+        :param update_initial: if 'lr' should also apply to the initial learning rate
+        :param is_multiplier: if set just multiply the current value in optimizer with 'lr' instead
+        :param at_index: compatibility for multi optimizers
+        """
+        self.at_index(at_index).set_optimizer_lr(lr, update_initial=update_initial, is_multiplier=is_multiplier)
+
+    def get_all_weights(self) -> [nn.Parameter]:
+        weights = []
+        for optimizer in self.optimizers:
+            weights.extend(optimizer.get_all_weights)
+        return weights
+
+    def get_my_log_dict(self, my_index=0) -> dict:
+        return {'learning_rate/%d/%d/%s' % (my_index, i, o.__class__.__name__): o.param_groups[0]['lr']
+                for i, o in enumerate(self.optimizers)}
 
     # iterable like a list
 
@@ -72,131 +365,10 @@ class MultiOptimizer:
     # iterate states as if a dict, done by lightning
 
     @property
-    def state(self):
+    def state(self) -> 'MultiWrappedOptimizer':
         return self
 
     def items(self):
         for o in self.optimizers:
             for k, v in o.state.items():
                 yield k, v
-
-    def keys(self):
-        for k, v in self.items():
-            yield k
-
-    def values(self):
-        for k, v in self.items():
-            yield v
-
-
-class AbstractOptimizer(ArgsInterface):
-    optimizer_cls = None
-
-    @classmethod
-    def args_to_add(cls, index=None) -> [Argument]:
-        """ list arguments to add to argparse when this class (or a child class) is chosen """
-        return super().args_to_add(index) + [
-            Argument('weight_decay', default=0.0, type=float, help='weight decay'),
-            Argument('weight_decay_filter', default='True', type=str, help='filter bias/bn from decay', is_bool=True),
-        ]
-
-    @classmethod
-    def _decay_and_params(cls, named_params, weight_decay: float, weight_decay_filter: bool) -> (list, float):
-        """
-        possibly filter bias and bn params so that they don't have weight decay
-        the original (?) idea is from https://github.com/rwightman/pytorch-image-models
-        """
-        if weight_decay_filter and weight_decay > 0.0:
-            decay, no_decay = [], []
-            for n, param in named_params:
-                # keep params with no_grad, may be enabled later
-                if len(param.shape) == 1 or n.endswith('.bias'):
-                    no_decay.append(param)
-                else:
-                    decay.append(param)
-            if len(decay) == 0:
-                return no_decay, 0.0
-            if len(no_decay) == 0:
-                return decay, weight_decay
-            return [dict(params=decay, weight_decay=weight_decay), dict(params=no_decay, weight_decay=0.0)], 0.0
-        return [p for _, p in named_params], weight_decay
-
-    @classmethod
-    def __new__(cls, *args, **kwargs):
-        optimizer, namespace = args
-        index, named_params = kwargs.get('index', None), kwargs.get('named_params', None)
-        o_args = cls._all_parsed_arguments(args=namespace, index=index)
-
-        # possibly disable weight decay for certain types of parameters
-        weight_decay = o_args.pop('weight_decay')
-        weight_decay_filter = o_args.pop('weight_decay_filter')
-        params, weight_decay = cls._decay_and_params(named_params, weight_decay, weight_decay_filter)
-        torch_optimizer = optimizer.optimizer_cls(params=params, **o_args, weight_decay=weight_decay)
-
-        # adding a method to clip gradients directly in the optimizer
-        def clip_grad(self, scaler: GradScaler, clip_value=-1, clip_norm_value=-1, clip_norm_type=2):
-            if clip_value > 0:
-                scaler.unscale_(self)
-                for group in self.param_groups:
-                    nn.utils.clip_grad_value_(group['params'], clip_value)
-            elif clip_norm_value > 0:
-                scaler.unscale_(self)
-                for group in self.param_groups:
-                    nn.utils.clip_grad_norm_(group['params'], clip_norm_value, clip_norm_type)
-
-        torch_optimizer.clip_grad = types.MethodType(clip_grad, torch_optimizer)
-        return torch_optimizer
-
-    @classmethod
-    def get_optimizer_log_dict(cls, optimizers: [Optimizer]) -> dict:
-        assert len(optimizers) == 1, "Only one optimizer is allowed (use %s)" % MultiOptimizer.__class__.__name__
-        log_dict = {}
-        for j, o in enumerate(optimizers):
-            if isinstance(o, MultiOptimizer):
-                log_dict.update({'learning_rate/%d/%d/%s' % (j, j2, o2.__class__.__name__): o2.param_groups[0]['lr']
-                                 for j2, o2 in enumerate(o.optimizers)})
-            else:
-                log_dict.update({'learning_rate/%d/%s' % (j, o.__class__.__name__): o.param_groups[0]['lr']})
-        return log_dict
-
-    @classmethod
-    def filter_values_in_dict(cls, log_dict: dict, optimizer_index: int) -> dict:
-        """ return only the log_dict entries that match this optimizer """
-        filtered, s = {}, ("learning_rate/%d" % optimizer_index)
-        for k, v in log_dict.items():
-            if k.startswith(s):
-                filtered[k] = v
-        return filtered
-
-    @classmethod
-    def set_optimizer_lr(cls, optimizer: Optimizer, lr: float, is_multiplier=False):
-        """
-        set the learning rate and initial learning rate of an optimizer to 'lr'
-
-        :param optimizer:
-        :param lr: new (initial) learning rate
-        :param is_multiplier: if set just multiply the current value in optimizer with 'lr' instead
-        """
-        for pg in optimizer.param_groups:
-            used_lr = lr * (pg['lr'] if is_multiplier else 1)
-            pg['lr'] = used_lr
-            pg['initial_lr'] = used_lr
-
-    @classmethod
-    def set_optimizer_lr_by_index(cls, optimizers: List[Union[Optimizer, MultiOptimizer]], index: int,
-                                  lr: float, is_multiplier=False):
-        """
-        set the learning rate and initial learning rate of an optimizer to 'lr'
-
-        :param optimizers:
-        :param index: index of the optimizer to adapt
-        :param lr: new (initial) learning rate
-        :param is_multiplier: if set just multiply the current value in optimizer with 'lr' instead
-        """
-        assert len(optimizers) == 1, "Only one optimizer is allowed (use %s)" % MultiOptimizer.__class__.__name__
-        optimizer = optimizers[0]
-        if isinstance(optimizer, Optimizer) and index == 0:
-            return cls.set_optimizer_lr(optimizer, lr, is_multiplier=is_multiplier)
-        elif isinstance(optimizer, MultiOptimizer):
-            return cls.set_optimizer_lr(optimizer.at_index(index), lr, is_multiplier=is_multiplier)
-        raise NotImplementedError("Only one optimizer available, want to adapt at index %d" % index)

@@ -21,8 +21,8 @@ class MdlSearchMethod(AbstractOptimizationMethod):
             Argument('grace_epochs', default=0, type=int, help='grace epochs before probability updates'),
         ]
 
-    def get_strategy(self):
-        """ get strategy for architecture weights """
+    def setup_strategy(self) -> StrategyManager:
+        """ set up the strategy for architecture weights """
         key, alpha, grace_epochs = self._parsed_arguments(['key', 'alpha', 'grace_epochs'], self.hparams)
         return StrategyManager().add_strategy(
             MdlStrategy(self.max_epochs, key=key, alpha=alpha, grace_epochs=grace_epochs))

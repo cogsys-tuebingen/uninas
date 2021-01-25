@@ -1,7 +1,7 @@
 from collections import Callable
 from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.training.callbacks.abstract import AbstractCallback
 from uninas.training.callbacks.checkpoint import CheckpointCallback
 from uninas.utils.torch.ema import ModelEMA
@@ -40,7 +40,7 @@ class PbtServerResponse:
             optimizers = trainer.get_optimizers()
             for optimizer_id, v in self.optimizer_lrs.items():
                 log_fun("setting learning rate of optimizer %d to %f" % (optimizer_id, v))
-                AbstractOptimizer.set_optimizer_lr_by_index(optimizers, optimizer_id, lr=v, is_multiplier=False)
+                WrappedOptimizer.set_optimizer_lr_by_index(optimizers, optimizer_id, lr=v, is_multiplier=False)
 
         # regularizer values
         for k, v in self.reqularizer_values.items():

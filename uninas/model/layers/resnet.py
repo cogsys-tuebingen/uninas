@@ -39,7 +39,7 @@ class AbstractResNetLayer(AbstractLayer):
         self.shortcut = None
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        c_in = s_in.num_features
+        c_in = s_in.num_features()
         c_inner = int(c_out * self.expansion)
         self.block = self._build_block(c_in, c_inner, c_out, self.has_first_act)
         if self.shortcut_type in [None, 'None']:
@@ -81,12 +81,12 @@ class ResNetLayer(AbstractResNetLayer):
         ops = [
             nn.Conv2d(c_in, c_inner, self.k_size, self.stride, padding0, self.dilation, bias=False),
             nn.BatchNorm2d(c_inner, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             nn.Conv2d(c_inner, c_out, self.k_size, 1, padding1, 1, bias=False),
             nn.BatchNorm2d(c_out, affine=self.bn_affine),
         ]
         if has_first_act:
-            return nn.Sequential(Register.get(self.act_fun)(inplace=self.act_inplace), *ops)
+            return nn.Sequential(Register.act_funs.get(self.act_fun)(inplace=self.act_inplace), *ops)
         return nn.Sequential(*ops)
 
 
@@ -98,13 +98,13 @@ class ResNetBottleneckLayer(AbstractResNetLayer):
         ops = [
             nn.Conv2d(c_in, c_inner, 1, 1, 0, 1, bias=False),
             nn.BatchNorm2d(c_inner, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             nn.Conv2d(c_inner, c_inner, self.k_size, self.stride, padding, self.dilation, bias=False),
             nn.BatchNorm2d(c_inner, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             nn.Conv2d(c_inner, c_out, 1, 1, 0, 1, bias=False),
             nn.BatchNorm2d(c_out, affine=self.bn_affine),
         ]
         if has_first_act:
-            return nn.Sequential(Register.get(self.act_fun)(inplace=self.act_inplace), *ops)
+            return nn.Sequential(Register.act_funs.get(self.act_fun)(inplace=self.act_inplace), *ops)
         return nn.Sequential(*ops)

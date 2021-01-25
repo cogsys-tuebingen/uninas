@@ -1,7 +1,7 @@
 import unittest
 import torch
 from uninas.main import Main
-from uninas.networks.self.search import SearchUninasNetwork
+from uninas.networks.uninas.search import SearchUninasNetwork
 from uninas.training.result import TrainLogResult
 from uninas.methods.darts import DartsSearchMethod
 from uninas.utils.args import Argument
@@ -12,6 +12,7 @@ search_darts_config = '{path_conf_tasks}/d1_dartsv1.run_config, {path_conf_net_s
 super1_fairnas = '{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}fairnas.run_config'
 super3 = '{path_conf_tasks}/s3.run_config'
 retrain_darts_cifar_config = '{path_conf_tasks}/d2_cifar.run_config'
+dna1_config = '{path_conf_tasks}/dna1.run_config, {path_conf_net_search}fairnas.run_config'
 
 
 @Register.method(search=True)
@@ -39,6 +40,10 @@ class TestMethods(unittest.TestCase):
     def test_search_param_updates(self):
         """
         set gradients of network/architecture weights to zero and ensure that they are not updated, while the others are
+
+        expecting two arc weights:
+            28x8, with gradients, the actual weights
+            28x8, not requiring gradients, only masks
         """
         for mask_idx in range(2):
             exp1 = Main.new_task(search_darts_config, args_changes={
@@ -64,7 +69,8 @@ class TestMethods(unittest.TestCase):
             }, raise_unparsed=False)
 
             # get initial weights, make copies
-            optimizers, _ = exp1.methods[0].configure_optimizers()
+            optimizers, _ = exp1.get_method().configure_optimizers()
+            assert len(optimizers) == 1, "expecting only one multi optimizer"
             weights = [opt.param_groups[0]['params'][0] for opt in optimizers[0].optimizers]
             weight_copies = [w.clone().detach().cpu() for w in weights]
             s = ['Network', 'Architecture']
@@ -104,6 +110,7 @@ class TestMethods(unittest.TestCase):
         """
 
         for i, (config, trainer, ds, change_net, fix_topology) in enumerate([
+            (dna1_config,                   'SimpleTrainer', 'Imagenet1000Data', False, True),
             (super1_fairnas,                'SimpleTrainer', 'Imagenet1000Data', False, True),
             (search_darts_config,           'SimpleTrainer', 'Cifar10Data', True, False),
             (retrain_darts_cifar_config,    'SimpleTrainer', 'Cifar10Data', True, False),
@@ -137,26 +144,26 @@ class TestMethods(unittest.TestCase):
 
             print(config)
             exp1 = Main.new_task(config, args_changes=arg_changes).run()
-            data = exp1.methods[0].get_data_set().sample_random_data(batch_size=4).cuda()
-            net = exp1.methods[0].get_network()
+            data = exp1.get_method().get_data_set().sample_random_data(batch_size=4).cuda()
+            net = exp1.get_method().get_network()
             if fix_topology and isinstance(net, SearchUninasNetwork):
                 net.set_forward_strategy(False)
                 net.get_strategy_manager().forward_const(0)
             with torch.no_grad():
-                outputs1 = exp1.methods[0](data)
+                outputs1 = exp1.get_method()(data)
 
             arg_changes["{cls_task}.save_dir"] = save_dir % 2
             arg_changes["{cls_task}.seed"] += 1
             exp2 = Main.new_task(config, args_changes=arg_changes).run().load(save_dir % 1)
-            net = exp2.methods[0].get_network()
+            net = exp2.get_method().get_network()
             if fix_topology and isinstance(net, SearchUninasNetwork):
                 net.set_forward_strategy(False)
                 net.get_strategy_manager().forward_const(0)
             with torch.no_grad():
-                outputs2 = exp2.methods[0](data)
+                outputs2 = exp2.get_method()(data)
 
             for o1, o2 in zip(outputs1, outputs2):
-                self._assert_same_tensors('i=%d method=%s' % (i, exp1.methods[0].__class__.__name__), o1, o2)
+                self._assert_same_tensors('i=%d method=%s' % (i, exp1.get_method().__class__.__name__), o1, o2)
 
     def test_deterministic_method(self):
         """
@@ -177,11 +184,12 @@ class TestMethods(unittest.TestCase):
             for seed in range(2):
                 args_changes = {
                     "{cls_task}.seed": seed,
+                    "{cls_task}.is_deterministic": True,
                     "{cls_task}.is_test_run": True,
+                    "{cls_task}.save_del_old": True,
 
                     "{cls_device}.num_devices": 1,
                     "{cls_device}.use_cudnn_benchmark": False,
-                    "{cls_device}.use_cudnn_deterministic": True,
 
                     "cls_trainer": "SimpleTrainer",
                     "{cls_trainer}.max_epochs": 1,
@@ -197,13 +205,13 @@ class TestMethods(unittest.TestCase):
                     "{cls_schedulers#0}.warmup_epochs": 0,
                 }
                 exp1 = Main.new_task(config, args_changes=args_changes.copy()).run()
-                name = exp1.methods[0].__class__.__name__
-                data = exp1.methods[0].data_set.sample_random_data(batch_size=4).cuda()
-                outputs1 = [o.clone().detach() for o in exp1.methods[0](data)]
+                name = exp1.get_method().__class__.__name__
+                data = exp1.get_method().data_set.sample_random_data(batch_size=4).cuda()
+                outputs1 = [o.clone().detach() for o in exp1.get_method()(data)]
                 del exp1
 
                 exp2 = Main.new_task(config, args_changes=args_changes).run()
-                outputs2 = [o.clone().detach() for o in exp2.methods[0](data)]
+                outputs2 = [o.clone().detach() for o in exp2.get_method()(data)]
                 del exp2
 
                 for o1, o2 in zip(outputs1, outputs2):

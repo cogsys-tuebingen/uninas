@@ -1,10 +1,11 @@
 import os
 import torch
-from uninas.networks.self.search import SearchUninasNetwork
+from uninas.networks.uninas.search import SearchUninasNetwork
 from uninas.optimization.common.profilers.functions import AbstractProfileFunction
 from uninas.training.devices.abstract import AbstractDeviceMover
 from uninas.utils.args import ArgsInterface, MetaArgument, Namespace
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
+from uninas.utils.paths import replace_standard_paths
 from uninas.register import Register
 
 
@@ -15,18 +16,18 @@ class AbstractProfiler(ArgsInterface):
         if profile_fun is not None:
             self.set_all(profile_cls=profile_fun.__class__.__name__, is_test_run=is_test_run)
         self.profile_fun = profile_fun
-        self.logger = get_logger()
+        self.logger = LoggerManager().get_logger()
 
     @property
     def name(self):
         return '%s.%s' % (self.__class__.__name__, str(self.get('profile_cls')))
 
     @classmethod
-    def from_args(cls, args: Namespace, index=None, is_test_run=False):
+    def from_args(cls, args: Namespace, index=None, is_test_run=False) -> 'AbstractProfiler':
         """ create a profiler from a argparse arguments """
         profile_fun = None
         try:
-            cls_profile_fun = cls._parsed_meta_argument('cls_profile_fun', args, index=index)
+            cls_profile_fun = cls._parsed_meta_argument(Register.profile_functions, 'cls_profile_fun', args, index=index)
             profile_fun = cls_profile_fun.from_args(args, index=None)
         except KeyError:
             pass
@@ -35,12 +36,13 @@ class AbstractProfiler(ArgsInterface):
     @classmethod
     def from_file(cls, file_path: str):
         """ create and load a profiler from a profiler save file """
+        file_path = replace_standard_paths(file_path)
         assert os.path.isfile(file_path), "File does not exist: %s" % str(file_path)
         cls_name = torch.load(file_path).get('meta').get('cls')
-        profiler = Register.get(cls_name)()
+        profiler = Register.profilers.get(cls_name)()
         profiler.load(file_path)
         if profiler.get('is_test_run'):
-            get_logger().warning("Loading profiler data from a test-run file!")
+            LoggerManager().get_logger().warning("Loading profiler data from a file created in a test run!")
         return profiler
 
     @classmethod
@@ -65,13 +67,21 @@ class AbstractProfiler(ArgsInterface):
 
     def save(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        torch.save(self.data, path)
+        torch.save(self._get_data_to_save(), path)
+
+    def _get_data_to_save(self) -> dict:
+        return self.data
 
     def load(self, path: str) -> bool:
         if os.path.isfile(path):
-            self.data.update(torch.load(path))
+            data = torch.load(path)
+            assert isinstance(data, dict)
+            self._load_data(data)
             return True
         return False
+
+    def _load_data(self, data: dict):
+        self.data.update(data)
 
     def profile(self, network: SearchUninasNetwork, mover: AbstractDeviceMover, batch_size: int):
         """ profile the network """

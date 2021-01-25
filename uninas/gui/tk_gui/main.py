@@ -6,8 +6,8 @@ from tkinter import filedialog
 from uninas.main import Main
 from uninas.register import Register
 from uninas.utils.args import MetaArgument, Argument
-from uninas.utils.paths import standard_paths, replace_standard_paths, get_class_path
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.paths import standard_paths, replace_standard_paths, get_class_path, name_task_config
+from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.visualize.args import visualize_args_tree
 from uninas.gui.interactive import Interactive, GuiArgsTreeNode, EventHook
 from uninas.gui.tk_gui.utils.toggled import ToggledFrame
@@ -31,8 +31,6 @@ colors = {
 misc = {
     'scroll_delta': 2,
 }
-
-logger = get_logger()
 
 
 def maybe_add_cls_tooltip(name: str, label: tk.Label = None, tooltip: CreateToolTip = None):
@@ -254,7 +252,7 @@ class TkMetaWidget(ToggledFrame, UpdatableFrame):
             try:
                 self.interactive.add_meta_value(self.node.name, self.meta.argument.name, self.var_add_str.get())
             except Exception as e:
-                logger.error(str(e), exc_info=e)
+                LoggerManager().get_logger().error(str(e), exc_info=e)
                 tkm.showwarning(message=str(e))
             self.var_add_str.set(self.str_add)
         self.update_content()
@@ -267,7 +265,7 @@ class TkMetaWidget(ToggledFrame, UpdatableFrame):
             try:
                 self.interactive.remove_meta_index(self.node.name, self.meta.argument.name, idx)
             except Exception as e:
-                logger.error(str(e), exc_info=e)
+                LoggerManager().get_logger().error(str(e), exc_info=e)
                 tkm.showwarning(message=str(e))
         self.update_content()
         self.update()
@@ -491,7 +489,7 @@ class TkArgsGui(UpdatableFrame, EventHook):
 
     def load_add_config(self, add=True):
         path = filedialog.askopenfilename(initialdir=self._init_dir,
-                                          initialfile='task.run_config',
+                                          initialfile=name_task_config,
                                           title="Select file",
                                           filetypes=(("run config files", "*.run_config"),))
         if isinstance(path, str) and os.path.isfile(path) and len(path) > 0:
@@ -501,7 +499,7 @@ class TkArgsGui(UpdatableFrame, EventHook):
             try:
                 self.interactive.from_json(path)
             except Exception as e:
-                logger.error(str(e), exc_info=e)
+                LoggerManager().get_logger().error(str(e), exc_info=e)
                 tkm.showwarning(message=str(e))
             self.update_content()
             self.update()
@@ -512,14 +510,14 @@ class TkArgsGui(UpdatableFrame, EventHook):
     def save_as_config(self, path=None):
         if path is None:
             path = filedialog.asksaveasfilename(initialdir=self._init_dir,
-                                                initialfile='task.run_config',
+                                                initialfile=name_task_config,
                                                 title="Select file",
                                                 filetypes=(("run config files", "*.run_config"),))
         if isinstance(path, str) and not os.path.isdir(path) and len(path) > 0:
             try:
                 self.interactive.to_json(path)
             except Exception as e:
-                logger.error(str(e), exc_info=e)
+                LoggerManager().get_logger().error(str(e), exc_info=e)
                 tkm.showwarning(message=str(e))
             self._init_dir = os.path.dirname(path)
             self._save_path = path
@@ -536,7 +534,7 @@ class TkArgsGui(UpdatableFrame, EventHook):
             self.interactive.to_json(path)
             Main.new_task(path).run()
         except Exception as e:
-            logger.error(str(e), exc_info=e)
+            LoggerManager().get_logger().error(str(e), exc_info=e)
             tkm.showwarning(message=str(e))
 
     def reset(self):

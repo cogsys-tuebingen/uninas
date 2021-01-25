@@ -34,7 +34,7 @@ class EfficientChannelAttentionModule(AbstractAttentionModule):
         k_size = self.map_fun(self.c, k_size, gamma=gamma, b=b)
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False)
-        self.excite_act = Register.get(excite_act)(inplace=True)
+        self.excite_act = Register.act_funs.get(excite_act)(inplace=True)
 
     @classmethod
     def map_fun(cls, c: int, k_size=-1, gamma=2, b=2) -> int:

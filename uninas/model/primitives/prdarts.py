@@ -16,7 +16,7 @@ class DNU_PRDartsPrimitives(PrimitiveSet):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, **primitive_kwargs) -> [CNNPrimitive]:
         act = dict(act_fun='relu', order='act_w_bn')
         df = dict(act_inplace=False, bn_affine=True, use_bn=True)
         dfnb = df.copy()

@@ -9,12 +9,10 @@ from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.callbacks.abstract import AbstractCallback, EpochInfo
 from uninas.utils.torch.ema import ModelEMA
 from uninas.utils.torch.misc import itemize
-from uninas.utils.paths import replace_standard_paths
+from uninas.utils.paths import replace_standard_paths, maybe_download, FileType
 from uninas.utils.args import Argument
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.loggers.python import LoggerManager
 from uninas.register import Register
-
-logger = get_logger()
 
 
 @Register.training_callback()
@@ -94,14 +92,14 @@ class CheckpointCallback(AbstractCallback):
 
     def get_top_n(self, key: str = None) -> [EpochInfo]:
         key = self._data['key'] if key is None else key
-        return sorted(self._data['info'], key=lambda d: d.log_dict.get(key, self._default))
+        return sorted(self._data['info'], key=lambda d: d.log_dict.get(key, self._default), reverse=self._default < 0)
 
     def get_top_n_with_paths(self, include_last=True, key: str = None) -> [EpochInfo]:
         key = self._data['key'] if key is None else key
         data = [self._data['info'][i] for i in self._data['best']]
         if include_last and self._data['last'] >= 0:
             data.append(self._data['info'][self._data['last']])
-        return sorted(data, key=lambda d: d.log_dict.get(key, self._default))
+        return sorted(data, key=lambda d: d.log_dict.get(key, self._default), reverse=self._default < 0)
 
     def _auto_clean(self):
         """ remove the worst checkpoints until only the top n remain """
@@ -147,7 +145,7 @@ class CheckpointCallback(AbstractCallback):
             checkpoint.update(update_dict)
         pl_module.on_save_checkpoint(checkpoint)
         cls.atomic_save(file_path, checkpoint)
-        logger.info('Saved weights to file: %s' % file_path)
+        LoggerManager().get_logger().info('Saved weights to file: %s' % file_path)
         return checkpoint
 
     @classmethod
@@ -155,19 +153,19 @@ class CheckpointCallback(AbstractCallback):
         """ load method checkpoint from method checkpoint file and return it """
         file_path = replace_standard_paths(file_path)
         if os.path.isfile(file_path):
-            logger.info('Found checkpoint: %s' % file_path)
+            LoggerManager().get_logger().info('Found checkpoint: %s' % file_path)
             checkpoint = torch.load(file_path)
             if pl_module is not None:
                 pl_module.load_state_dict(checkpoint['state_dict'])
                 pl_module.on_load_checkpoint(checkpoint)
-                logger.info('Loaded weights from file: %s' % file_path)
+                LoggerManager().get_logger().info('Loaded weights from file: %s' % file_path)
             return checkpoint
         else:
-            logger.info('Can not load weights, does not exist / not a file: %s' % file_path)
+            LoggerManager().get_logger().info('Can not load weights, does not exist / not a file: %s' % file_path)
             return {}
 
     @classmethod
-    def load_network(cls, file_path: str, network: nn.Module) -> bool:
+    def load_network(cls, file_path: str, network: nn.Module, num_replacements=1) -> bool:
         """
         load network checkpoint from method checkpoint file
         replace parts of the param names to match the requirements
@@ -181,11 +179,11 @@ class CheckpointCallback(AbstractCallback):
             for key0, v in state_dict.items():
                 key1 = key0
                 for k0, k1 in key_mappings.items():
-                    key1 = key1.replace(k0, k1)
+                    key1 = key1.replace(k0, k1, num_replacements)
                 net_state_dict[key1] = v
             network.load_state_dict(net_state_dict, strict=True)
 
-            logger.info('Loaded weights from file: %s' % file_path)
+            LoggerManager().get_logger().info('Loaded weights from file: %s' % file_path)
             return True
         else:
             return False
@@ -200,28 +198,68 @@ class CheckpointCallback(AbstractCallback):
         return lst
 
     @classmethod
-    def load_last_checkpoint(cls, save_dir: str, pl_module: AbstractMethod = None,
-                             index=0, try_general_checkpoint=True) -> dict:
+    def find_last_checkpoint_path(cls, save_dir: str, index=0, try_general_checkpoint=True) -> str:
         """
-        attempt loading from a dir,
-        if 'save_dir' is a file, load in
-        if there is a general checkpoint and 'try_general_checkpoint', load it
-        otherwise try loading the most recent checkpoint of the CheckpointCallback with index 'index'
+        attempt finding the checkpoint path in a dir,
+        if 'save_dir' is a file, return it
+        if there is a general checkpoint and 'try_general_checkpoint', return its path
+        otherwise try finding the most recent checkpoint of the CheckpointCallback with index 'index'
         """
         save_dir = replace_standard_paths(save_dir)
         # try as path and general path
         if os.path.isfile(save_dir):
-            return cls.load(save_dir, pl_module)
+            return save_dir
         if try_general_checkpoint and os.path.isfile(cls._general_checkpoint_file(save_dir)):
-            return cls.load(cls._general_checkpoint_file(save_dir), pl_module)
+            return cls._general_checkpoint_file(save_dir)
         # try by index
         lst = sorted(cls.list_infos(save_dir, index), key=lambda inf: inf.checkpoint_path)
         if len(lst) > 0:
-            return cls.load(lst[-1].checkpoint_path, pl_module)
+            return lst[-1].checkpoint_path
         # try to find any checkpoint.pt in dir
         for path in glob.glob('%s/**/checkpoint.pt' % save_dir, recursive=True):
+            return path
+        # failure
+        LoggerManager().get_logger().info('Can not find a uninas checkpoint (history) in: %s' % save_dir)
+        return ''
+
+    @classmethod
+    def find_pretrained_weights_path(cls, path: str, name: str = 'pretrained', raise_missing=True) -> str:
+        """
+        attempt finding pretrained weights in a dir,
+        no matter if checkpoint or external
+        """
+        maybe_path = maybe_download(path, FileType.WEIGHTS)
+        if isinstance(maybe_path, str):
+            return maybe_path
+        path = replace_standard_paths(path)
+        if len(path) == 0 or os.path.isfile(path):
+            return path
+        # try looking for a checkpoint
+        p = cls.find_last_checkpoint_path(path)
+        if os.path.isfile(p):
+            return p
+        # glob any .pt/.pth file with the network name in it
+        glob_path = '%s/**/*%s*.pt*' % (path, name)
+        paths = glob.glob(glob_path, recursive=True)
+        if len(paths) > 0:
+            return paths[0]
+        # failure
+        if raise_missing:
+            raise FileNotFoundError('can not find any pretrained weights in "%s" or "%s"' % (path, glob_path))
+        return ''
+
+    @classmethod
+    def load_last_checkpoint(cls, save_dir: str, pl_module: AbstractMethod = None,
+                             index=0, try_general_checkpoint=True) -> dict:
+        """
+        attempt loading from a dir,
+        if 'save_dir' is a file, load it
+        if there is a general checkpoint and 'try_general_checkpoint', load it
+        otherwise try loading the most recent checkpoint of the CheckpointCallback with index 'index'
+        """
+        path = cls.find_last_checkpoint_path(save_dir, index, try_general_checkpoint)
+        if os.path.isfile(path):
             return cls.load(path, pl_module)
-        logger.info('Can not find "checkpoint.pt", nor is it a file, nor is there a checkpoint history: %s' % save_dir)
         return {}
 
     def save_track(self, pl_module: AbstractMethod, log_dict: dict = None, overwrite=False, update_dict: dict = None):

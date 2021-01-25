@@ -32,7 +32,7 @@ args = {
 
     "cls_augmentations": "DartsCifarAug",
     
-    "cls_method": "DartsSearchMethod",
+    "cls_method": "DartsSearchMethod",  # DartsSearchMethod
 
     "cls_network": "SearchUninasNetwork",
 
@@ -52,7 +52,6 @@ args = {
     "{cls_network_cells#0}.name": "n",
     "{cls_network_cells#0}.arc_key": "n",
     "{cls_network_cells#0}.arc_shared": True,
-    "{cls_network_cells#0}.primitives": "DartsPrimitives",
     "{cls_network_cells#0}.features_mult": 1,
     "{cls_network_cells#0}.stride": 1,
     "{cls_network_cells#0}.num_concat": 4,
@@ -61,12 +60,13 @@ args = {
     "{cls_network_cells#1}.name": "r",
     "{cls_network_cells#1}.arc_key": "r",
     "{cls_network_cells#1}.arc_shared": True,
-    "{cls_network_cells#1}.primitives": "DartsPrimitives",
     "{cls_network_cells#1}.features_mult": 2,
     "{cls_network_cells#1}.stride": 2,
     "{cls_network_cells#1}.num_concat": 4,
     "{cls_network_cells#1}.num_blocks": 4,
     "{cls_network_cells#1}.cls_block": "DartsCNNSearchBlock",
+
+    "cls_network_cells_primitives": "DartsPrimitives, DartsPrimitives",
 
     "cls_metrics": "AccuracyMetric",
 

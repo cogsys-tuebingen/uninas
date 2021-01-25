@@ -9,7 +9,7 @@ from collections import defaultdict
 from argparse import ArgumentParser, Namespace
 from uninas.utils.paths import standard_paths, replace_standard_paths
 from uninas.utils.misc import split
-from uninas.register import Register, RegisterDict
+from uninas.register import RegisterDict
 
 args_type = Union[Namespace, dict]
 
@@ -164,7 +164,7 @@ class Argument:
             if self.is_path:
                 value = os.path.expanduser(value.replace('${HOME}', '~'))
             if self.is_bool:
-                value = value.lower().startswith('t')
+                value = value.lower().startswith('t') or value == '1'
         return value
 
     def register(self, parser: ArgumentParser, registering_cls, index=None):
@@ -193,6 +193,7 @@ class MetaArgument:
         :param optional_for_loading: whether this argument is optional when loading an existing config
         """
 
+        self.registered = registered
         if isinstance(allowed_num, int):
             allowed_num = (allowed_num, allowed_num)
         self.allowed_num = allowed_num
@@ -304,20 +305,20 @@ class ArgsInterface:
         return args
 
     @classmethod
-    def _parsed_meta_argument(cls, meta_name: str, args: args_type, index=None):
+    def _parsed_meta_argument(cls, register_dict: RegisterDict, meta_name: str, args: args_type, index=None):
         """ get a class back """
         try:
             name = items(args)[meta_name]
-            return Register.get(name)
+            return register_dict.get(name)
         except KeyError:
-            raise KeyError('Value "%s" not in args' % meta_name)
+            raise KeyError('Meta value "%s" not in args' % meta_name)
 
     @classmethod
-    def _parsed_meta_arguments(cls, meta_name: str, args: args_type, index=None):
+    def _parsed_meta_arguments(cls, register_dict: RegisterDict, meta_name: str, args: args_type, index=None):
         """ get a list of classes back """
         try:
             names = items(args)[meta_name]
-            return [Register.get(n) for n in split(names)]
+            return [register_dict.get(n) for n in split(names)]
         except KeyError:
             raise KeyError('Value "%s" not in args' % meta_name)
 
@@ -341,10 +342,10 @@ class ArgsInterface:
         return {n.name: cls._parsed_argument(name=n.name, args=args, index=index) for n in cls.args_to_add(index=index)}
 
     @classmethod
-    def init_multiple(cls, args: args_type, split_key: str) -> list:
+    def init_multiple(cls, register_dict: RegisterDict, args: args_type, split_key: str) -> list:
         """ creates list of ArgsInterface objects """
         splits = split(items(args)[split_key])
-        return [Register.get(cls_name)(args, i) for i, cls_name in enumerate(splits)]
+        return [register_dict.get(cls_name)(args, i) for i, cls_name in enumerate(splits)]
 
     @classmethod
     def parsed_argument_defaults(cls) -> dict:
@@ -415,8 +416,12 @@ class ArgsTreeNode:
 
     def add_child_meta(self, meta: MetaArgument, cls_name: str):
         # add new node to children
-        assert cls_name in meta.argument.registered, "Can not add %s for %s" % (cls_name, meta.argument.name)
-        cls = Register.get(cls_name)
+        assert cls_name in meta.argument.registered,\
+            "Can not add %s for %s! " \
+            "\nThe class may not available in this context (does not make sense)," \
+            "\nor at all (e.g. an optional class is not loaded if the respective python libraries are missing)"\
+            % (cls_name, meta.argument.name)
+        cls = meta.registered.get(cls_name)
         c = self.__class__(cls, self.depth + 1, _in_meta=meta, _index=None)
         _, a2 = meta.is_allowed_num(len(self.children[meta.argument.name])+1)
         if not a2:
@@ -447,7 +452,7 @@ class ArgsTreeNode:
             wildcards[fmt % self._in_meta.argument.name] = fmt % self.args_cls.__name__
         return wildcards
 
-    def parse(self, args_list: [str], parser: ArgumentParser = None, raise_unparsed=True) -> (Namespace, dict, list):
+    def parse(self, args_list: [str], parser: ArgumentParser = None, raise_unparsed=True) -> (Namespace, dict, list, dict):
         """
         parse the list of arguments
 
@@ -455,20 +460,26 @@ class ArgsTreeNode:
         :param parser: optional ArgumentParser
         :param raise_unparsed: raise an exception when there are unparsed arguments
         :return:
-            if parser is None: (None, wildcards, None)
-            else: (Namespace of the arguments, wildcards, list of unparsed arguments)
+            if parser is None: (None, wildcards, None, description each arg)
+            else: (Namespace of the arguments, wildcards, list of unparsed arguments, description each arg)
         """
         # add wildcard
         self._print('parsing')
         wildcards = self.get_wildcards()
+        descriptions = {}
+        for meta_name, meta in self.metas.items():
+            descriptions[meta.argument.name] = meta.help_name
         # add arguments of this node
         if parser is not None:
-            self.args_cls.add_arguments(parser, index=self.index)
+            for arg in self.args_cls.args_to_add(index=self.index):
+                arg.register(parser, self.args_cls, self.index)
+                descriptions['%s.%s' % (self.name, arg.name)] = arg.help
             self._can_parse(args_list, parser)
         for meta_name, children in self.children.items():
             for child in children:
-                _, w, _ = child.parse(args_list, parser, raise_unparsed=False)
+                _, w, _, d = child.parse(args_list, parser, raise_unparsed=False)
                 wildcards.update(w)
+                descriptions.update(d)
         # the root node finally parses
         if self._is_root:
             # update wildcards with commonly used paths
@@ -481,6 +492,6 @@ class ArgsTreeNode:
                     if raise_unparsed:
                         raise ValueError('Unparsed arguments! %s' % ', '.join(unparsed))
                     print('Unparsed arguments!', unparsed)
-                return args, wildcards, failed_args
-            return None, wildcards, None
-        return None, wildcards, None
+                return args, wildcards, failed_args, descriptions
+            return None, wildcards, None, descriptions
+        return None, wildcards, None, descriptions

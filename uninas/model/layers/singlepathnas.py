@@ -168,9 +168,9 @@ class SuperSqueezeExcitationChannelThresholdModule(nn.Module):
         if squeeze_bn:
             ops.append(nn.BatchNorm2d(c_red, affine=squeeze_bn_affine))
         ops.extend([
-            Register.get(squeeze_act)(inplace=True),
+            Register.act_funs.get(squeeze_act)(inplace=True),
             nn.Conv2d(c_red, c, kernel_size=1, stride=1, bias=excite_bias),
-            Register.get(excite_act)(inplace=True),
+            Register.act_funs.get(excite_act)(inplace=True),
         ])
         self.op = nn.Sequential(*ops)
 
@@ -208,7 +208,7 @@ class SuperConvThresholdLayer(AbstractStepsLayer):
         self.conv = None
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
-        self.conv = SuperKernelThresholdConv(s_in.num_features, c_out, self.k_sizes, (1.0,),
+        self.conv = SuperKernelThresholdConv(s_in.num_features(), c_out, self.k_sizes, (1.0,),
                                              self.dilation, self.stride, self.padding, self.groups, self.bias)
         wf = list(weight_functions) + [self.conv]
         return super()._build(s_in, c_out, weight_functions=wf)
@@ -245,9 +245,9 @@ class SuperSepConvThresholdLayer(AbstractStepsLayer):
         self.conv = None
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
-        self.conv = SuperKernelThresholdConv(s_in.num_features, s_in.num_features, self.k_sizes, (1.0,),
+        self.conv = SuperKernelThresholdConv(s_in.num_features(), s_in.num_features(), self.k_sizes, (1.0,),
                                              self.dilation, self.stride, self.padding, self.groups, self.bias)
-        point_conv = nn.Conv2d(s_in.num_features, c_out, kernel_size=1, groups=1, bias=self.bias)
+        point_conv = nn.Conv2d(s_in.num_features(), c_out, kernel_size=1, groups=1, bias=self.bias)
         wf = list(weight_functions) + [self.conv, point_conv]
         return super()._build(s_in, c_out, weight_functions=wf)
 
@@ -289,7 +289,7 @@ class SuperMobileInvertedConvThresholdLayer(AbstractLayer):
         self.block = None
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        c_in = s_in.num_features
+        c_in = s_in.num_features()
         c_mid = int(c_in * max(self.expansions))
         self.has_skip = self.stride == 1 and c_in == c_out
         max_exp = max(self.expansions)
@@ -301,7 +301,7 @@ class SuperMobileInvertedConvThresholdLayer(AbstractLayer):
             ops.extend([
                 nn.Conv2d(c_in, c_mid, 1, 1, 0, groups=1, bias=False),
                 nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-                Register.get(self.act_fun)(inplace=self.act_inplace),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ])
         # dw
         self.conv = SuperKernelThresholdConv(c_mid, c_mid, self.k_sizes, exp_mults, self.dilation, self.stride,
@@ -309,7 +309,7 @@ class SuperMobileInvertedConvThresholdLayer(AbstractLayer):
         ops.extend([
             self.conv,
             nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
         ])
         # optional squeeze+excitation module with searchable width
         if isinstance(self.sse_dict, dict):

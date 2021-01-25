@@ -86,8 +86,7 @@ class VizTree:
 
 def visualize_config(config: dict, save_path: str):
     save_path = replace_standard_paths(save_path)
-    cfg_path = replace_standard_paths('%sviz.network_config' % save_path)
-    Builder.save_config(config, cfg_path)
+    cfg_path = Builder.save_config(config, replace_standard_paths('{path_tmp}/viz/'), 'viz')
     exp = Main.new_task(run_config, args_changes={
         '{cls_data}.fake': True,
         '{cls_data}.batch_size_train': 4,
@@ -96,7 +95,7 @@ def visualize_config(config: dict, save_path: str):
         '{cls_task}.save_del_old': True,
         "{cls_network}.config_path": cfg_path,
     })
-    net = exp.get_first_method().get_network()
+    net = exp.get_method().get_network()
     vt = VizTree(net)
     vt.print()
     vt.plot(save_path + 'net', add_subgraphs=True)
@@ -111,4 +110,4 @@ def visualize_file(config_path: str, save_dir: str):
 
 
 if __name__ == '__main__':
-    visualize_file(replace_standard_paths('{path_conf_net_originals}/MobileNetV2.network_config'), '{path_tmp}/viz/')
+    visualize_file(Builder.find_net_config_path('MobileNetV2'), '{path_tmp}/viz/')

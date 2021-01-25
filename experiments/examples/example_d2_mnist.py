@@ -1,7 +1,7 @@
 from uninas.main import Main
 
 """
-retraining a network from a .network_config, here is some DARTS-space specific stuff (e.g. drop path)
+retraining a network from a network config, here is some DARTS-space specific stuff (e.g. drop path)
 """
 
 
@@ -32,7 +32,7 @@ args = {
     "cls_method": "RetrainMethod",
 
     "cls_network": "RetrainInsertConfigUninasNetwork",
-    "{cls_network}.config_path": "{path_conf_net_originals}/DARTS_V1.network_config",
+    "{cls_network}.config_path": "DARTS_V1",
     # "{cls_network}.config_path": "/{path_tmp}/from_config/finalized.network_config",
 
     "{cls_network_body}.cell_order": "n, r, n, r, n",

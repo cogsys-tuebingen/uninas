@@ -6,12 +6,9 @@ backend for the gui, interactively add/remove argparse nodes
 import typing
 from uninas.utils.args import MetaArgument, ArgsTreeNode, ArgumentParser,\
     arg_list_from_json, save_as_json, replace_wildcards_in_args_list
-from uninas.utils.loggers.python import get_logger
 from uninas.utils.meta import Singleton
 from uninas.main import Main
 from uninas.builder import Builder
-
-logger = get_logger()
 
 
 class EventHook:
@@ -129,7 +126,7 @@ class Interactive(metaclass=Singleton):
 
     def to_json(self, path: str):
         """ export the current args to a config file """
-        _, wildcards, _ = self.root.parse([], None, raise_unparsed=False)
+        _, wildcards, _, _ = self.root.parse([], None, raise_unparsed=False)
         save_as_json(self.get_args_dict(), path, wildcards=wildcards)
 
     def get_node(self, name: str) -> GuiArgsTreeNode:

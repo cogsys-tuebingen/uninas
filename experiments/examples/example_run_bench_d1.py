@@ -9,7 +9,11 @@ changes = {
     "{cls_task}.is_test_run": True,
     "{cls_task}.save_dir": "{path_tmp}/run_bench_d1/",
     "{cls_task}.save_del_old": True,
-    "{cls_task}.mini_bench_path": "{path_data}/nasbench201_1.1_mini.pt",
+
+    "cls_benchmark": "MiniNASTabularBenchmark",
+    "{cls_benchmark}.path": "{path_data}/nats_bench_1.1_mini.pt",
+    "{cls_benchmark}.default_data_set": "cifar100",
+    "{cls_benchmark}.default_result_type": "test",
 
     "{cls_trainer}.max_epochs": 4,
 

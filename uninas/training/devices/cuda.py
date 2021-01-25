@@ -13,6 +13,12 @@ class CudaDeviceMover(AbstractDeviceMover):
     handle data flow to specific CUDA devices
     """
 
+    def empty_cache(self):
+        """
+        empty the cache
+        """
+        torch.cuda.empty_cache()
+
     def _synchronize(self, indices: [int]):
         """ make sure all operations are complete """
         for i in indices:
@@ -47,17 +53,18 @@ class CudaDevicesManager(AbstractDevicesManager):
     """
     _mover_cls = CudaDeviceMover
 
-    def __init__(self, seed: int, num_devices: int,
-                 use_cudnn: bool, use_cudnn_benchmark: bool, use_cudnn_deterministic: bool):
+    def __init__(self, seed: int, is_deterministic: bool, num_devices: int,
+                 use_cudnn: bool, use_cudnn_benchmark: bool):
         if num_devices < 0:
             num_devices = torch.cuda.device_count()
-        super().__init__(seed, num_devices)
+        super().__init__(seed, is_deterministic, num_devices)
         assert torch.cuda.device_count() >= num_devices,\
             "Only %d devices available on the system, requesting %d" % (torch.cuda.device_count(), num_devices)
         if num_devices > 0:
+            torch.cuda.manual_seed_all(seed)
             cudnn.set_flags(_enabled=use_cudnn,
-                            _benchmark=use_cudnn_benchmark and not use_cudnn_deterministic,
-                            _deterministic=use_cudnn_deterministic)
+                            _benchmark=use_cudnn_benchmark and not is_deterministic,
+                            _deterministic=is_deterministic)
 
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
@@ -65,5 +72,4 @@ class CudaDevicesManager(AbstractDevicesManager):
         return super().args_to_add(index) + [
             Argument('use_cudnn', default='True', type=str, help='try using cudnn', is_bool=True),
             Argument('use_cudnn_benchmark', default='True', type=str, help='use cudnn benchmark', is_bool=True),
-            Argument('use_cudnn_deterministic', default='False', type=str, help='use cudnn deterministic', is_bool=True),
         ]

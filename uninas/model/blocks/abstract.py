@@ -5,6 +5,7 @@ basic (search) blocks
 import torch
 from uninas.utils.args import ArgsInterface, Namespace
 from uninas.model.modules.abstract import AbstractArgsModule
+from uninas.model.primitives.abstract import PrimitiveSet
 from uninas.utils.shape import Shape, ShapeList
 
 
@@ -24,12 +25,11 @@ class SearchBlockInterface(ArgsInterface):
         return cls._parsed_argument('name', args, index=index)
 
     @classmethod
-    def search_block_instance(cls, primitives: str, arc_key: str, num_inputs: int, strategy_name='default'):
+    def search_block_instance(cls, primitives: PrimitiveSet, arc_key: str, num_inputs: int) -> 'SearchBlockInterface':
         """
         :param primitives: primitive set for this block
         :param arc_key: key under which to register architecture parameter names
         :param num_inputs: number of block inputs
-        :param strategy_name: name of the strategy object to register the search parameters with
         :return:
         """
         raise NotImplementedError
@@ -38,13 +38,12 @@ class SearchBlockInterface(ArgsInterface):
 class SearchCNNBlockInterface(SearchBlockInterface):
 
     @classmethod
-    def search_block_instance(cls, primitives: str, arc_key: str, num_inputs: int, strategy_name='default', stride: int = 1):
+    def search_block_instance(cls, primitives: PrimitiveSet, arc_key: str, num_inputs: int, stride: int = 1) -> 'SearchCNNBlockInterface':
         """
         :param primitives: primitive set for this block
         :param arc_key: key under which to register architecture parameter names
         :param num_inputs: number of block inputs
-        :param strategy_name: name of the strategy object to register the search parameters with
-        :param stride:
+        :param stride: stride for the CNN ops
         :return:
         """
         raise NotImplementedError

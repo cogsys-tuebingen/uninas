@@ -34,7 +34,7 @@ class BasicDartsAuxHead(AbstractModule):
         self._add_to_kwargs(init_pool_stride=init_pool_stride)
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        self.auxiliary = BasicDartsAuxHeadModule(c=s_in.num_features, num_classes=c_out,
+        self.auxiliary = BasicDartsAuxHeadModule(c=s_in.num_features(), num_classes=c_out,
                                                  init_pool_stride=self.init_pool_stride)
         return self.probe_outputs(s_in, multiple_outputs=False)
 
@@ -54,7 +54,7 @@ class DartsCifarAuxHead(AbstractHead):
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         """ assuming input size 8x8 """
         self.head_module = BasicDartsAuxHead(init_pool_stride=3)
-        return self.head_module.build(s_in, s_out.num_features)
+        return self.head_module.build(s_in, s_out.num_features())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.head_module(x)
@@ -69,4 +69,4 @@ class DartsImageNetAuxHead(DartsCifarAuxHead):
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         """ assuming input size 14x14 """
         self.head_module = BasicDartsAuxHead(init_pool_stride=2)
-        return self.head_module.build(s_in, s_out.num_features)
+        return self.head_module.build(s_in, s_out.num_features())

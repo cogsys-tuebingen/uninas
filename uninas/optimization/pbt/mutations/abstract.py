@@ -25,7 +25,7 @@ class AbstractPbtMutation(ArgsInterface):
         ]
 
     @classmethod
-    def from_args(cls, args: Namespace, index=None):
+    def from_args(cls, args: Namespace, index=None) -> 'AbstractPbtMutation':
         return cls(**cls._all_parsed_arguments(args, index=index))
 
     def reset(self):

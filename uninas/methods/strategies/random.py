@@ -2,7 +2,7 @@
 random strategies to (de)activate paths
 
 turns out numpy.random is deterministic while torch.random is not,
-probabily since torch also uses its random variables in other threads, e.g. to load data
+probably since torch also uses its random variables in other threads, e.g. to load data
 """
 
 import numpy as np

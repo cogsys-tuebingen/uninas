@@ -55,8 +55,8 @@ class SuperKernelConv(nn.Module):
         masks_c, masks_k = [], []
 
         # arc weights
-        self.ws = StrategyManager().make_weight(strategy_name, self.name_k, num_choices=len(k_sizes))
-        self.ws = StrategyManager().make_weight(strategy_name, self.name_c, num_choices=len(channels))
+        self.ws = StrategyManager().make_weight(strategy_name, self.name_k, only_single_path=True, num_choices=len(k_sizes))
+        self.ws = StrategyManager().make_weight(strategy_name, self.name_c, only_single_path=True, num_choices=len(channels))
 
         # conv weight
         self._padding = get_padding(padding, max_k, stride, 1)
@@ -96,13 +96,15 @@ class SuperKernelConv(nn.Module):
         return nn.functional.conv2d(x, weight*mask_c*mask_k, self.bias, self._stride, self._padding,
                                     self._dilation, self._groups)
 
-    def get_finalized_kernels(self) -> [(int, int)]:
+    def get_finalized_kernel(self) -> [(int, int)]:
         """ get the list of finalized (idx, k_size) """
-        return [(ik, self.k_sizes[ik]) for ik in self.ws.get_finalized_indices(self.name_k)]
+        ik = self.ws.get_finalized_index(self.name_k)
+        return ik, self.k_sizes[ik]
 
-    def get_finalized_channel_mults(self) -> [(int, int)]:
-        """ get the list of finalized (idx, c_mul) """
-        return [(ic, self.c_multipliers[ic]) for ic in self.ws.get_finalized_indices(self.name_c)]
+    def get_finalized_channel_mult(self) -> [(int, int)]:
+        """ get the finalized (idx, c_mul) """
+        ic = self.ws.get_finalized_index(self.name_c)
+        return ic, self.c_multipliers[ic]
 
 
 @Register.network_layer()
@@ -129,7 +131,7 @@ class SuperConvLayer(AbstractStepsLayer):
         self.conv = None
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
-        self.conv = SuperKernelConv(s_in.num_features, c_out, self.name, self.strategy_name, self.k_sizes, (1.0,),
+        self.conv = SuperKernelConv(s_in.num_features(), c_out, self.name, self.strategy_name, self.k_sizes, (1.0,),
                                     self.dilation, self.stride, self.padding, self.groups, self.bias)
         wf = list(weight_functions) + [self.conv]
         return super()._build(s_in, c_out, weight_functions=wf)
@@ -142,9 +144,8 @@ class SuperConvLayer(AbstractStepsLayer):
             kwargs.pop('name')
             kwargs.pop('strategy_name')
             kwargs.pop('k_sizes')
-            ks = self.conv.get_finalized_kernels()
-            assert len(ks) == 1
-            kwargs['k_size'] = ks[0][1]
+            ks = self.conv.get_finalized_kernel()
+            kwargs['k_size'] = ks[1]
             cfg['kwargs'] = kwargs
         return cfg
 
@@ -173,11 +174,11 @@ class SuperSepConvLayer(AbstractStepsLayer):
         self.conv = None
 
     def _build(self, s_in: Shape, c_out: int, weight_functions=()) -> Shape:
-        c_in = s_in.num_features
+        c_in = s_in.num_features()
         self.conv = SuperKernelConv(c_in, c_in, self.name, self.strategy_name, self.k_sizes, (1.0,),
                                     self.dilation, self.stride, self.padding, self.groups, self.bias)
         point_conv = nn.Conv2d(c_in, c_out, kernel_size=1,
-                               groups=get_number(self.groups, s_in.num_features), bias=self.bias)
+                               groups=get_number(self.groups, s_in.num_features()), bias=self.bias)
         wf = list(weight_functions) + [self.conv, point_conv]
         return super()._build(s_in, c_out, weight_functions=wf)
 
@@ -189,9 +190,8 @@ class SuperSepConvLayer(AbstractStepsLayer):
             kwargs.pop('name')
             kwargs.pop('strategy_name')
             kwargs.pop('k_sizes')
-            ks = self.conv.get_finalized_kernels()
-            assert len(ks) == 1
-            kwargs['k_size'] = ks[0][1]
+            ks = self.conv.get_finalized_kernel()
+            kwargs['k_size'] = ks[1]
             cfg['kwargs'] = kwargs
         return cfg
 
@@ -227,7 +227,7 @@ class SuperMobileInvertedConvLayer(AbstractLayer):
         self.block = None
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        c_in = s_in.num_features
+        c_in = s_in.num_features()
         max_exp = max(self.expansions)
         exp_mults = [e / max_exp for e in self.expansions]
         c_mid = make_divisible(int(c_in * max_exp), divisible=8)
@@ -242,13 +242,13 @@ class SuperMobileInvertedConvLayer(AbstractLayer):
             ops.extend([
                 nn.Conv2d(c_in, c_mid, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-                Register.get(self.act_fun)(inplace=self.act_inplace),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ])
         # dw
         ops.extend([
             self.conv,
             nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
         ])
         # optional attention module
         if isinstance(self.att_dict, dict):
@@ -277,10 +277,9 @@ class SuperMobileInvertedConvLayer(AbstractLayer):
             kwargs.pop('strategy_name')
             kwargs.pop('k_sizes')
             kwargs.pop('expansions')
-            ks = self.conv.get_finalized_kernels()
-            es = self.conv.get_finalized_channel_mults()
-            assert len(ks) == len(es) == 1
-            kwargs['k_size'] = ks[0][1]
-            kwargs['expansion'] = self.expansions[es[0][0]]
+            ks = self.conv.get_finalized_kernel()
+            es = self.conv.get_finalized_channel_mult()
+            kwargs['k_size'] = ks[1]
+            kwargs['expansion'] = self.expansions[es[0]]
             cfg['kwargs'] = kwargs
         return cfg

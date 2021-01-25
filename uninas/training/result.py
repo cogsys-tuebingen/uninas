@@ -35,6 +35,7 @@ class EvalLogResult(EvalResult):
     def __init__(self, loss: torch.Tensor = None, log_info: dict = None):
         super().__init__(checkpoint_on=loss)
         add_to_result(self, log_info)
+        self.detach()
 
     def get_log_info(self) -> dict:
         return get_from_result(self)

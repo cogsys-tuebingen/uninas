@@ -2,16 +2,17 @@ import torch
 import torch.nn as nn
 from typing import Union
 from collections import OrderedDict
+from uninas.methods.strategies.manager import StrategyManagerDefault
 from uninas.model.networks.abstract import AbstractNetworkBody
 from uninas.model.modules.abstract import AbstractModule
 from uninas.model.cells.abstract import AbstractCell, SearchCellInterface, FixedSearchCellInterface
+from uninas.model.primitives.abstract import PrimitiveSet
 from uninas.utils.misc import split
-from uninas.utils.shape import Shape
+from uninas.utils.shape import Shape, ShapeList
 from uninas.utils.args import MetaArgument, Argument, Namespace
-from uninas.utils.loggers.python import get_logger
+from uninas.utils.torch.misc import count_parameters
+from uninas.utils.loggers.python import log_in_columns, LoggerManager
 from uninas.register import Register
-
-logger = get_logger()
 
 
 @Register.network_body()
@@ -30,7 +31,8 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
         :param cell_configs: {name: config} dict of saved cells
         :param cell_partials: {name: Callable(cell_index)} to create new (search) cells
         :param cell_order: str or [str], will be split to [str]
-        :param weight_strategies: {strategy name: [cell indices]}, or name used for all, or None
+        :param weight_strategies: override default strategies,
+                                  {strategy name: [cell indices]}, or name used for all, or None
         :param kwargs_to_save:
         """
         super().__init__(**kwargs_to_save)
@@ -39,7 +41,8 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
         self._add_to_kwargs_np(cell_configs=cell_configs, cell_partials={})
         if isinstance(cell_order, str):
             cell_order = split(cell_order)
-        self._add_to_kwargs(cell_order=cell_order, weight_strategies=weight_strategies)
+        self._add_to_kwargs(cell_order=cell_order)
+        self._add_to_print_kwargs(weight_strategies=weight_strategies)
         self._cell_partials = cell_partials
         self.cells = nn.ModuleList()
         self._head_positions = {}
@@ -78,36 +81,45 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
         """ get the weights of all heads, in order (the last head at -1 has to be last) """
         return [v.weight for v in self._head_positions.values()]
 
-    def _build(self, s_in: Shape, s_out: Shape) -> Shape:
-        log_str = '  {:<8}{:15}{:<32}{:<45}-> {:<45}'
-        logger.info('Building %s:' % self.__class__.__name__)
-        logger.info(log_str.format('index', 'name', 'class', 'input shapes', 'output shapes'))
+    def _build(self, s_in: Shape, s_out: Shape) -> ShapeList:
+        LoggerManager().get_logger().info('Building %s:' % self.__class__.__name__)
+        rows = [('cell index', 'name', 'class', 'input shapes', '', 'output shapes', '#params')]
+
+        def get_row(idx, name: str, obj: AbstractModule) -> tuple:
+            s_in_str = obj.get_shape_in().str()
+            s_inner = obj.get_cached('shape_inner')
+            s_inner_str = '' if s_inner is None else s_inner.str()
+            s_out_str = obj.get_shape_out().str()
+            return str(idx), name, obj.__class__.__name__, s_in_str, s_inner_str, s_out_str, count_parameters(obj)
+
         s_out_data = s_out.copy()
         out_shapes = self.stem.build(s_in)
-        self._build_log_layer(log_str, '', '-', self.stem)
+        final_out_shapes = []
+        rows.append(get_row('', '-', self.stem))
 
         # cells and (aux) heads
         updated_cell_order = []
         for i, cell_name in enumerate(self.cell_order):
-            cell = self._get_cell(name=cell_name, cell_index=i)
+            strategy_name, cell = self._get_cell(name=cell_name, cell_index=i)
             assert self.stem.num_outputs() == cell.num_inputs() == cell.num_outputs(), 'Cell does not fit the network!'
             updated_cell_order.append(cell.name)
             s_ins = out_shapes[-cell.num_inputs():]
-            s_out = cell.build(s_ins.copy(),
-                               features_mul=self.features_mul,
-                               features_fixed=self.features_first_cell if i == 0 else -1)
+            with StrategyManagerDefault(strategy_name):
+                s_out = cell.build(s_ins.copy(),
+                                   features_mul=self.features_mul,
+                                   features_fixed=self.features_first_cell if i == 0 else -1)
             out_shapes.extend(s_out)
-            self._build_log_layer(log_str, i, cell_name, cell)
+            rows.append(get_row(i, cell_name, cell))
             self.cells.append(cell)
 
             # optional (aux) head after every cell
             head = self._head_positions.get(i, None)
             if head is not None:
                 if head.weight > 0:
-                    head.build(s_out[-1], s_out_data)
-                    self._build_log_layer(log_str, '', '-', head)
+                    final_out_shapes.append(head.build(s_out[-1], s_out_data))
+                    rows.append(get_row('', '-', head))
                 else:
-                    logger.info('not adding head after cell %d, weight <= 0' % i)
+                    LoggerManager().get_logger().info('not adding head after cell %d, weight <= 0' % i)
                     del self._head_positions[i]
             else:
                 assert i != len(self.cell_order) - 1, "Must have a head after the final cell"
@@ -115,39 +127,38 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
         # remove heads that are impossible to add
         for i in self._head_positions.keys():
             if i >= len(self.cells):
-                logger.warning('Can not add a head after cell %d which does not exist, deleting the head!' % i)
+                LoggerManager().get_logger().warning('Can not add a head after cell %d which does not exist, deleting the head!' % i)
                 head = self._head_positions.get(i)
                 for j, head2 in enumerate(self.heads):
                     if head is head2:
                         self.heads.__delitem__(j)
                         break
+
+        s_out = ShapeList(final_out_shapes)
+        rows.append(('complete network', '', '', self.get_shape_in().str(), '', s_out.str(), count_parameters(self)))
+        log_in_columns(LoggerManager().get_logger(), rows, start_space=4)
         self.set(cell_order=updated_cell_order)
         return s_out
 
-    @staticmethod
-    def _build_log_layer(log_str: str, idx: str, name: str, obj: AbstractModule):
-        s_in_str = obj.get_cached('shape_in').str()
-        s_inner = obj.get_cached('shape_inner')
-        if s_inner is not None:
-            s_in_str = '{:20} -> {}'.format(s_in_str, s_inner.str())
-        s_out_str = obj.get_cached('shape_out').str()
-        logger.info(log_str.format(idx, name, obj.__class__.__name__, s_in_str, s_out_str))
-
-    def _get_cell(self, name: str, cell_index: int) -> AbstractCell:
-        """ get a cell, either from known config or an already partially built one """
+    def _get_cell(self, name: str, cell_index: int) -> (Union[str, None], AbstractCell):
+        """ get a cell and the used weight strategy name, either from known config or an already partially built one """
         if name in self._cell_partials:
-            if self.weight_strategies is None:
-                return self._cell_partials[name](cell_index=cell_index)
-            elif isinstance(self.weight_strategies, str):
-                return self._cell_partials[name](cell_index=cell_index, strategy_name=self.weight_strategies)
+            strategy_name = None
+            if self.weight_strategies is None or isinstance(self.weight_strategies, str):
+                strategy_name = self.weight_strategies
             elif isinstance(self.weight_strategies, dict):
                 for k, v in self.weight_strategies.items():
                     if cell_index in v:
-                        return self._cell_partials[name](cell_index=cell_index, strategy_name=k)
-                raise KeyError("missing name of weight strategy at cell index %d" % cell_index)
-            raise NotImplementedError("unknown format for weight strategies: %s" % type(self.weight_strategies))
+                        strategy_name = k
+                        break
+                if strategy_name is None:
+                    raise KeyError("missing name of weight strategy at cell index %d" % cell_index)
+            else:
+                raise NotImplementedError("unknown format for weight strategies: %s" % type(self.weight_strategies))
+            with StrategyManagerDefault(strategy_name):
+                return strategy_name, self._cell_partials[name](cell_index=cell_index)
         if name in self.cell_configs:
-            return Register.builder.from_config(self.cell_configs[name])
+            return None, Register.builder.from_config(self.cell_configs[name])
         raise ModuleNotFoundError('Could not find a cell with name "%s"' % name)
 
     def forward(self, x: torch.Tensor) -> [torch.Tensor]:
@@ -164,15 +175,16 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
                 logits_head.append(head(x[-1]))
         return logits_head
 
-    def forward_specific(self, x: Union[torch.Tensor, list], start_block=-1, end_block=None) -> [torch.Tensor]:
+    def specific_forward(self, x: Union[torch.Tensor, list], start_cell=-1, end_cell=None) -> [torch.Tensor]:
         """
-        can execute specific part of the network, returns result after end_block
+        can execute specific part of the network,
+        returns result after end_cell
         """
 
         # stem, -1
-        if start_block <= -1:
+        if start_cell <= -1:
             x = self.stem(x)
-        if end_block == -1:
+        if end_cell == -1:
             return x
 
         if isinstance(x, torch.Tensor):
@@ -180,9 +192,9 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
 
         # blocks, 0 to n
         for i, m in enumerate(self.cells):
-            if start_block <= i:
+            if start_cell <= i:
                 x = m(x)
-            if end_block == i:
+            if end_cell == i:
                 return x
 
         # head, otherwise
@@ -198,6 +210,7 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
             MetaArgument('cls_network_stem', Register.network_stems, help_name='network stem', allowed_num=1, optional_for_loading=True),
             MetaArgument('cls_network_heads', Register.network_heads, help_name='network heads', allow_duplicates=True, optional_for_loading=True),
             MetaArgument('cls_network_cells', Register.network_cells, help_name='network cells', allow_duplicates=True),
+            MetaArgument('cls_network_cells_primitives', Register.primitive_sets, help_name='network cells primitives', allow_duplicates=True),
         ]
 
     @classmethod
@@ -210,23 +223,31 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
         ]
 
     @classmethod
-    def search_network_from_args(cls, args: Namespace, weight_strategies: Union[dict, str] = 'default'):
+    def search_network_from_args(cls, args: Namespace, index: int = None, weight_strategies: Union[dict, str] = None):
         """
         :param args: global argparse namespace
-        :param weight_strategies: {strategy name: [cell indices]}, or name used for all
+        :param index: index of this network
+        :param weight_strategies: {strategy name: [cell indices]}, or name used for all, or None for defaults
         """
         all_args = cls._all_parsed_arguments(args)
 
-        stem = cls._parsed_meta_argument('cls_network_stem', args, None).stem_from_args(args)
-        heads = nn.ModuleList([cls_head.head_from_args(args, index=i)
-                               for i, cls_head in enumerate(cls._parsed_meta_arguments('cls_network_heads', args, None))])
+        stem = cls._parsed_meta_argument(Register.network_stems, 'cls_network_stem', args, None).stem_from_args(args)
+        heads = cls._parsed_meta_arguments(Register.network_heads, 'cls_network_heads', args, None)
+        heads = nn.ModuleList([cls_head.head_from_args(args, index=i) for i, cls_head in enumerate(heads)])
+
+        cells = cls._parsed_meta_arguments(Register.network_cells, 'cls_network_cells', args, None)
+        primitives = cls._parsed_meta_arguments(Register.primitive_sets, 'cls_network_cells_primitives', args, None)
+        assert len(cells) == len(primitives),\
+            "Number of cells (%d) and primitives (%d) must match" % (len(cells), len(primitives))
 
         partial_cells = {}
-        for i, cell_cls in enumerate(cls._parsed_meta_arguments('cls_network_cells', args, None)):
+        for i, (cell_cls, primitive_cls) in enumerate(zip(cells, primitives)):
             cell_name = cell_cls.get_name_in_args(args, index=i)
             assert issubclass(cell_cls, (SearchCellInterface, FixedSearchCellInterface))
             assert cell_name not in partial_cells, 'Can not have multiple cells with the same name!'
-            partial_cells[cell_name] = cell_cls.partial_search_cell_instance(args=args, index=i)
+            assert issubclass(primitive_cls, PrimitiveSet)
+            primitive = primitive_cls.from_args(args, index=i)
+            partial_cells[cell_name] = cell_cls.partial_search_cell_instance(args=args, index=i, primitives=primitive)
 
         net = cls(stem=stem, heads=heads, cell_configs={}, cell_partials=partial_cells,
                   weight_strategies=weight_strategies, **all_args)
@@ -242,10 +263,7 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
                 continue
             cell_configs[name] = cell.config(finalize=finalize, **__)
         self.cell_configs.update(cell_configs)
-        # remove strategy names when finalizing
         cfg = super().config(finalize=finalize, **__)
-        if finalize:
-            s = cfg.get("kwargs").pop("weight_strategies")
         return cfg
 
     def add_cells_from_config(self, config: dict):
@@ -258,5 +276,5 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
             if name in self.cell_configs.keys():
                 already_had = True
             if already_had:
-                logger.info('%s cell type "%s" from given config' % ('Replaced' if already_had else 'Added', name))
+                LoggerManager().get_logger().info('%s cell type "%s" from given config' % ('Replaced' if already_had else 'Added', name))
             self.cell_configs[name] = cfg

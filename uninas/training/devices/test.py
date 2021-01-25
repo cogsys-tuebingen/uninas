@@ -20,6 +20,12 @@ class TestCpuDeviceMover(AbstractDeviceMover):
     def name(self) -> str:
         return '%s()' % self.__class__.__name__
 
+    def empty_cache(self):
+        """
+        empty the cache
+        """
+        pass
+
     def _synchronize(self, indices: [int]):
         """ make sure all operations are complete """
         self._print("synchronize")
@@ -49,5 +55,5 @@ class TestCpuDevicesManager(AbstractDevicesManager):
     """
     _mover_cls = TestCpuDeviceMover
 
-    def __init__(self, seed: int, num_devices: int):
-        super().__init__(seed, num_devices)
+    def __init__(self, seed: int, is_deterministic: bool, num_devices: int):
+        super().__init__(seed, is_deterministic, num_devices)

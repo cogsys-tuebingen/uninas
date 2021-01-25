@@ -11,8 +11,8 @@ beware that s1 is using fake data
 
 args = {
     "cls_task": "NetHPOTask",
-    "{cls_task}.s1_path": "{path_tmp}/s1/",
-    # "{cls_task}.s1_path": "{path_tmp}/from_config/",
+    # "{cls_task}.s1_path": "{path_tmp}/s1/",
+    "{cls_task}.s1_path": "{path_tmp}/run_config/",
 
     "{cls_task}.save_dir": "{path_tmp}/s2/",
     "{cls_task}.save_del_old": True,
@@ -32,38 +32,57 @@ args = {
     "{cls_data}.dir": "{path_data}/ImageNet_ILSVRC2012/",
     "{cls_data}.fake": True,
     "{cls_data}.batch_size_train": 2,
-
-    "cls_hpo_estimators": "NetMacsEstimator, NetValueEstimator, NetParamsEstimator",
-    # "cls_hpo_estimators": "NetMacsEstimator, NetValueEstimator, NetParamsEstimator, ProfilerEstimator",
-    # macs
-    "{cls_hpo_estimators#0}.key": "macs",
-    "{cls_hpo_estimators#0}.is_constraint": True,
-    "{cls_hpo_estimators#0}.min_value": 0.0,
-    "{cls_hpo_estimators#0}.max_value": 330*10e9,
-    "{cls_hpo_estimators#0}.is_objective": True,
-    "{cls_hpo_estimators#0}.maximize": False,
-    # accuracy
-    "{cls_hpo_estimators#1}.key": "accuracy",
-    "{cls_hpo_estimators#1}.is_constraint": False,
-    "{cls_hpo_estimators#1}.is_objective": True,
-    "{cls_hpo_estimators#1}.maximize": True,
-    "{cls_hpo_estimators#1}.load": False,
-    "{cls_hpo_estimators#1}.batches_forward": 0,
-    "{cls_hpo_estimators#1}.batches_train": 0,
-    "{cls_hpo_estimators#1}.batches_eval": 5,
-    "{cls_hpo_estimators#1}.value": "val/accuracy/1",
-    # params
-    "{cls_hpo_estimators#2}.key": "params",
-    "{cls_hpo_estimators#2}.is_constraint": False,
-    "{cls_hpo_estimators#2}.is_objective": True,
-    "{cls_hpo_estimators#2}.maximize": False,
-    "{cls_hpo_estimators#2}.count_only_trainable": True,
-    # profiled latency
-    # "{cls_hpo_estimators#3}.key": "latency",
-    # "{cls_hpo_estimators#3}.is_objective": True,
-    # "{cls_hpo_estimators#3}.maximize": False,
-    # "{cls_hpo_estimators#3}.profiler_file_path": '{path_tmp}/profile/TabularCellsProfiler.LatencyProfileFunction.CudaDevicesManager.pt',
 }
+
+est = 1
+# measure net directly
+if est == 0:
+    args.update({
+        "cls_hpo_estimators": "NetValueEstimator, NetMacsEstimator",
+        # accuracy, measured by forward passes
+        "{cls_hpo_estimators#0}.key": "accuracy",
+        "{cls_hpo_estimators#0}.is_constraint": False,
+        "{cls_hpo_estimators#0}.is_objective": True,
+        "{cls_hpo_estimators#0}.maximize": True,
+        "{cls_hpo_estimators#0}.load": False,
+        "{cls_hpo_estimators#0}.batches_forward": 0,
+        "{cls_hpo_estimators#0}.batches_train": 0,
+        "{cls_hpo_estimators#0}.batches_eval": -1,
+        "{cls_hpo_estimators#0}.value": "val/accuracy/1",
+        # macs
+        "{cls_hpo_estimators#1}.key": "macs",
+        "{cls_hpo_estimators#1}.is_constraint": True,
+        "{cls_hpo_estimators#1}.min_value": 0.0,
+        "{cls_hpo_estimators#1}.max_value": 330*10e9,
+        "{cls_hpo_estimators#1}.is_objective": True,
+        "{cls_hpo_estimators#1}.maximize": False,
+    })
+# use trained profiler for latency/macs
+if est == 1:
+    args.update({
+        # "cls_hpo_estimators": "NetValueEstimator, NetMacsEstimator",
+        "cls_hpo_estimators": "NetValueEstimator, ProfilerEstimator, ProfilerEstimator",
+        # accuracy, measured by forward passes
+        "{cls_hpo_estimators#0}.key": "loss",
+        "{cls_hpo_estimators#0}.is_constraint": False,
+        "{cls_hpo_estimators#0}.is_objective": True,
+        "{cls_hpo_estimators#0}.maximize": False,
+        "{cls_hpo_estimators#0}.load": False,
+        "{cls_hpo_estimators#0}.batches_forward": 0,
+        "{cls_hpo_estimators#0}.batches_train": 0,
+        "{cls_hpo_estimators#0}.batches_eval": -1,
+        "{cls_hpo_estimators#0}.value": "val/loss",
+        # # profiled macs
+        "{cls_hpo_estimators#1}.key": "macs_prof",
+        "{cls_hpo_estimators#1}.is_objective": True,
+        "{cls_hpo_estimators#1}.maximize": False,
+        "{cls_hpo_estimators#1}.profiler_file_path": '{path_profiled}/fairnas_macs.pt',
+        # # profiled latency
+        "{cls_hpo_estimators#2}.key": "latency_prof",
+        "{cls_hpo_estimators#2}.is_objective": True,
+        "{cls_hpo_estimators#2}.maximize": False,
+        "{cls_hpo_estimators#2}.profiler_file_path": '{path_profiled}/fairnas_latency.pt',
+    })
 
 
 if __name__ == "__main__":

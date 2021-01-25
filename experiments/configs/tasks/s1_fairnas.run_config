@@ -2,6 +2,7 @@
     "cls_task": "SingleSearchTask",
     "{cls_task}.is_test_run": false,
     "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
     "{cls_task}.note": "s1 FairNAS-like training",
     "{cls_task}.save_dir": "{path_tmp}/s1/fairnas/",
     "{cls_task}.save_del_old": false,
@@ -10,15 +11,12 @@
     "{cls_device}.num_devices": 1,
     "{cls_device}.use_cudnn": true,
     "{cls_device}.use_cudnn_benchmark": true,
-    "{cls_device}.use_cudnn_deterministic": false,
 
     "cls_method": "StrictlyFairRandomMethod",
     "{cls_method}.mask_indices": "",
 
     "cls_trainer": "SimpleTrainer",
     "{cls_trainer}.max_epochs": 150,
-    "{cls_trainer}.clip_grad_value": -1,
-    "{cls_trainer}.clip_grad_norm_value": -1,
     "{cls_trainer}.log_fs": true,
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": 10,
@@ -54,8 +52,7 @@
 
     "cls_initializers": "FairNasInitializer",
 
-    "cls_regularizers": "DropOutRegularizer",
-    "{cls_regularizers#0}.prob": 0.2,
+    "cls_regularizers": "",
 
     "cls_optimizers": "SGDOptimizer",
     "{cls_optimizers#0}.lr": 0.025,
@@ -68,7 +65,5 @@
     "{cls_schedulers#0}.eta_min": 1e-5,
     "{cls_schedulers#0}.each_samples": -1,
     "{cls_schedulers#0}.cooldown_epochs": 0,
-    "{cls_schedulers#0}.warmup_epochs": 5,
-
-    "cls_network": "SearchUninasNetwork"
+    "{cls_schedulers#0}.warmup_epochs": 5
 }

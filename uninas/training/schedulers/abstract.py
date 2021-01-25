@@ -28,6 +28,10 @@ class AbstractScheduler(ArgsInterface, optim.lr_scheduler._LRScheduler):
         self.scheduler = self.scheduler_cls(self.optimizer, max_epochs - self._warmup_epochs - self._cooldown_epochs,
                                             **all_kwargs)
 
+    @classmethod
+    def from_args(cls, args: Namespace, optimizer, max_epochs: int, index: int = None):
+        return cls(args, optimizer, max_epochs, index)
+
     def _str_dict(self) -> dict:
         return self._all_kwargs
 
@@ -102,7 +106,7 @@ class AbstractScheduler(ArgsInterface, optim.lr_scheduler._LRScheduler):
     def args_to_add(cls, index=None) -> [Argument]:
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
-            Argument('each_samples', default=-1, type=int, help='step the scheduler each n samples instead of each epoch, if >0'),
+            Argument('each_samples', default=-1, type=int, help='step the scheduler each n samples instead of each epoch, if >0 (does not account for accumulated gradients)'),
             Argument('cooldown_epochs', default=0, type=int, help='remain at the final lr at the end'),
             Argument('warmup_epochs', default=0, type=int, help='linearly increase the lr to the initial lr over this many epochs, start the regular scheduler afterwards'),
             Argument('warmup_lr', default=0.0, type=float, help='initial lr when using warmup, the first value is skipped'),

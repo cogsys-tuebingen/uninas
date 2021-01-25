@@ -9,6 +9,7 @@ from uninas.methods.strategies.manager import StrategyManager
 from uninas.model.layers.abstract import AbstractLayer
 from uninas.model.layers.mixconv import MixConvModule
 from uninas.model.attention.abstract import AbstractAttentionModule
+from uninas.model.modules.fused import FusedOp
 from uninas.model.modules.misc import DropPathModule
 from uninas.utils.torch.misc import get_padding, make_divisible
 from uninas.utils.shape import Shape
@@ -56,7 +57,7 @@ class MobileInvertedConvLayer(AbstractLayer):
         self.block = None
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
-        c_in = s_in.num_features
+        c_in = s_in.num_features()
         c_mid = make_divisible(int(c_in * self.expansion), divisible=8)
         self.has_skip = self.stride == 1 and c_in == c_out
         ops = []
@@ -67,13 +68,13 @@ class MobileInvertedConvLayer(AbstractLayer):
             ops.extend([
                 get_conv2d(c_in, c_mid, k_size=self.k_size_in, groups=1, **conv_kwargs),
                 nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-                Register.get(self.act_fun)(inplace=self.act_inplace),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ])
         # dw
         ops.extend([
             get_conv2d(c_mid, c_mid, k_size=self.k_size, stride=self.stride, groups=-1, **conv_kwargs),
             nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-            Register.get(self.act_fun)(inplace=self.act_inplace),
+            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
         ])
         # optional squeeze+excitation module
         if isinstance(self.att_dict, dict):
@@ -95,13 +96,13 @@ class MobileInvertedConvLayer(AbstractLayer):
 
 
 @Register.network_layer()
-class MixedMobileInvertedConvLayer(AbstractLayer):
+class FusedMobileInvertedConvLayer(AbstractLayer, FusedOp):
 
     def __init__(self, name: str, strategy_name='default', skip_op: str = None, k_size_in=1, k_size_out=1,
                  k_sizes=(3, 5, 7), stride=1, padding='same', expansions=(3, 6),
                  dilation=1, bn_affine=True, act_fun='relu6', act_inplace=True, att_dict: dict = None):
         """
-        A mixed layer for several kernel sizes and expansion sizes, to share the 1x1 conv weights.
+        A fused layer for several kernel sizes and expansion sizes, to share the 1x1 conv weights.
         Currently only designed for having a single kernel+expansion per forward pass and for the final config.
 
         :param name: name under which to register architecture weights
@@ -138,16 +139,17 @@ class MixedMobileInvertedConvLayer(AbstractLayer):
 
     def _build(self, s_in: Shape, c_out: int) -> Shape:
         conv_kwargs = dict(dilation=self.dilation, padding=self.padding)
-        c_in = s_in.num_features
+        c_in = s_in.num_features()
         self.has_skip = self.stride == 1 and c_in == c_out
         for e in range(len(self.expansions)):
             for k in range(len(self.k_sizes)):
                 self._choices_by_idx.append((e, k))
         if self.has_skip and isinstance(self.skip_op, str):
-            self.skip = Register.get(self.skip_op)()
+            self.skip = Register.network_layers.get(self.skip_op)()
             self.skip.build(s_in, c_out)
             self._choices_by_idx.append(('skip', 'skip'))
-        self.ws = StrategyManager().make_weight(self.strategy_name, self.name, num_choices=len(self._choices_by_idx))
+        self.ws = StrategyManager().make_weight(self.strategy_name, self.name, only_single_path=True,
+                                                num_choices=len(self._choices_by_idx))
 
         for e in self.expansions:
             c_mid = int(c_in * e)
@@ -155,7 +157,7 @@ class MixedMobileInvertedConvLayer(AbstractLayer):
             self.pw_in.append(nn.Sequential(
                 get_conv2d(c_in, c_mid, k_size=self.k_size_in, groups=1, **conv_kwargs),
                 nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-                Register.get(self.act_fun)(inplace=self.act_inplace),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ))
             # dw conv ops with different kernel sizes
             convs = nn.ModuleList([])
@@ -163,7 +165,7 @@ class MixedMobileInvertedConvLayer(AbstractLayer):
                 convs.append(nn.Sequential(
                     get_conv2d(c_mid, c_mid, k_size=k, stride=self.stride, groups=-1, **conv_kwargs),
                     nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-                    Register.get(self.act_fun)(inplace=self.act_inplace),
+                    Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
                 ))
             self.dw_conv.append(convs)
             # dw optional attention module

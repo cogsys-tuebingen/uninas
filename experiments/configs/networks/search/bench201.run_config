@@ -1,4 +1,6 @@
 {
+    "cls_network": "SearchUninasNetwork",
+
     "cls_network_body": "StackedCellsNetworkBody",
     "{cls_network_body}.cell_order": "n, n, r, n, n, r, n, n",
     "{cls_network_body}.features_first_cell": -1,
@@ -8,7 +10,6 @@
     "{cls_network_cells#0}.name": "n",
     "{cls_network_cells#0}.arc_key": "n",
     "{cls_network_cells#0}.arc_shared": true,
-    "{cls_network_cells#0}.primitives": "Bench201Primitives",
     "{cls_network_cells#0}.features_mult": 1,
     "{cls_network_cells#0}.stride": 1,
     "{cls_network_cells#0}.num_blocks": 3,
@@ -16,6 +17,8 @@
     "{cls_network_cells#1}.name": "r",
     "{cls_network_cells#1}.features_mult": 2,
     "{cls_network_cells#1}.stride": 2,
+
+    "cls_network_cells_primitives": "Bench201Primitives, Bench201Primitives",
 
     "cls_network_stem": "ConvStem",
     "{cls_network_stem}.features": 16,

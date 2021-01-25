@@ -1,12 +1,12 @@
 from uninas.register import Register
 from uninas.utils.args import Argument
-from uninas.training.optimizers.abstract import AbstractOptimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer
 try:
     from adabound import AdaBound
 
 
     @Register.optimizer()
-    class AdaBoundOptimizer(AbstractOptimizer):
+    class AdaBoundOptimizer(WrappedOptimizer):
         """
         Adaptive bounds on the learning rate, transitioning from Adam to SGD
 

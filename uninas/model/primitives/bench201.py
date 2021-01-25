@@ -1,8 +1,3 @@
-"""
-NAS-Bench-201: Extending the Scope of Reproducible Neural Architecture Search
-https://arxiv.org/abs/2001.00326
-"""
-
 from uninas.model.primitives.abstract import CNNPrimitive, StrideChoiceCNNPrimitive, PrimitiveSet
 from uninas.model.layers.common import SkipLayer
 from uninas.model.layers.scarletnas import LinearTransformerLayer
@@ -13,11 +8,17 @@ from uninas.register import Register
 @Register.primitive_set()
 class Bench201Primitives(PrimitiveSet):
     """
+    NAS-Bench-201: Extending the Scope of Reproducible Neural Architecture Search
+    https://arxiv.org/abs/2001.00326
+
+    NATS-Bench: Benchmarking NAS Algorithms for Architecture Topology and Size
+    https://arxiv.org/abs/2009.00437
+
     Zero, Skip, Conv1x1, Conv3x3, AvgPool3x3
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, **primitive_kwargs) -> [CNNPrimitive]:
         act = dict(act_fun='relu', order='act_w_bn', act_inplace=False, bn_affine=False, use_bn=True)
         return [
             CNNPrimitive(cls=ZeroLayer, kwargs=dict()),
@@ -44,7 +45,7 @@ class Bench201LTsPrimitives(Bench201Primitives):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, **primitive_kwargs) -> [CNNPrimitive]:
         act = dict(act_fun='relu', order='act_w_bn', act_inplace=False, bn_affine=False, use_bn=True)
         return [
             CNNPrimitive(cls=ZeroLayer, kwargs=dict()),
@@ -66,7 +67,7 @@ class Bench201LTspPrimitives(Bench201Primitives):
     """
 
     @classmethod
-    def _primitives(cls) -> [CNNPrimitive]:
+    def get_primitives(cls, **primitive_kwargs) -> [CNNPrimitive]:
         act = dict(act_fun='relu', order='act_w_bn', act_inplace=False, bn_affine=False, use_bn=True)
         return [
             CNNPrimitive(cls=ZeroLayer, kwargs=dict()),
