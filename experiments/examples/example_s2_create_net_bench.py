@@ -20,7 +20,7 @@ args = {
     "{cls_task}.measure_min": 20,
 
     "cls_benchmarks": "MiniNASTabularBenchmark",
-    "{cls_benchmarks#0}.path": "{path_data}/generated_bench/SIN_fairnas_mini_only1.pt",
+    "{cls_benchmarks#0}.path": "{path_data}/bench/sin/SIN_fairnas_v0.1.pt",
 
     "cls_hpo_self_algorithm": "RandomHPO",
     "{cls_hpo_self_algorithm}.num_eval": 100,

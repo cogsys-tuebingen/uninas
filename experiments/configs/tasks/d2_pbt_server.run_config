@@ -12,7 +12,7 @@
     "cls_pbt_selector": "DefaultPbtSelector",
     "{cls_pbt_selector}.each_epochs": 5,
     "{cls_pbt_selector}.grace_epochs": 0,
-    "{cls_pbt_selector}.save_ema": true,
+    "{cls_pbt_selector}.save_clone": true,
     "{cls_pbt_selector}.elitist": false,
     "{cls_pbt_selector}.replace_worst": 0.3,
     "{cls_pbt_selector}.copy_best": 0.2,

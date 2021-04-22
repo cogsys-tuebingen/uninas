@@ -1,6 +1,6 @@
 import torch.nn as nn
 from uninas.training.initializers.abstract import AbstractInitializer
-from uninas.model.modules.abstract import AbstractModule
+from uninas.modules.modules.abstract import AbstractModule
 from uninas.utils.loggers.python import logging
 from uninas.register import Register
 

@@ -2,5 +2,6 @@
     "path_data": "/tmp/data/",
     "path_tmp": "/tmp/uninas/",
     "path_pretrained": "/tmp/pretrained/",
+    "path_profiled": "/tmp/profiled/",
     "path_downloads_misc": "/tmp/downloads/"
 }

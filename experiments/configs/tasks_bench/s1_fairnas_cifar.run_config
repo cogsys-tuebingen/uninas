@@ -23,7 +23,6 @@
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": 10,
     "{cls_trainer}.test_last": 10,
-    "{cls_trainer}.ema_device": "disabled",
 
     "cls_callbacks": "CheckpointCallback",
     "{cls_callbacks#0}.top_n": 0,

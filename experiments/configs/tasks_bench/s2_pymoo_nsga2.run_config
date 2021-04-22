@@ -9,7 +9,7 @@
 
     "cls_benchmark": "MiniNASTabularBenchmark",
     "{cls_benchmark}.default_data_set": "ImageNet16-120",
-    "{cls_benchmark}.path": "{path_data}/nats_bench_1.1_mini.pt",
+    "{cls_benchmark}.path": "{path_data}/bench/nats/nats_bench_1.1_mini.pt",
 
     "cls_hpo_pymoo_algorithm": "NSGA2PymooAlgorithm",
     "{cls_hpo_pymoo_algorithm}.pop_size": 30,

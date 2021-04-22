@@ -40,7 +40,7 @@ if __name__ == '__main__':
     from uninas.builder import Builder
     Builder()
 
-    args_list = arg_list_from_json("/tmp/uninas/s1/task.run_config")
+    args_list = arg_list_from_json("{path_tmp}/s1/task.run_config")
 
     root = ArgsTreeNode(Main)
     root.build_from_args(args_list)

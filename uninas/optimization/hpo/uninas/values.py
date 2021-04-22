@@ -1,4 +1,5 @@
 import random
+import numpy as np
 from copy import deepcopy
 from collections.abc import Iterable
 
@@ -31,10 +32,10 @@ class DiscreteValues(AbstractValues):
     def size(self) -> int:
         return len(self.allowed_values)
 
-    def min(self) -> float:
+    def min(self) -> int:
         return min(self.allowed_values)
 
-    def max(self) -> float:
+    def max(self) -> int:
         return max(self.allowed_values)
 
     def is_allowed(self, v: int) -> bool:
@@ -50,6 +51,11 @@ class DiscreteValues(AbstractValues):
     def remove_value(self, v: int):
         if v in self.allowed_values:
             self.allowed_values.remove(v)
+
+    def as_one_hot(self, v: int, dtype=np.int32) -> np.array:
+        arr = np.zeros((self.max()+1,), dtype=dtype)
+        arr[v] = 1
+        return arr
 
     @classmethod
     def interval(cls, min_val: int, max_val: int) -> AbstractValues:
@@ -92,6 +98,10 @@ class ValueSpace:
             if isinstance(value, DiscreteValues):
                 value.remove_value(v)
 
+    def as_one_hot(self, values: tuple, dtype=np.int32) -> np.array:
+        assert len(values) == self.num_choices(), "mismatching number of values to be represented as one-hot"
+        return np.concatenate([val.as_one_hot(v, dtype=dtype) for val, v in zip(self.values, values)], axis=0)
+
     def iterate(self, fixed_values=None) -> Iterable:
         """ iterate the entire discrete search space, returning tuples """
         assert self.is_discrete()
@@ -129,6 +139,9 @@ class SpecificValueSpace(ValueSpace):
     def __init__(self, specific_values: [tuple]):
         super().__init__(None)
         self.specific_values = list(set(specific_values))
+
+    def __len__(self):
+        return len(self.specific_values)
 
     def is_discrete(self) -> bool:
         return isinstance(self.specific_values, (tuple, list))
@@ -172,9 +185,9 @@ if __name__ == '__main__':
     space_ = ValueSpace(
         DiscreteValues([0, 1, 2]),
         DiscreteValues([1, 7]),
-        DiscreteValues([0, 3]),
+        DiscreteValues.interval(0, 4),
     )
     for a in space_.iterate([-1, -1, 3]):
-        print(a)
+        print(a, '\t', space_.as_one_hot(a))
     s2 = SpecificValueSpace(space_.iterate())
     print(list(s2.random_subset(k=3).iterate()))

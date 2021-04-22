@@ -1,0 +1,82 @@
+{
+    "cls_task": "SingleSearchTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
+    "{cls_task}.note": "dna1 distillation",
+    "{cls_task}.save_dir": "{path_tmp}/dna1/",
+    "{cls_task}.save_del_old": false,
+
+    "cls_device": "CudaDevicesManager",
+    "{cls_device}.num_devices": 1,
+    "{cls_device}.use_cudnn": true,
+    "{cls_device}.use_cudnn_benchmark": true,
+
+    "cls_exp_loggers": "TensorBoardExpLogger",
+    "{cls_exp_loggers#0}.log_graph": false,
+
+    "cls_method": "DnaMethod",
+    "{cls_method}.mask_indices": "",
+    "{cls_method}.teacher_cells_first": 1,
+    "{cls_method}.teacher_cells_last": 6,
+    "{cls_method}.teacher_assert_trained": true,
+    "{cls_method}.teacher_adapt": false,
+    "{cls_method}.split_by_features": true,
+    "{cls_method}.loss_weights": "0.0684, 0.171, 0.3422, 0.2395, 0.5474, 0.3422",
+    "{cls_method}.optimizer_lr_multipliers": "0.4, 1, 1, 1, 1, 0.4",
+
+    "cls_teacher_network": "EfficientNetTimmNetwork",
+    "{cls_teacher_network}.model_name": "tf_efficientnet_b7",
+    "{cls_teacher_network}.checkpoint_path": "{path_pretrained}",
+
+    "cls_strategy": "RandomChoiceStrategy",
+
+    "cls_trainer": "SimpleTrainer",
+    "{cls_trainer}.max_epochs": 20,
+    "{cls_trainer}.log_fs": true,
+    "{cls_trainer}.log_ram": true,
+    "{cls_trainer}.eval_last": 1,
+    "{cls_trainer}.test_last": 0,
+
+    "cls_callbacks": "CheckpointCallback",
+    "{cls_callbacks#0}.top_n": 1,
+    "{cls_callbacks#0}.key": "val/loss",
+    "{cls_callbacks#0}.minimize_key": true,
+
+    "cls_data": "Imagenet1000Data",
+    "{cls_data}.dir": "{path_tmp}/data/",
+    "{cls_data}.download": false,
+    "{cls_data}.fake": false,
+    "{cls_data}.batch_size_train": 128,
+    "{cls_data}.batch_size_test": -1,
+    "{cls_data}.num_workers": 8,
+    "{cls_data}.valid_split": 12800,
+    "{cls_data}.valid_shuffle": false,
+    "{cls_data}.valid_as_test": true,
+
+    "cls_augmentations": "TimmImagenetAug",
+    "{cls_augmentations#0}.crop_size": 224,
+
+    "cls_criterion": "DistillL2Criterion",
+
+    "cls_metrics": "DistillL2Metric",
+
+    "cls_initializers": "FairNasInitializer",
+
+    "cls_regularizers": "DropOutRegularizer",
+    "{cls_regularizers#0}.prob": 0.2,
+
+    "cls_optimizers": "SGDOptimizer",
+    "{cls_optimizers#0}.lr": 0.05,
+    "{cls_optimizers#0}.momentum": 0.9,
+    "{cls_optimizers#0}.nesterov": false,
+    "{cls_optimizers#0}.weight_decay": 4e-5,
+    "{cls_optimizers#0}.weight_decay_filter": true,
+
+    "cls_schedulers": "ExponentialScheduler",
+    "{cls_schedulers#0}.gamma": 0.9,
+    "{cls_schedulers#0}.each_samples": -1,
+    "{cls_schedulers#0}.cooldown_epochs": 0,
+    "{cls_schedulers#0}.warmup_epochs": 0,
+    "{cls_schedulers#0}.warmup_lr": 0.0
+}

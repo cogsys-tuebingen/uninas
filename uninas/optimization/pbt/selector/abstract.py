@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
-from uninas.optimization.common.target import OptimizationTarget
+from uninas.optimization.target import OptimizationTarget
 from uninas.optimization.pbt.mutations.abstract import AbstractPbtMutation
 from uninas.optimization.pbt.save import PbtSave
 from uninas.optimization.pbt.response import PbtServerResponse
@@ -20,7 +20,7 @@ class AbstractPbtSelector(ArgsInterface):
     """
 
     def __init__(self, weights_dir: str, logger: Logger, targets: [OptimizationTarget], mutations: [AbstractPbtMutation],
-                 each_epochs: int, grace_epochs: int, save_ema: bool, elitist: bool):
+                 each_epochs: int, grace_epochs: int, save_clone: bool, elitist: bool):
         super().__init__()
         self._nds = NonDominatedSorting()
         self._data = {
@@ -33,7 +33,7 @@ class AbstractPbtSelector(ArgsInterface):
         self.mutations = mutations
         self.each_epochs = each_epochs
         self.grace_epochs = grace_epochs
-        self.save_ema = save_ema
+        self.save_clone = save_clone
         self.elitist = elitist
 
     @classmethod
@@ -51,8 +51,8 @@ class AbstractPbtSelector(ArgsInterface):
         return super().args_to_add(index) + [
             Argument('each_epochs', default=1, type=int, help="only synchronize each n epochs"),
             Argument('grace_epochs', default=0, type=int, help="skip synchronization for the first n epochs"),
-            Argument('save_ema', default="True", type=str, is_bool=True,
-                     help="save the EMA-model weights if available, otherwise save the trained model's weights"),
+            Argument('save_clone', default="True", type=str, is_bool=True,
+                     help="save the clone model weights if available, otherwise save the trained model's weights"),
             Argument('elitist', default="True", type=str, is_bool=True,
                      help="elitist: keep old checkpoints if they are better"),
         ]
@@ -230,7 +230,7 @@ class AbstractPbtSelector(ArgsInterface):
         # empty responses
         responses = {}
         for client_id, log_dict in log_dicts.items():
-            responses[client_id] = PbtServerResponse(client_id=client_id, save_ema=self.save_ema)
+            responses[client_id] = PbtServerResponse(client_id=client_id, save_clone=self.save_clone)
         # get replacements
         for (replace, replace_with) in self._select(responses, epoch, log_dicts):
             replace_with.add_usage()

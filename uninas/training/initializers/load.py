@@ -1,7 +1,7 @@
 from uninas.training.initializers.abstract import AbstractInitializer
-from uninas.networks.uninas.abstract import AbstractUninasNetwork
-from uninas.networks.uninas.search import SearchUninasNetwork
-from uninas.model.modules.abstract import AbstractModule
+from uninas.models.networks.uninas.abstract import AbstractUninasNetwork
+from uninas.models.networks.uninas.search import SearchUninasNetwork
+from uninas.modules.modules.abstract import AbstractModule
 from uninas.training.callbacks.checkpoint import CheckpointCallback
 from uninas.methods.strategies.manager import StrategyManager
 from uninas.methods.strategies.random import RandomChoiceStrategy
@@ -91,7 +91,7 @@ class LoadWeightsInitializer(AbstractInitializer):
                     new_dict[tn] = state_dict[entry.name]
 
             # log matches, load
-            log_in_columns(logger, log_columns, add_bullets=True)
+            log_in_columns(logger, log_columns, add_bullets=True, num_headers=1)
             net.load_state_dict(new_dict, strict=self.strict)
 
             # clean up

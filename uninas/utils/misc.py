@@ -8,7 +8,7 @@ def split(string: str, cast_fun: Callable = None) -> list:
     if string is None or len(string) == 0:
         return []
     re = list(string.replace(' ', '').split(','))
-    if cast_fun is not None:
+    if (cast_fun is not None) and (not isinstance(cast_fun, bool)):
         re = [cast_fun(s) for s in re]
     return re
 

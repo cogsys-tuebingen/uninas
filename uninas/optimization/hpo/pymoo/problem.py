@@ -1,6 +1,6 @@
 import numpy as np
 from pymoo.model.problem import Problem
-from uninas.optimization.common.estimators.abstract import AbstractEstimator
+from uninas.optimization.estimators.abstract import AbstractEstimator
 from uninas.optimization.benchmarks.mini.benchmark import MiniNASBenchmark
 
 

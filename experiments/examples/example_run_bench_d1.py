@@ -11,7 +11,7 @@ changes = {
     "{cls_task}.save_del_old": True,
 
     "cls_benchmark": "MiniNASTabularBenchmark",
-    "{cls_benchmark}.path": "{path_data}/nats_bench_1.1_mini.pt",
+    "{cls_benchmark}.path": "{path_data}/bench/nats/nats_bench_1.1_mini.pt",
     "{cls_benchmark}.default_data_set": "cifar100",
     "{cls_benchmark}.default_result_type": "test",
 

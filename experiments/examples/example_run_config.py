@@ -16,8 +16,9 @@ beware that we are using fake data
 # config_files = "{path_conf_tasks}/d2_imagenet.run_config"
 
 # single/multi path nets
-config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/fairnas.run_config"
-# config_files = "{path_conf_tasks}/s1_random.run_config, {path_conf_net_search}/fairnas_nf.run_config"
+# config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/fairnas.run_config"
+config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/fairnas_shared.run_config"
+# config_files = "{path_conf_tasks}/s1_random.run_config, {path_conf_net_search}/fairnas_small.run_config"
 # config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/test_small_net.run_config"
 # config_files = "{path_conf_tasks}/s1_random.run_config, {path_conf_net_search}/scarletnas.run_config"
 # config_files = "{path_conf_tasks}/s1_random.run_config, {path_conf_net_search}/efficientnet.run_config"
@@ -46,6 +47,9 @@ config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/
 # further bench-related tasks
 # config_files = "{path_conf_bench_tasks}/s2_create_net_bench.run_config"
 
+# fit classic
+# config_files = "{path_conf_tasks}/fit_classic.run_config"
+
 
 changes = {
     "{cls_task}.is_test_run": True,
@@ -65,7 +69,6 @@ changes = {
     "{cls_data}.batch_size_test": -1,
 
     # "{cls_network_cells_primitives#0}.mixed_cls": "AttentionD3SigmoidMixedOp",  # MixedOp, AttentionD3SigmoidMixedOp
-    # "{cls_network_cells_primitives#0}.fused": False,
 }
 
 

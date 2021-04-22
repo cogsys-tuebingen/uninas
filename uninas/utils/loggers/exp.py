@@ -56,7 +56,7 @@ class WandbExpLogger(AbstractExpLogger):
         return super().args_to_add(index) + [
             Argument('offline', default='False', type=str, help='Run offline (data can be streamed later to wandb servers)', is_bool=True),
             Argument('anonymous', default='False', type=str, help='Enables or explicitly disables anonymous logging', is_bool=True),
-            Argument('project', default=None, type=str, help='The name of the project to which this run will belong'),
+            Argument('project', default="project", type=str, help='The name of the project to which this run will belong'),
             Argument('log_model', default='False', type=str, help='Save checkpoints in wandb dir to upload on W&B servers', is_bool=True),
         ]
 

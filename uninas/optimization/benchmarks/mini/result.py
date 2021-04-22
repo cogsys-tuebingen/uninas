@@ -1,5 +1,6 @@
 from typing import Tuple
 from collections import defaultdict
+import numpy as np
 
 
 class MiniResult:
@@ -151,9 +152,10 @@ class MiniResult:
             print_fun('{}{:<13}{:}'.format(prefix, n, v))
 
     @classmethod
-    def merge_results(cls, results: ['MiniResult']) -> 'MiniResult':
+    def merge_results(cls, results: ['MiniResult'], merge_fun=np.mean) -> 'MiniResult':
         """ merge results """
-        def mean(items: list):
+
+        def merge(items: list):
             # make sure they have the same type, and are not None
             assert items[0] is not None
             t = type(items[0])
@@ -171,31 +173,32 @@ class MiniResult:
                 # merge values
                 new_dict = {}
                 for key in keys:
-                    new_dict[key] = mean([item.get(key) for item in items])
+                    new_dict[key] = merge([item.get(key) for item in items])
                 return new_dict
 
             # otherwise make sure either all or none have values > 0
             else:
                 assert all([i < 0 for i in items]) or all([i >= 0 for i in items])
-                return sum(items) / len(items)
+                return merge_fun(items)
 
         r0 = results[0]
         return cls(
             arch_index=r0.arch_index, arch_str=r0.arch_str, arch_tuple=r0.arch_tuple,
-            params=mean([r.params for r in results]),
-            flops=mean([r.flops for r in results]),
-            latency=mean([r.latency for r in results]),
-            loss=mean([r.loss for r in results]),
-            acc1=mean([r.acc1 for r in results]),
+            params=merge([r.params for r in results]),
+            flops=merge([r.flops for r in results]),
+            latency=merge([r.latency for r in results]),
+            loss=merge([r.loss for r in results]),
+            acc1=merge([r.acc1 for r in results]),
             default_data_set=r0.default_data_set,
             default_result_type=r0.default_result_type)
 
     @classmethod
-    def merge_result_list(cls, results: ['MiniResult'], ensure_same_size=True) -> ['MiniResult']:
+    def merge_result_list(cls, results: ['MiniResult'], merge_fun=np.mean, ensure_same_size=True) -> ['MiniResult']:
         """
         merge results by their architecture tuple
 
         :param results: all results to merge
+        :param merge_fun: how to merge values
         :param ensure_same_size: assert that each arc tuple has the same number of associated results
         """
         # cluster by arc tuple
@@ -209,7 +212,7 @@ class MiniResult:
         # merge each cluster, give new arc indices
         merged_results = []
         for i, cluster in enumerate(clusters.values()):
-            r = cls.merge_results(cluster)
+            r = cls.merge_results(cluster, merge_fun=merge_fun)
             r.arch_index = i
             merged_results.append(r)
 

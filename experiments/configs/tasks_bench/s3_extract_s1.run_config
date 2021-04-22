@@ -39,11 +39,13 @@
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": 10,
     "{cls_trainer}.test_last": 10,
-    "{cls_trainer}.ema_decay": 0.9999,
-    "{cls_trainer}.ema_device": "same",
+
+    "cls_clones": "EMAClone",
+    "{cls_clones#0}.device": "same",
+    "{cls_clones#0}.decay": 0.9999,
 
     "cls_callbacks": "CheckpointCallback",
-    "{cls_callbacks#0}.save_ema": true,
+    "{cls_callbacks#0}.save_clone": true,
     "{cls_callbacks#0}.top_n": 1,
     "{cls_callbacks#0}.key": "test/accuracy/1",
     "{cls_callbacks#0}.minimize_key": false,

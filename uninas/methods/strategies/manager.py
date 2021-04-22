@@ -94,7 +94,7 @@ class StrategyManager(nn.Module, metaclass=Singleton):
             for r in strategy.get_requested_weights():
                 rows.append((r.name, r.num_choices(), '%dx' % r.num_requests()))
             logger.info("Weights:")
-            log_in_columns(logger, rows, add_bullets=True)
+            log_in_columns(logger, rows, add_bullets=True, num_headers=1)
 
             rows = _get_name_rows(strategy, 'strategy')
             log_in_columns(logger, rows)

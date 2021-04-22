@@ -2,12 +2,26 @@
 specific kinds of data loaders
 """
 
+from typing import Iterator
 
-class CustomIterator:
+
+class CustomIterator(Iterator):
     def _set_attrs(self, loader):
         for k in ['dataset', 'batch_size', 'num_workers', 'collate_fn', 'pin_memory', 'drop_last',
                   'timeout', 'worker_init_fn', 'sampler']:
             self.__setattr__(k, loader.__getattribute__(k))
+
+    def __next__(self):
+        raise NotImplementedError
+
+    def next(self):
+        return self.__next__()
+
+    def __iter__(self):
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        raise NotImplementedError
 
 
 class InfIterator(CustomIterator):
@@ -34,9 +48,6 @@ class InfIterator(CustomIterator):
                 del self.iterator
                 self.iterator = None
 
-    def next(self):
-        return self.__next__()
-
     def __len__(self):
         return len(self.loader)
 
@@ -53,9 +64,6 @@ class MultiLoader(CustomIterator):
 
     def __next__(self):
         return [it.next() for it in self.iterators]
-
-    def next(self):
-        return self.__next__()
 
     def __iter__(self):
         for _ in range(len(self)):
@@ -93,9 +101,6 @@ class InterleavedLoader(CustomIterator):
         batch = (self._loader_idx, self.iterators[self._loader_idx].next())
         self._mult += 1
         return batch
-
-    def next(self):
-        return self.__next__()
 
     def __iter__(self):
         for _ in range(len(self)):

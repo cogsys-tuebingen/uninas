@@ -9,7 +9,7 @@ from collections import defaultdict
 from argparse import ArgumentParser, Namespace
 from uninas.utils.paths import standard_paths, replace_standard_paths
 from uninas.utils.misc import split
-from uninas.register import RegisterDict
+from uninas.register import Register, RegisterDict
 
 args_type = Union[Namespace, dict]
 
@@ -314,7 +314,7 @@ class ArgsInterface:
             raise KeyError('Meta value "%s" not in args' % meta_name)
 
     @classmethod
-    def _parsed_meta_arguments(cls, register_dict: RegisterDict, meta_name: str, args: args_type, index=None):
+    def _parsed_meta_arguments(cls, register_dict: RegisterDict, meta_name: str, args: args_type, index=None) -> [type]:
         """ get a list of classes back """
         try:
             names = items(args)[meta_name]
@@ -323,11 +323,18 @@ class ArgsInterface:
             raise KeyError('Value "%s" not in args' % meta_name)
 
     @classmethod
-    def _parsed_argument(cls, name: str, args: args_type, index=None):
-        """ get an argument back, which had the class name added, does not work with fixed args! """
+    def _parsed_argument(cls, name: str, args: args_type, index=None, split_=None):
+        """
+        get an argument back, which had the class name added
+        - does not work with fixed args (which are only intended for debugging anyway)
+        - lists can be split
+        """
         n = _arg_name(cls, name, index)
         try:
-            return items(args)[n]
+            arg = items(args)[n]
+            if split_ is not None:
+                arg = split(arg, cast_fun=split_)
+            return arg
         except KeyError:
             raise KeyError('Value "%s" not in args, maybe it is not available due to missing pip-modules or a typo?' % n)
 
@@ -351,6 +358,17 @@ class ArgsInterface:
     def parsed_argument_defaults(cls) -> dict:
         """ dict of {name: default value} all arguments """
         return {arg.name: arg.apply_rules(arg.default) for arg in cls.args_to_add(index=None)}
+
+    @classmethod
+    def matches_registered_properties(cls, **kwargs) -> bool:
+        """ return whether this class was registered with the specified properties """
+        registered_kwargs = Register.get_my_kwargs(cls)
+        for k, v in kwargs.items():
+            if k not in registered_kwargs:
+                raise ValueError("Class %s has no registered property %s" % (cls.__name__, k))
+            if not v == registered_kwargs.get(k):
+                return False
+        return True
 
 
 class ArgsTreeNode:

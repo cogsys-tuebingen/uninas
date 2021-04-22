@@ -28,7 +28,7 @@ class MiniNASSurrogateBenchmark(MiniNASBenchmark):
     def _get_all(self) -> Iterable[MiniResult]:
         raise NotImplementedError
 
-    def _get_by_arch_tuple(self, arch_tuple: tuple) -> MiniResult:
+    def _get_by_arch_tuple(self, arch_tuple: tuple) -> Union[MiniResult, None]:
         raise NotImplementedError
 
     def size(self) -> int:

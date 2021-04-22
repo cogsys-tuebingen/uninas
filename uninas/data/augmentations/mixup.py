@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from uninas.data.abstract import AbstractDataSet, AbstractAug, BatchAugmentations, AbstractBatchAugmentation
+from uninas.data.abstract import AbstractDataSet, AbstractAug, AbstractBatchAugmentation, AugType
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
 
@@ -40,10 +40,10 @@ class MixUpAug(AbstractAug):
         ]
 
     @classmethod
-    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
+    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
         alpha1, alpha2 = cls._parsed_arguments(['alpha1', 'alpha2'], args, index=index)
-        return [], [MixUp(ds.num_classes(), alpha1, alpha2)]
+        return AugType.ON_BATCHES, [MixUp(ds.num_classes(), alpha1, alpha2)]
 
     @classmethod
-    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        return [], []
+    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        return AugType.NONE, []

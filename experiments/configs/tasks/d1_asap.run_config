@@ -26,7 +26,6 @@
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": 10,
     "{cls_trainer}.test_last": 10,
-    "{cls_trainer}.ema_device": "disabled",
 
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": false,

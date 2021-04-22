@@ -1,12 +1,12 @@
 from functools import partial
 from typing import Type
 import torch.nn as nn
-from uninas.model.modules.abstract import AbstractModule
-from uninas.model.stems.abstract import AbstractStem
-from uninas.model.heads.abstract import AbstractHead
-from uninas.model.networks.abstract import AbstractNetworkBody
-from uninas.model.networks.stackedcells import StackedCellsNetworkBody
-from uninas.model.cells.single_layer import SingleLayerCell
+from uninas.modules.modules.abstract import AbstractModule
+from uninas.modules.stems.abstract import AbstractStem
+from uninas.modules.heads.abstract import AbstractHead
+from uninas.modules.networks.abstract import AbstractNetworkBody
+from uninas.modules.networks.stackedcells import StackedCellsNetworkBody
+from uninas.modules.cells.single_layer import SingleLayerCell
 from uninas.utils.shape import Shape
 
 

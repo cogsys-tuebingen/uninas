@@ -41,7 +41,7 @@ class LightningTrainer(AbstractTrainer):
 
         # in test runs, have only 'num_test_steps' steps per epoch
         train_pc, val_pc, test_pc = 1.0, 1.0, 1.0
-        if self.is_test_run:
+        if self._is_test_run:
             train_pc = min([1, self.num_test_steps / len(self.method.train_dataloader() or range(self.num_test_steps))])
             val_pc = min([1, self.num_test_steps / len(self.method.val_dataloader() or range(self.num_test_steps))])
             test_pc = min([1, self.num_test_steps / len(self.method.test_dataloader() or range(self.num_test_steps))])
@@ -59,6 +59,7 @@ class LightningTrainer(AbstractTrainer):
                                   check_val_every_n_epoch=999999999,
                                   # show_progress_bar=False,
                                   # gradient_clip_val=self.cg_v,  # maybe find callback, replace it?
+                                  accumulate_grad_batches=self.accumulate_batches,
                                   early_stop_callback=False,
                                   gpus=gpus,
                                   auto_select_gpus=True,

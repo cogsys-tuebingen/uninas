@@ -36,5 +36,5 @@ class RegularizerPbtMutation(AbstractFloatMultiplierMutation):
         :param response: add the mutation in the response
         :param value: value to set
         """
-        response.reqularizer_values[self.regularizer_name] = value
+        response.regularizer_values[self.regularizer_name] = value
         return response

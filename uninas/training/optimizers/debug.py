@@ -16,6 +16,10 @@ class SGDDebug(SGD):
     def __init__(self, params, lr, **__):
         super().__init__(params, lr)
 
+    @classmethod
+    def print(cls, *args, **kwargs):
+        print(cls.__name__, *args, **kwargs)
+
     @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
@@ -46,8 +50,12 @@ class SGDDebug(SGD):
                     counts[2] += 1
 
                 p.add_(d_p, alpha=-group['lr'])
-            print('gradients:    None={:<8} non-zero={:<8} zero={:<8} not-req={:<8}'.format(*counts))
+            self.print('gradients:    None={:<8} non-zero={:<8} zero={:<8} not-req={:<8}'.format(*counts))
         return loss
+
+    def zero_grad(self, *args, **kwargs) -> None:
+        self.print('zero grad')
+        super().zero_grad(*args, **kwargs)
 
 
 @Register.optimizer()

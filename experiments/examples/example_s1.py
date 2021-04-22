@@ -18,24 +18,31 @@ args = {
     "{cls_device}.num_devices": 1,
 
     "cls_trainer": "SimpleTrainer",
-    "{cls_trainer}.max_epochs": 5,
+    "{cls_trainer}.max_epochs": 10,
     "{cls_trainer}.eval_last": 2,
     "{cls_trainer}.test_last": 2,
-    "{cls_trainer}.ema_decay": 0.9,
-    "{cls_trainer}.ema_device": "same",
+
+    # "cls_clones": "EMAClone, EMAClone",
+    # "{cls_clones#0}.device": "same",
+    # "{cls_clones#0}.decay": 0.99,
+    # "{cls_clones#1}.device": "same",
+    # "{cls_clones#1}.decay": 0.999,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
 
     "cls_callbacks": "CheckpointCallback",
-    "{cls_callbacks#0}.save_ema": True,
+    # "cls_callbacks": "CheckpointCallback, SplitWeightsMixedOpCallback",
+    "{cls_callbacks#0}.save_clone": True,
     "{cls_callbacks#0}.top_n": 0,
     "{cls_callbacks#0}.key": "train/loss",
     "{cls_callbacks#0}.minimize_key": True,
+    # "{cls_callbacks#1}.milestones": "5",
 
     "cls_data": "Imagenet1000Data",
     "{cls_data}.fake": True,
-    "{cls_data}.valid_split": 12800,
     "{cls_data}.batch_size_train": 2,
+    "{cls_data}.valid_split": 12800,
+    "{cls_data}.valid_as_test": True,
 
     "cls_augmentations": "TimmImagenetAug",
     "{cls_augmentations#0}.crop_size": 224,
@@ -67,9 +74,9 @@ args = {
 
     "cls_network_cells_primitives": "MobileNetV2SkipLTPrimitives, MobileNetV2SkipLTPrimitives, MobileNetV2SkipLTPrimitives",
     "{cls_network_cells_primitives#0}.subset": "3, 4, 5",
-    "{cls_network_cells_primitives#0}.mixed_cls": "MixedOp",
-    "{cls_network_cells_primitives#1}.mixed_cls": "MixedOp",
-    "{cls_network_cells_primitives#2}.mixed_cls": "MixedOp",
+    "{cls_network_cells_primitives#0}.mixed_cls": "Attention2x1D1SSigmoidMixedOp",  # MixedOp, BiasD1MixedOp, AttentionD3SigmoidMixedOp, SplitWeightsMixedOp
+    "{cls_network_cells_primitives#1}.mixed_cls": "Attention2x1D1SSigmoidMixedOp",
+    "{cls_network_cells_primitives#2}.mixed_cls": "Attention2x1D1SSigmoidMixedOp",
 
     "cls_network_stem": "MobileNetV2Stem",
     "{cls_network_stem}.features": 16,

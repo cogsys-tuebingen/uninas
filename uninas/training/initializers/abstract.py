@@ -2,7 +2,7 @@
 initializing weights of a network
 """
 
-from uninas.model.modules.abstract import AbstractModule
+from uninas.modules.modules.abstract import AbstractModule
 from uninas.utils.args import ArgsInterface, Namespace
 from uninas.utils.loggers.python import logging, LoggerManager
 

@@ -4,7 +4,7 @@ import torch
 from typing import Union, Iterable
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from uninas.optimization.benchmarks.mini.result import MiniResult
-from uninas.optimization.hpo.uninas.values import ValueSpace
+from uninas.optimization.hpo.uninas.values import ValueSpace, SpecificValueSpace
 from uninas.utils.args import ArgsInterface, Namespace, Argument
 from uninas.utils.loggers.exp import LightningLoggerBase
 from uninas.utils.loggers.python import LoggerManager
@@ -15,7 +15,7 @@ from uninas.register import Register
 class MiniNASBenchmark(ArgsInterface):
 
     def __init__(self, default_data_set: Union[str, None], default_result_type: Union[str, None],
-                 value_space: ValueSpace, bench_name: str, bench_description: str):
+                 value_space: ValueSpace, bench_name: str, bench_description: str, tmp_name: str = ""):
         super().__init__()
         self.default_data_set = default_data_set
         self.default_result_type = default_result_type
@@ -23,8 +23,11 @@ class MiniNASBenchmark(ArgsInterface):
         self.value_space = value_space
         self.bench_name = bench_name
         self.bench_description = bench_description
+        self.tmp_name = tmp_name
 
     def get_name(self) -> str:
+        if len(self.tmp_name) > 0:
+            return self.tmp_name
         return self.bench_name
 
     def set_default_data_set(self, default_data_set: str = None) -> 'MiniNASBenchmark':
@@ -56,14 +59,24 @@ class MiniNASBenchmark(ArgsInterface):
         raise NotImplementedError
 
     @classmethod
-    def load(cls, path_or_url: str) -> 'MiniNASBenchmark':
+    def load(cls, path_or_url: str, default_data_set="", default_result_type="", tmp_name="") -> 'MiniNASBenchmark':
         """ load the benchmark from a file, automatically finds the correct class to load """
+        # find file and used benchmark class
         path = maybe_download(path_or_url)
+        assert path is not None, "path is None for: %s" % path_or_url
+        assert os.path.exists(path), "does not exist: %s" % path
         assert os.path.isfile(path), "not a file: %s" % path
         dct = torch.load(path)
         cls_ = Register.benchmark_sets.get(dct.pop('cls'))
         assert issubclass(cls_, MiniNASBenchmark)
-        return cls_._load(dct)
+        # load benchmark, set optional defaults
+        ds = cls_._load(dct)
+        if len(default_data_set) > 0:
+            ds.set_default_data_set(default_data_set)
+        if len(default_result_type) > 0:
+            ds.set_default_result_type(default_result_type)
+        ds.tmp_name = tmp_name
+        return ds
 
     @classmethod
     def _load(cls, dct: dict) -> 'MiniNASBenchmark':
@@ -76,6 +89,7 @@ class MiniNASBenchmark(ArgsInterface):
             Argument('default_data_set', default="", type=str, help='default data set to use, ignored if empty'),
             Argument('default_result_type', default="test", type=str, choices=['train', 'valid', 'test'],
                      help='default result type to use'),
+            Argument('tmp_name', default="", type=str, help='change the name of the benchmark, useful for plotting'),
         ]
 
     @classmethod
@@ -84,6 +98,9 @@ class MiniNASBenchmark(ArgsInterface):
 
     def get_value_space(self) -> ValueSpace:
         return self.value_space
+
+    def get_specific_value_space(self) -> SpecificValueSpace:
+        raise NotImplementedError
 
     def get_my_space_lower_upper(self) -> (np.array, np.array):
         """ lower and upper limits (both included) for pymoo """
@@ -161,10 +178,13 @@ class MiniNASBenchmark(ArgsInterface):
                 all_entries = [entries[i] for i in sorted_idx]
         return sorted(all_entries, key=lambda s: s.get(sorted_by[0], data_set), reverse=maximize[0])
 
-    def get_by_arch_tuple(self, arch_tuple: tuple) -> MiniResult:
-        return self._get_by_arch_tuple(arch_tuple).set_defaults(self.default_data_set, self.default_result_type)
+    def get_by_arch_tuple(self, arch_tuple: tuple) -> Union[MiniResult, None]:
+        result = self._get_by_arch_tuple(arch_tuple)
+        if isinstance(result, MiniResult):
+            result.set_defaults(self.default_data_set, self.default_result_type)
+        return result
 
-    def _get_by_arch_tuple(self, arch_tuple: tuple) -> MiniResult:
+    def _get_by_arch_tuple(self, arch_tuple: tuple) -> Union[MiniResult, None]:
         raise NotImplementedError
 
     def size(self) -> int:

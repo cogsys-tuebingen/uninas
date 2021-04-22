@@ -7,9 +7,10 @@
     "{cls_task}.s1_path": "{path_tmp}/run_config/",
     "{cls_task}.save_del_old": true,
     "{cls_task}.measure_min": 1000,
+    "{cls_task}.reset_bn": false,
 
     "cls_benchmarks": "MiniNASTabularBenchmark",
-    "{cls_benchmarks#0}.path": "{path_data}/SIN_fairnas_mini_only1.pt",
+    "{cls_benchmarks#0}.path": "{path_data}/bench/sin/SIN_fairnas_v0.1.pt",
 
     "cls_hpo_self_algorithm": "RandomHPO",
     "{cls_hpo_self_algorithm}.num_eval": 1000,
@@ -19,8 +20,8 @@
     "{cls_hpo_estimators#0}.is_constraint": false,
     "{cls_hpo_estimators#0}.is_objective": true,
     "{cls_hpo_estimators#0}.maximize": true,
-    "{cls_hpo_estimators#0}.load": false,
-    "{cls_hpo_estimators#0}.batches_forward": 0,
+    "{cls_hpo_estimators#0}.load": true,
+    "{cls_hpo_estimators#0}.batches_forward": 20,
     "{cls_hpo_estimators#0}.batches_train": 0,
     "{cls_hpo_estimators#0}.batches_eval": -1,
     "{cls_hpo_estimators#0}.value": "val/accuracy/1",

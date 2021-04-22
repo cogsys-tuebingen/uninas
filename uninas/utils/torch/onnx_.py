@@ -2,7 +2,7 @@
 export the network via onnx
 """
 
-from uninas.networks.uninas.abstract import AbstractUninasNetwork
+from uninas.models.networks.uninas.abstract import AbstractUninasNetwork
 from uninas.utils.shape import Shape
 from uninas.utils.loggers.python import LoggerManager, log_headline
 from uninas.utils.torch.standalone import get_network

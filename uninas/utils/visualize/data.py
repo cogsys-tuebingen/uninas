@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     # one batch
     data = data_set.train_data if train_data else data_set.test_data
-    transform = data_set.get_transforms(train=train_data, exclude_normalize=True)
+    transform = data_set.get_data_transforms(train=train_data, exclude_normalize=True)
     data.transform = None
     batch = [data[idx] for idx in np.random.randint(0, len(data), size=num_img)]
 

@@ -1,7 +1,8 @@
+import torch
 from uninas.tasks.abstract import AbstractTask
 from uninas.methods.strategies.manager import StrategyManager
 from uninas.methods.strategies.random import RandomChoiceStrategy
-from uninas.optimization.common.profilers.abstract import AbstractProfiler
+from uninas.optimization.profilers.abstract import AbstractProfiler
 from uninas.utils.args import MetaArgument, Namespace
 from uninas.utils.loggers.python import log_headline
 from uninas.register import Register
@@ -35,6 +36,7 @@ class SearchNetworkProfileTask(AbstractTask):
         self.net = self._parsed_meta_argument(Register.networks, 'cls_network', args, index=None).from_args(args)
         self.net.build(s_in=data_set.get_data_shape(), s_out=data_set.get_label_shape())
         self.net = self.mover.move_module(self.net)
+        self.net.eval()
 
         # profiler
         log_headline(self.logger, 'adding Profiler')
@@ -56,15 +58,17 @@ class SearchNetworkProfileTask(AbstractTask):
             MetaArgument('cls_network', networks, help_name='network', allowed_num=1),
         ]
 
-    def _profile_file(self, checkpoint_dir: str) -> str:
-        return '%s/%s.%s.pt' % (checkpoint_dir, self.profiler.name, self.devices_handler.name)
+    @classmethod
+    def _profile_dir(cls, checkpoint_dir: str) -> str:
+        return '%s/profile/' % checkpoint_dir
 
     def _load(self, checkpoint_dir: str) -> bool:
         """ load """
-        return self.profiler.load(self._profile_file(checkpoint_dir))
+        return self.profiler.load(self._profile_dir(checkpoint_dir))
 
     def _run(self):
         """ execute the task """
         log_headline(self.logger, "Profiling")
-        self.profiler.profile(self.net, self.mover, self.batch_size)
-        self.profiler.save(self._profile_file(self.save_dir))
+        with torch.no_grad():
+            self.profiler.profile(self.net, self.mover, self.batch_size)
+            self.profiler.save(self._profile_dir(self.save_dir))

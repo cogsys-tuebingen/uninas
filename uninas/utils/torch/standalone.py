@@ -3,7 +3,7 @@ some functions that make exporting easier
 """
 
 import argparse
-from uninas.networks.uninas.abstract import AbstractUninasNetwork
+from uninas.models.networks.uninas.abstract import AbstractUninasNetwork
 from uninas.data.abstract import AbstractDataSet
 from uninas.training.callbacks.checkpoint import CheckpointCallback
 from uninas.utils.args import ArgumentParser, ArgsTreeNode, arg_list_from_json
@@ -33,7 +33,7 @@ def get_network(config_path: str, input_shape: Shape, output_shape: Shape, weigh
     return network
 
 
-def get_dataset_from_json(path: str, fake=True) -> AbstractDataSet:
+def get_dataset_from_json(path: str, fake=False) -> AbstractDataSet:
     """ parse a task config to re-create the used data set and augmentations """
     Builder()
     args_list = arg_list_from_json(path)
@@ -55,11 +55,15 @@ def get_dataset(data_kwargs: dict) -> AbstractDataSet:
     parser = argparse.ArgumentParser()
     cls_data = Register.data_sets.get(data_kwargs.get('cls_data'))
     cls_data.add_arguments(parser, index=None)
+    classes = [cls_data]
     for i, cls_aug in enumerate([Register.augmentation_sets.get(cls) for cls in split(data_kwargs.get('cls_augmentations'))]):
         cls_aug.add_arguments(parser, index=i)
+        classes.append(cls_aug)
     data_args = parser.parse_args(args=[])
     for k, v in data_kwargs.items():
         data_args.__setattr__(k, v)
+    for c in classes:
+        data_args = c.sanitize_args(data_args)
     return cls_data.from_args(data_args, index=None)
 
 
@@ -71,6 +75,7 @@ def get_imagenet(data_dir: str, num_workers=8, batch_size=8, aug_dict: dict = No
         "Imagenet1000Data.num_workers": num_workers,
         "Imagenet1000Data.batch_size_train": batch_size,
         "Imagenet1000Data.batch_size_test": batch_size,
+        "Imagenet1000Data.valid_as_test": True,
 
     }
     if aug_dict is None:

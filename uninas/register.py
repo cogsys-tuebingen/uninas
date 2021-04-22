@@ -37,11 +37,11 @@ class RegisterDict(dict):
                 c[k] = v
         return c
 
-    def filter_match_all(self, **kwargs):
+    def filter_match_all(self, **kwargs) -> 'RegisterDict':
         """ subset that contains only the items that match all of the kwargs """
         return self._filter_match(all, **kwargs)
 
-    def filter_match_any(self, **kwargs):
+    def filter_match_any(self, **kwargs) -> 'RegisterDict':
         """ subset that contains the items that match any of the kwargs """
         return self._filter_match(any, **kwargs)
 
@@ -74,6 +74,7 @@ class Register(metaclass=Singleton):
     tasks = RegisterDict('tasks')
     trainers = RegisterDict('trainer')
     training_callbacks = RegisterDict('training callbacks')
+    training_clones = RegisterDict('training clones')
     exp_loggers = RegisterDict('experiment loggers')
     devices_managers = RegisterDict('device managers')
     data_sets = RegisterDict('data sets')
@@ -95,6 +96,7 @@ class Register(metaclass=Singleton):
     network_cells = RegisterDict('network cells')
     network_bodies = RegisterDict('network bodies')
     networks = RegisterDict('networks')
+    models = RegisterDict('models')
     initializers = RegisterDict('initializers')
     regularizers = RegisterDict('regularizers')
     optimizers = RegisterDict('optimizers')
@@ -111,7 +113,7 @@ class Register(metaclass=Singleton):
     optimization_targets = RegisterDict('optimization targets')
     profilers = RegisterDict('profiler')
     profile_functions = RegisterDict('profile functions')
-    correlation_metrics = RegisterDict('correlation metrics')
+    nas_metrics = RegisterDict('NAS metrics')
 
     @classmethod
     def _add(cls, dct: RegisterDict, **kwargs):
@@ -156,6 +158,13 @@ class Register(metaclass=Singleton):
         :param requires_log_dict: the callback requires the log_dict (containing e.g. evaluated metric info) to function
         """
         return cls._add(cls.training_callbacks, requires_log_dict=requires_log_dict)
+
+    @classmethod
+    def training_clone(cls):
+        """
+        register a training clone
+        """
+        return cls._add(cls.training_clones)
 
     @classmethod
     def exp_logger(cls):
@@ -320,12 +329,22 @@ class Register(metaclass=Singleton):
     @classmethod
     def network(cls, search=False, only_config=False, external=False):
         """
-        register a network
+        register a network (a specific kind of model)
         :param search: if the network supports architecture search
         :param only_config: if the network can be built from a config file alone
         :param external: if the network is from an external source
         """
         return cls._add(cls.networks, search=search, only_config=only_config, external=external)
+
+    @classmethod
+    def model(cls, can_fit=False, classification=False, regression=False):
+        """
+        register a model
+        :param can_fit: the model can be directly fit (no trainer needed)
+        :param classification: the model is for classification
+        :param regression: the model is for regression
+        """
+        return cls._add(cls.models, can_fit=can_fit, classification=classification, regression=regression)
 
     @classmethod
     def initializer(cls):
@@ -444,12 +463,12 @@ class Register(metaclass=Singleton):
         return cls._add(cls.profile_functions)
 
     @classmethod
-    def correlation_metric(cls, rank=False):
+    def nas_metric(cls, is_correlation=False):
         """
-        register a correlation metric
-        :param rank: if it is a ranking metric
+        register a NAS metric
+        :param is_correlation: a correlation metric
         """
-        return cls._add(cls.correlation_metrics, rank=rank)
+        return cls._add(cls.nas_metrics, is_correlation=is_correlation)
 
     @classmethod
     def _print_dct(cls, logger: Logger, text: str, dct: RegisterDict):

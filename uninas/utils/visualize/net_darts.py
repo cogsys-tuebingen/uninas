@@ -4,9 +4,9 @@ visualize the normal and reduction cell in a DARTS-like network
 
 
 from graphviz import Digraph
-from uninas.model.modules.abstract import AbstractModule
-from uninas.model.modules.misc import MultiModules
-from uninas.model.cells.darts import DartsCNNCell
+from uninas.modules.modules.abstract import AbstractModule
+from uninas.modules.modules.misc import MultiModules
+from uninas.modules.cells.darts import DartsCNNCell
 from uninas.utils.paths import replace_standard_paths
 from uninas.builder import Builder
 from uninas.main import Main
@@ -90,4 +90,4 @@ def visualize_file(config_path: str, save_dir: str):
 
 
 if __name__ == '__main__':
-    visualize_file(Builder.find_net_config_path('DARTS_V1'), '{path_tmp}/viz/')
+    visualize_file(Builder().find_net_config_path('DARTS_V1'), '{path_tmp}/viz/')

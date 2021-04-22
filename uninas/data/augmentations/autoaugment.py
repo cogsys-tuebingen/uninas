@@ -8,7 +8,7 @@ implementation adapted from https://github.com/DeepVoltaire/AutoAugment/blob/mas
 import random
 import numpy as np
 from torchvision import transforms
-from uninas.data.abstract import AbstractDataSet, AbstractAug, BatchAugmentations
+from uninas.data.abstract import AbstractDataSet, AbstractAug, AugType
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
 
@@ -90,7 +90,7 @@ try:
 
 
     class Posterize(SinglePolicy):
-        magnitudes = np.round(np.linspace(8, 4, 10), 0).astype(np.int)
+        magnitudes = np.round(np.linspace(8, 4, 10), 0).astype(np.int32)
 
         def _apply(self, img: Image) -> Image:
             return ImageOps.posterize(img, self.magnitude)
@@ -169,8 +169,8 @@ try:
         """
 
         @classmethod
-        def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-            assert ds.data_raw_shape.num_dims() == 3
+        def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+            assert ds.raw_data_shape.num_dims() == 3
             default = dict(fill_color=(128, 128, 128))
             all_transforms = [
                 transforms.RandomCrop(32, padding=4, fill=128),
@@ -207,12 +207,12 @@ try:
                     SubPolicy(TranslateY(p=0.7, m=9, **default), AutoContrast(p=0.9, m=1, **default)),
                 ),
             ]
-            return all_transforms, []
+            return AugType.ON_RAW, all_transforms
 
         @classmethod
-        def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-            assert ds.data_raw_shape.num_dims() == 3
-            return [], []
+        def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+            assert ds.raw_data_shape.num_dims() == 3
+            return AugType.NONE, []
 
 
     @Register.augmentation_set(on_single=True, on_images=True)
@@ -229,8 +229,8 @@ try:
             ]
 
         @classmethod
-        def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-            assert ds.data_raw_shape.num_dims() == 3
+        def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+            assert ds.raw_data_shape.num_dims() == 3
             crop_size = cls._parsed_argument('crop_size', args, index=index)
             default = dict(fill_color=(128, 128, 128))
             all_transforms = [
@@ -268,17 +268,17 @@ try:
                     SubPolicy(Equalize(p=0.8, m=8, **default), Equalize(p=0.6, m=3, **default)),
                 ),
             ]
-            return all_transforms, []
+            return AugType.ON_RAW, all_transforms
 
         @classmethod
-        def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-            assert ds.data_raw_shape.num_dims() == 3
+        def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+            assert ds.raw_data_shape.num_dims() == 3
             crop_size = cls._parsed_argument('crop_size', args, index=index)
             all_transforms = [
                 transforms.Resize(int(crop_size / 0.875)),
                 transforms.CenterCrop(crop_size),
             ]
-            return all_transforms, []
+            return AugType.ON_RAW, all_transforms
 
 except ImportError as e:
     Register.missing_import(e)

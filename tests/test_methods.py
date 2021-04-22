@@ -1,8 +1,8 @@
 import unittest
 import torch
 from uninas.main import Main
-from uninas.networks.uninas.search import SearchUninasNetwork
-from uninas.training.result import TrainLogResult
+from uninas.models.networks.uninas.search import SearchUninasNetwork
+from uninas.training.result import LogResult
 from uninas.methods.darts import DartsSearchMethod
 from uninas.utils.args import Argument
 from uninas.register import Register
@@ -18,8 +18,9 @@ dna1_config = '{path_conf_tasks}/dna1.run_config, {path_conf_net_search}fairnas.
 @Register.method(search=True)
 class TestMaskGradientsSearchMethod(DartsSearchMethod):
 
-    def training_step(self, batch, batch_idx, key='train', **net_kwargs) -> TrainLogResult:
-        result = super().training_step(batch, batch_idx, key=key, **net_kwargs)
+    def training_step(self, batch, batch_idx, **net_kwargs) -> LogResult:
+        assert self.training, "The network must be in training mode here"
+        result = super().training_step(batch, batch_idx, **net_kwargs)
         print('\n', 'test mask idx', self.hparams.test_mask_idx, self.opt_idx, result.minimize.item())
         if self.opt_idx == self.hparams.test_mask_idx:
             result.minimize *= 0
@@ -201,6 +202,7 @@ class TestMethods(unittest.TestCase):
                     "{cls_data}.dir": "{path_data}/cifar_data/",
                     "{cls_data}.download": True,
                     "{cls_data}.num_workers": 0,
+                    "{cls_data}.valid_as_test": False,
 
                     "{cls_schedulers#0}.warmup_epochs": 0,
                 }

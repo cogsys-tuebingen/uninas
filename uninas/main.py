@@ -17,10 +17,15 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # only error/fatal
 class Main(ArgsInterface):
 
     @classmethod
+    def init(cls):
+        """ make sure everything is registered """
+        Builder()
+
+    @classmethod
     def list_all_arguments(cls):
         """ list all arguments of all classes that expose arguments """
 
-        Builder()
+        cls.init()
         all_to_list = [cls] + [item.value for item in Register.all.values()]
         arg_str = '  {name:<30}{type:<20}{default:<35}{help:<80}{choices}'
 
@@ -83,13 +88,11 @@ class Main(ArgsInterface):
         :return: new task as defined by the command line arguments
         """
         print("Creating new task")
+        cls.init()
 
         # reset any plotting
         plt.clf()
         plt.cla()
-
-        # make sure everything is registered
-        Builder()
 
         # from config file?
         if isinstance(cla, str):

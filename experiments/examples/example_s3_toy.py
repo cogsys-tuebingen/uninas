@@ -1,9 +1,7 @@
 from uninas.main import Main
 
 """
-retraining a network from a network config (only referenced via name, e.g. FairNasC)
-
-beware that we may be using fake data
+training a fully connected network on toy data
 """
 
 
@@ -18,9 +16,11 @@ args = {
 
     "cls_trainer": "SimpleTrainer",  # SimpleTrainer, SimpleDDPTrainer
     "{cls_trainer}.max_epochs": 20,
+    "{cls_trainer}.accumulate_batches": 1,
 
-    "{cls_trainer}.ema_device": "same",
-    "{cls_trainer}.ema_decay": 0.99,
+    "cls_clones": "EMAClone",
+    "{cls_clones#0}.device": "same",
+    "{cls_clones#0}.decay": 0.9,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
 
@@ -31,7 +31,7 @@ args = {
 
     "cls_method": "RetrainMethod",
 
-    "cls_network": "FCProfilingNetwork",
+    "cls_network": "FullyConnectedNetwork",
     # "{cls_network}.checkpoint_path": "",
     "{cls_network}.layer_widths": "20, 21",
     "{cls_network}.act_fun": "sigmoid",
@@ -46,7 +46,9 @@ args = {
 
     "cls_augmentations": "",
 
-    "cls_metrics": "",
+    "cls_metrics": "CriterionMetric, CriterionMetric",
+    "{cls_metrics#0}.criterion": 'L1Criterion',
+    "{cls_metrics#1}.criterion": 'L2Criterion',
 
     "cls_initializers": "",
 
@@ -55,11 +57,11 @@ args = {
     "cls_optimizers": "SGDOptimizer",
     "{cls_optimizers#0}.lr": 0.01,
     "{cls_optimizers#0}.momentum": 0.9,
-    "{cls_optimizers#0}.accumulate_batches": 2,
 
-    "cls_schedulers": "CosineScheduler",
-    "{cls_schedulers#0}.warmup_epochs": 3,
-    "{cls_schedulers#0}.warmup_lr": 0.0,
+    "cls_schedulers": "ConstantScheduler",
+    # "cls_schedulers": "CosineScheduler",
+    # "{cls_schedulers#0}.warmup_epochs": 1,
+    # "{cls_schedulers#0}.warmup_lr": 0.0,
 
     "cls_regularizers": "",
 }

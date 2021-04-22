@@ -3,8 +3,10 @@
 # Written by Hao Du and Houwen Peng
 # email: haodu8-c@my.cityu.edu.hk and houwen.peng@microsoft.com
 
-# adapted by Kevin Laube to account for the changes in file structure and to separate train/val into different folders
-# see https://github.com/microsoft/Cream/blob/main/tools/generate_subImageNet.py
+"""
+adapted by Kevin Laube to account for the changes in file structure and to separate train/val into different folders
+see https://github.com/microsoft/Cream/blob/main/tools/generate_subImageNet.py
+"""
 
 
 import os
@@ -12,16 +14,16 @@ from uninas.utils.paths import replace_standard_paths
 
 
 if __name__ == '__main__':
+    # vars to change
+    subImageNet_name = 'subImageNet'
     splits = {
         'train': (0, 250),
-        'val': (250, 300),
+        'val': (250, 500),  # originally only 250-300
     }
-
     data_path = replace_standard_paths('{path_data}')
     ImageNet_train_path = os.path.join(data_path, 'ImageNet_ILSVRC2012/train')
-    subImageNet_name = 'subImageNet'
 
-    # train
+    # find train data, copy some according to the defined splits
     classes = sorted(os.listdir(ImageNet_train_path))
     if not os.path.exists(os.path.join(data_path, subImageNet_name)):
         os.mkdir(os.path.join(data_path, subImageNet_name))
@@ -42,7 +44,6 @@ if __name__ == '__main__':
                     os.mkdir(os.path.join(data_path, subImageNet_name, key, iclass))
                 images = sorted(os.listdir(class_path))
                 subImages = images[s0:s1]
-                # print("{}\n".format(subImages))
                 f.write("{}\n".format(subImages))
                 subImageNet[iclass] = subImages
                 for image in subImages:
@@ -53,8 +54,7 @@ if __name__ == '__main__':
         sub_classes = sorted(subImageNet.keys())
         with open(os.path.join(class_idx_txt_path, 'info.txt'), 'w') as f:
             class_idx = 0
-            for key in sub_classes:
-                images = sorted((subImageNet[key]))
-                # print(len(images))
-                f.write("{}\n".format(key))
+            for key_ in sub_classes:
+                images = sorted((subImageNet[key_]))
+                f.write("{}\n".format(key_))
                 class_idx = class_idx + 1

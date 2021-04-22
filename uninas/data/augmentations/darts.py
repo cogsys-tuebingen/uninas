@@ -1,5 +1,5 @@
 from torchvision import transforms
-from uninas.data.abstract import AbstractDataSet, AbstractAug, BatchAugmentations
+from uninas.data.abstract import AbstractDataSet, AbstractAug, AugType
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
 
@@ -11,18 +11,18 @@ class DartsCifarAug(AbstractAug):
     """
 
     @classmethod
-    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        assert ds.data_raw_shape.num_dims() == 3
+    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        assert ds.raw_data_shape.num_dims() == 3
         all_transforms = [
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
         ]
-        return all_transforms, []
+        return AugType.ON_RAW, all_transforms
 
     @classmethod
-    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        assert ds.data_raw_shape.num_dims() == 3
-        return [], []
+    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        assert ds.raw_data_shape.num_dims() == 3
+        return AugType.NONE, []
 
 
 @Register.augmentation_set(on_single=True, on_images=True)
@@ -39,8 +39,8 @@ class DartsImagenetAug(AbstractAug):
         ]
 
     @classmethod
-    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        assert ds.data_raw_shape.num_dims() == 3
+    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        assert ds.raw_data_shape.num_dims() == 3
         crop_size = cls._parsed_argument('crop_size', args, index=index)
         all_transforms = [
             transforms.RandomResizedCrop(crop_size, scale=(0.08, 1.0)),
@@ -51,14 +51,14 @@ class DartsImagenetAug(AbstractAug):
                 saturation=0.4,
                 hue=0.2),
         ]
-        return all_transforms, []
+        return AugType.ON_RAW, all_transforms
 
     @classmethod
-    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        assert ds.data_raw_shape.num_dims() == 3
+    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        assert ds.raw_data_shape.num_dims() == 3
         crop_size = cls._parsed_argument('crop_size', args, index=index)
         all_transforms = [
             transforms.Resize(int(crop_size / 0.875)),
             transforms.CenterCrop(crop_size),
         ]
-        return all_transforms, []
+        return AugType.ON_RAW, all_transforms

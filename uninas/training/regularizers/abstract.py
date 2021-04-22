@@ -2,7 +2,7 @@
 regularizing networks during training
 """
 
-from uninas.model.networks.abstract import AbstractNetworkBody
+from uninas.modules.networks.abstract import AbstractNetworkBody
 from uninas.utils.args import ArgsInterface, Namespace
 
 

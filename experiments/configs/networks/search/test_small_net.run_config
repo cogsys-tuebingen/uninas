@@ -21,9 +21,6 @@
     "{cls_network_cells#2}.stride": 2,
 
     "cls_network_cells_primitives": "MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives",
-    "{cls_network_cells_primitives#0}.fused": false,
-    "{cls_network_cells_primitives#1}.fused": false,
-    "{cls_network_cells_primitives#2}.fused": false,
 
     "cls_network_stem": "MobileNetV2Stem",
     "{cls_network_stem}.features": 32,

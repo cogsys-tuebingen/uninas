@@ -25,8 +25,10 @@ args = {
     "{cls_trainer}.max_epochs": 4,
     "{cls_trainer}.eval_last": -1,
     "{cls_trainer}.test_last": -1,
-    "{cls_trainer}.ema_decay": 0.999,
-    "{cls_trainer}.ema_device": "same",
+
+    "cls_clones": "EMAClone",
+    "{cls_clones#0}.device": "same",
+    "{cls_clones#0}.decay": 0.999,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": False,
@@ -42,9 +44,10 @@ args = {
 
     "cls_data": "Imagenet1000Data",
     "{cls_data}.batch_size_train": 2,
-    "{cls_data}.valid_split": 0.1,
     "{cls_data}.fake": False,
     "{cls_data}.dir": '{path_data}/ImageNet_ILSVRC2012/',
+    "{cls_data}.valid_split": 0.1,
+    "{cls_data}.valid_as_test": True,
 
     # "cls_augmentations": "DartsImagenetAug",
     "cls_augmentations": "TimmImagenetAug, MixUpAug",

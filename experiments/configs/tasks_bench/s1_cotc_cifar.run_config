@@ -1,0 +1,83 @@
+{
+    "cls_task": "SingleSearchTask",
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.note": "Cream of the Crop training",
+    "{cls_task}.save_dir": "{path_tmp}/bench/s1/fairnas/",
+    "{cls_task}.save_del_old": true,
+
+    "cls_device": "CudaDevicesManager",
+    "{cls_device}.num_devices": 1,
+    "{cls_device}.use_cudnn": true,
+    "{cls_device}.use_cudnn_benchmark": true,
+
+    "cls_exp_loggers": "TensorBoardExpLogger",
+    "{cls_exp_loggers#0}.log_graph": false,
+
+    "cls_method": "CreamOfTheCropMethod",
+    "{cls_method}.mask_indices": "",
+    "{cls_method}.board_size": 10,
+    "{cls_method}.pre_prob": "",
+    "{cls_method}.grace_epochs": 50,
+    "{cls_method}.select_teacher": "meta",
+    "{cls_method}.select_update_iter": 20,
+    "{cls_method}.match_batch_size": 32,
+    "{cls_method}.mmn_batch_average": true,
+    "{cls_method}.mmn_batch_size": 64,
+
+    "cls_cotc_targets": "OptimizationTarget",
+    "{cls_cotc_targets#0}.key": "train/accuracy/1",
+    "{cls_cotc_targets#0}.maximize": true,
+
+    "cls_trainer": "SimpleTrainer",
+    "{cls_trainer}.max_epochs": 250,
+    "{cls_trainer}.log_fs": true,
+    "{cls_trainer}.log_ram": true,
+    "{cls_trainer}.eval_last": 0,
+    "{cls_trainer}.test_last": 0,
+
+    "cls_callbacks": "CheckpointCallback",
+    "{cls_callbacks#0}.top_n": 0,
+    "{cls_callbacks#0}.key": "val/accuracy/1",
+    "{cls_callbacks#0}.minimize_key": false,
+
+    "cls_data": "Cifar10Data",
+    "{cls_data}.dir": "{path_tmp}/data/",
+    "{cls_data}.download": false,
+    "{cls_data}.fake": false,
+    "{cls_data}.batch_size_train": 256,
+    "{cls_data}.batch_size_test": -1,
+    "{cls_data}.num_workers": 4,
+    "{cls_data}.valid_split": 0.1,
+    "{cls_data}.valid_shuffle": true,
+
+    "cls_augmentations": "DartsCifarAug",
+
+    "cls_criterion": "CrossEntropyCriterion",
+    "{cls_criterion}.smoothing_epsilon": 0.0,
+
+    "cls_metrics": "AccuracyMetric",
+    "{cls_metrics#0}.topk": "1, 5",
+
+    "cls_initializers": "",
+
+    "cls_regularizers": "DropOutRegularizer",
+    "{cls_regularizers#0}.prob": 0.0,
+
+    "cls_arc_estimators": "",
+
+    "cls_optimizers": "SGDOptimizer",
+    "{cls_optimizers#0}.lr": 0.025,
+    "{cls_optimizers#0}.momentum": 0.9,
+    "{cls_optimizers#0}.nesterov": false,
+    "{cls_optimizers#0}.weight_decay": 3e-4,
+    "{cls_optimizers#0}.weight_decay_filter": true,
+
+    "cls_schedulers": "CosineScheduler",
+    "{cls_schedulers#0}.eta_min": 1e-5,
+    "{cls_schedulers#0}.each_samples": -1,
+    "{cls_schedulers#0}.cooldown_epochs": 0,
+    "{cls_schedulers#0}.warmup_epochs": 0,
+
+    "cls_network": "SearchUninasNetwork"
+}

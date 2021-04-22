@@ -63,9 +63,10 @@ class ImageNet16(Dataset):
         ['val_data', '3410e3017fdaefba8d5073aaa65e4bd6'],
     ]
 
-    def __init__(self, root, train, transform, use_num_of_class_only=None):
+    def __init__(self, root, train, transform, label_transform, use_num_of_class_only=None):
         self.root = root
         self.transform = transform
+        self.label_transform = label_transform
         self.train = train  # training set or valid set
         if not self._check_integrity(): raise RuntimeError('Dataset not found or corrupted.')
 
@@ -122,6 +123,9 @@ class ImageNet16(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
+        if self.label_transform is not None:
+            target = self.label_transform(target)
+
         return img, target
 
     def __len__(self):
@@ -148,26 +152,25 @@ class ImageNet16Data(AbstractCNNClassificationDataSet):
     """
 
     length = (1281167, 0, 50000)  # training, valid, test
-    data_raw_shape = Shape([3, 16, 16])  # channel height width
-    label_shape = Shape([1000])
+    raw_data_shape = Shape([3, 16, 16])  # channel height width
+    raw_label_shape = Shape([1000])
     data_mean = (0.485, 0.456, 0.406)   # original imagenet values
     data_std = (0.229, 0.224, 0.225)    # original imagenet values
 
     can_download = False
 
     def _num_classes(self):
-        nc = self.label_shape.num_features()
+        nc = self.get_label_shape().num_features()
         if nc >= 1000:
             return None
         return nc
 
-    def _get_train_data(self, used_transforms: transforms.Compose):
-        num_classes = self.label_shape.num_features()
-        return ImageNet16(root=self.dir, train=True, transform=used_transforms,
+    def _get_train_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return ImageNet16(root=self.dir, train=True, transform=data_transforms, label_transform=label_transforms,
                           use_num_of_class_only=self._num_classes())
 
-    def _get_test_data(self, used_transforms: transforms.Compose):
-        return ImageNet16(root=self.dir, train=False, transform=used_transforms,
+    def _get_test_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return ImageNet16(root=self.dir, train=False, transform=data_transforms, label_transform=label_transforms,
                           use_num_of_class_only=self._num_classes())
 
 
@@ -183,7 +186,7 @@ class ImageNet16c120Data(ImageNet16Data):
     """
 
     length = (151700, 0, 6000)  # training, valid, test
-    label_shape = Shape([120])
+    raw_label_shape = Shape([120])
 
 
 if __name__ == '__main__':

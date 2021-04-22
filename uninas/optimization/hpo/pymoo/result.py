@@ -52,7 +52,7 @@ class PymooResultWrapper:
         logger.info("best candidates:")
         for i, sr in enumerate(self.sorted_best()):
             rows.append([i, sr.x] + [v for v in sr.f*signs])
-        log_in_columns(logger, rows, add_bullets=True)
+        log_in_columns(logger, rows, add_bullets=True, num_headers=1)
 
     def plot_all_f(self, checkpoint_dir: str, name='fa'):
         """ plot all populations over time """

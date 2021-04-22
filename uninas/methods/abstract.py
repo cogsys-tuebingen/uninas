@@ -1,26 +1,32 @@
 from collections import defaultdict
-from typing import Union
+from typing import Union, Iterable
 import os
 import time
 import numpy as np
 import torch
+import torch.nn as nn
 import pytorch_lightning as pl
 from torch.cuda.amp import autocast, GradScaler
 from uninas.data.abstract import AbstractBatchAugmentation, AbstractDataSet
-from uninas.networks.abstract import AbstractNetwork
+from uninas.models.networks.abstract import AbstractNetwork
 from uninas.methods.strategies.manager import StrategyManager
-from uninas.training.result import EvalLogResult, TrainLogResult
+from uninas.training.result import LogResult
 from uninas.training.criteria.common import AbstractCriterion
 from uninas.training.regularizers.abstract import AbstractRegularizer
-from uninas.training.optimizers.abstract import WrappedOptimizer, MultiWrappedOptimizer, Optimizer
+from uninas.training.optimizers.abstract import WrappedOptimizer, MultiWrappedOptimizer
+from uninas.training.result import ResultValue
 from uninas.utils.args import Argument, MetaArgument, ArgsInterface, Namespace, find_in_args
-from uninas.utils.misc import split
 from uninas.utils.loggers.python import LoggerManager, Logger, log_in_columns
+from uninas.utils.loggers.exp import LightningLoggerBase
 from uninas.utils.torch.decorators import use_eval
+from uninas.utils.torch.loader import CustomIterator
 from uninas.register import Register
 
 
 class AbstractMethod(pl.LightningModule, ArgsInterface):
+    _key_train = 'train'
+    _key_val = 'val'
+    _key_test = 'test'
 
     def __init__(self, hparams: Namespace):
         super().__init__()
@@ -29,6 +35,9 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
         self.save_hyperparameters(hparams)
         for k, v in vars(self.hparams).items():
             assert isinstance(v, (int, float, str, bool)), 'Namespace argument "%s" is of type %s' % (k, type(v))
+
+        # logging
+        self._logger = None
 
         # data
         data_set_cls = self._parsed_meta_argument(Register.data_sets, 'cls_data', self.hparams, index=None)
@@ -58,8 +67,8 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             initializer.initialize_weights(self.net)
 
         # metrics, regularizers
-        self.metrics = [m(hparams, i, weights)
-                        for i, m in enumerate(self._parsed_meta_arguments(Register.metrics, 'cls_metrics', self.hparams, index=None))]
+        cls_metrics = self._parsed_meta_arguments(Register.metrics, 'cls_metrics', self.hparams, index=None)
+        self.metrics = [m.from_args(hparams, i, self.data_set, weights) for i, m in enumerate(cls_metrics)]
         self.regularizers = self.init_multiple(Register.regularizers, hparams, 'cls_regularizers')
 
         # epoch stats
@@ -113,7 +122,7 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             MetaArgument('cls_data', Register.data_sets, help_name='data set', allowed_num=1),
             MetaArgument('cls_network', networks, help_name='network', allowed_num=1),
             MetaArgument('cls_criterion', criteria, help_name='criterion', allowed_num=1),
-            MetaArgument('cls_metrics', metrics, help_name='training metric'),
+            MetaArgument('cls_metrics', metrics, help_name='training metric', allow_duplicates=True),
             MetaArgument('cls_initializers', Register.initializers, help_name='weight initializer'),
             MetaArgument('cls_regularizers', Register.regularizers, help_name='regularizer'),
             MetaArgument('cls_optimizers', Register.optimizers, help_name='optimizer', allow_duplicates=True, allowed_num=num_optimizers, use_index=True),
@@ -143,6 +152,14 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     # training and logging
     # ---------------------------------------------------------------------------------------------------------------- #
 
+    def set_logger(self, logger: LightningLoggerBase):
+        self._logger = logger
+
+    @property
+    def logger(self) -> Union[LightningLoggerBase, None]:
+        """ Reference to the logger object in the Trainer. """
+        return self.trainer.logger if self.trainer else self._logger
+
     def use_forward_mode(self, mode='default'):
         """
         :param mode:
@@ -164,17 +181,32 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     def forward_custom(self, *args, **kwargs):
         return self.net(*args, **kwargs)
 
-    def training_step(self, batch, batch_idx, key='train', **net_kwargs) -> TrainLogResult:
-        loss, dct = self._generic_step(batch, batch_idx, key, self.data_set.train_batch_augmentations, **net_kwargs)
-        return TrainLogResult(loss, dct)
+    def forward_step(self, batch, batch_idx, key='forward', **net_kwargs) -> LogResult:
+        """ forward step to correct batchnorm statistics for a sub-network """
+        assert self.training, "The network must be in training mode here"
+        with torch.no_grad():
+            loss, dct = self._generic_step(batch, batch_idx, key, self.data_set.train_batch_augmentations, **net_kwargs)
+            return LogResult(loss, dct).detach()
 
-    def validation_step(self, batch, batch_idx, key='val', **net_kwargs) -> EvalLogResult:
-        loss, dct = self._generic_step(batch, batch_idx, key, self.data_set.train_batch_augmentations, **net_kwargs)
-        return EvalLogResult(loss, dct)
+    def training_step(self, batch, batch_idx, **net_kwargs) -> LogResult:
+        assert self.training, "The network must be in training mode here"
+        loss, dct = self._generic_step(batch, batch_idx, self._key_train,
+                                       self.data_set.train_batch_augmentations, **net_kwargs)
+        return LogResult(loss, dct)
 
-    def test_step(self, batch, batch_idx, key='test', **net_kwargs) -> EvalLogResult:
-        loss, dct = self._generic_step(batch, batch_idx, key, self.data_set.train_batch_augmentations, **net_kwargs)
-        return EvalLogResult(loss, dct)
+    def validation_step(self, batch, batch_idx, **net_kwargs) -> LogResult:
+        assert not self.training, "The network must not be in training mode here"
+        with torch.no_grad():
+            loss, dct = self._generic_step(batch, batch_idx, self._key_val,
+                                           self.data_set.valid_batch_augmentations, **net_kwargs)
+            return LogResult(loss, dct).detach()
+
+    def test_step(self, batch, batch_idx, **net_kwargs) -> LogResult:
+        assert not self.training, "The network must not be in training mode here"
+        with torch.no_grad():
+            loss, dct = self._generic_step(batch, batch_idx, self._key_test,
+                                           self.data_set.test_batch_augmentations, **net_kwargs)
+            return LogResult(loss, dct).detach()
 
     @classmethod
     def _generic_data(cls, batch, batch_augments: AbstractBatchAugmentation) -> (torch.Tensor, {str: torch.Tensor}):
@@ -191,9 +223,10 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             logits = self(inputs, **net_kwargs)
         loss = self._loss(logits, targets)
         with torch.no_grad():
-            dct = {key + '/loss': loss.clone().detach(), 'num': inputs.size(0)}
+            dct = {key + '/loss': ResultValue(loss.clone().detach(), inputs.size(0))}
             for metric in self.metrics:
-                dct.update(metric.evaluate(self.net, inputs, logits, targets, key))
+                values = metric.evaluate(self.net, inputs, logits, targets, key)
+                dct.update(values)
         if self.strategy_manager is not None:
             self.strategy_manager.feedback(key, dct, self.current_epoch, batch_idx)
         return self.amp_scaler.scale(loss), dct
@@ -203,51 +236,45 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
         return self.criterion(logits, targets).unsqueeze(0)
 
     def optimizer_step(self, *args, epoch: int = None, optimizer: WrappedOptimizer = None, **kwargs):
-        if optimizer.step():
-            self.amp_scaler.update()
+        optimizer.step()
+        self.amp_scaler.update()
         optimizer.zero_grad()
 
     def optimizer_zero_grad(self, *_, **__):
         pass
 
     @classmethod
-    def _mean_all(cls, outputs: [EvalLogResult]) -> EvalLogResult:
+    def _mean_all(cls, outputs: [LogResult]) -> LogResult:
         """ average all key-value pairs in the outputs dicts """
-        if isinstance(outputs, EvalLogResult):
+        if isinstance(outputs, LogResult):
             return outputs
         if len(outputs) == 0:
-            return EvalLogResult()
-        dct = defaultdict(list)
+            return LogResult()
+        dct_val = defaultdict(list)
         dct_num = defaultdict(int)
         for o in outputs:
             log_info = o.get_log_info()
-            num = log_info['num'].item()
-            # loss
-            dct['loss'].append(o.minimize if o.minimize is not None else o.checkpoint_on)
-            dct_num['loss'] += num
-            # other metrics
             for k, v in log_info.items():
-                if k == 'num':
-                    pass
-                else:
-                    dct[k].append(v * num)
-                    dct_num[k] += num
-        loss = torch.cat(dct.pop('loss'), dim=0).sum().detach_().cpu() / dct_num['loss']
-        return EvalLogResult(loss, {k: torch.cat(v, dim=0).sum().detach_() / dct_num[k] for k, v in dct.items()})
+                dct_val[k].append(v.get_scaled_value())
+                dct_num[k] += v.count
+        mean = {k: ResultValue(torch.cat(v, dim=0).sum().detach_() / dct_num[k], dct_num[k]) for k, v in dct_val.items()}
+        return LogResult(None, log_info=mean).detach()
 
-    def training_epoch_end(self, outputs) -> None:
-        super().training_epoch_end(outputs)
+    def summarize_outputs(self, outputs: list) -> LogResult:
+        return self._mean_all(outputs)
+
+    def training_epoch_end(self, outputs: list) -> None:
         self._current_epoch = self.trained_epochs
         self.trained_epochs += 1
 
-    def validation_epoch_end(self, outputs: list) -> EvalLogResult:
-        return self._mean_all(outputs)
-
-    def test_epoch_end(self, outputs: list) -> EvalLogResult:
-        return self._mean_all(outputs)
-
-    def on_epoch_start(self, log=True) -> dict:
+    def on_epoch_start(self, log=True, is_last=False) -> dict:
+        """
+        when the trainer starts a new epoch
+        if the method stops early, the is_last flag will never be True
+        """
         log_dict = self._on_epoch_start()
+        for m in self.metrics:
+            m.on_epoch_start(self._current_epoch, is_last=is_last)
         if log and len(log_dict) > 0:
             self.log_metrics(log_dict)
         return log_dict
@@ -294,9 +321,50 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     def log_hyperparams(self):
         # the LightningTrainer does this automatically
         self.logger.log_hyperparams(self.hparams)
+        self.logger.save()
 
-    def log_metrics(self, log_dict: dict):
+    def log_metrics(self, log_dict: {str: float}):
+        """ log metrics to all exp loggers """
+        log_dict = {k: v.value if isinstance(v, ResultValue) else v for k, v in log_dict.items()}
         self.logger.log_metrics(log_dict, step=self.current_epoch)
+        self.logger.save()
+
+    def log_metric_lists(self, log_dict: {str: Union[Iterable[float], float]}):
+        """ log metric lists to all exp loggers, enumerating steps starting from 0 """
+        for k, v in log_dict.items():
+            if isinstance(v, Iterable):
+                for i, vx in enumerate(v):
+                    self.logger.agg_and_log_metrics({k: vx}, step=i)
+            else:
+                self.logger.agg_and_log_metrics({k: v}, step=0)
+
+    def get_accumulated_metric_stats(self, prefix="") -> dict:
+        """ get all stats of all metrics that are to be visualized """
+        # need to flatten the dict, for e.g. ddp synchronization
+        stats = {}
+        for m in self.metrics:
+            for key in [self._key_train, self._key_val, self._key_test]:
+                for k, v in m.get_accumulated_stats(key).items():
+                    stats[(m.get_log_name(), key, prefix, k)] = v
+        return stats
+
+    def eval_accumulated_metric_stats(self, save_dir: str, stats: dict = None, prefix="") -> dict:
+        """ visualize the metrics, de-flatten the dict """
+        if stats is None:
+            stats = self.get_accumulated_metric_stats(prefix=prefix)
+        # need to de-flatten the dict
+        all_stats = defaultdict(dict)
+        for (name, key, prefix, k), v in stats.items():
+            all_stats[(name, key, prefix)][k] = v
+        # find related metric for each dict, plot it
+        log_dict = {}
+        for (name, key, prefix), stats in all_stats.items():
+            for m in self.metrics:
+                if m.get_log_name() == name:
+                    x = m.eval_accumulated_stats(save_dir, key=key, prefix=prefix, epoch=self.current_epoch, stats=stats)
+                    log_dict.update(x)
+                    break
+        return log_dict
 
     def flush_logging(self):
         if self.logger is not None:
@@ -319,6 +387,7 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             ("Method", self.str()),
             ("Data set", self.data_set.str()),
             (" > train", self.data_set.list_train_transforms()),
+            (" > valid", self.data_set.list_valid_transforms()),
             (" > test", self.data_set.list_test_transforms()),
             ("Criterion", self.criterion),
         ]
@@ -353,13 +422,13 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
     def prepare_data(self):
         pass
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> Union[CustomIterator, None]:
         return self.data_set.train_loader(dist=False)
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> Union[CustomIterator, None]:
         return self.data_set.valid_loader(dist=False)
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> Union[CustomIterator, None]:
         return self.data_set.test_loader(dist=False)
 
     def configure_optimizers(self) -> (list, list):
@@ -418,7 +487,7 @@ class AbstractOptimizationMethod(AbstractMethod):
         self.train_loader = None
 
         # mask
-        for idx in split(self._parsed_argument('mask_indices', self.hparams), cast_fun=int):
+        for idx in self._parsed_argument('mask_indices', self.hparams, split_=int):
             self.strategy_manager.mask_index(idx)
             LoggerManager().get_logger().info("Globally masking arc choices with index %d" % idx)
 
@@ -428,6 +497,48 @@ class AbstractOptimizationMethod(AbstractMethod):
         return super().args_to_add(index) + [
             Argument('mask_indices', default="", type=str, help='[int] mask specific primitives from being used'),
         ]
+
+
+class MethodWrapper:
+    """
+    A wrapper for a Method that enables simply using forward(...) while referring to the correct step(...) functions
+    """
+
+    def __init__(self, method: Union[AbstractMethod, None]):
+        super().__init__()
+        self.method = method
+        self._is_train = True
+        self._is_valid = False
+        self._is_test = False
+
+    def get_method(self) -> AbstractMethod:
+        assert isinstance(self.method, AbstractMethod)
+        return self.method
+
+    def set_mode(self, train=False, valid=False, test=False):
+        assert sum([train, valid, test]) == 1
+        self._is_train = train
+        self._is_valid = valid
+        self._is_test = test
+        if train:
+            self.method.train()
+        else:
+            self.method.eval()
+
+    def forward(self, batch, batch_idx: int):
+        if self._is_train:
+            return self.method.training_step(batch, batch_idx)
+        elif self._is_valid:
+            return self.method.validation_step(batch, batch_idx)
+        elif self._is_test:
+            return self.method.test_step(batch, batch_idx)
+        raise NotImplementedError
+
+
+class MethodWrapperModule(MethodWrapper, nn.Module):
+    """
+    A wrapper for a Method that enables simply using forward(...) while referring to the correct step(...) functions
+    """
 
 
 class AbstractBiOptimizationMethod(AbstractOptimizationMethod):
@@ -448,21 +559,22 @@ class AbstractBiOptimizationMethod(AbstractOptimizationMethod):
         return super().meta_args_to_add(num_optimizers=2)
 
     def optimizer_step(self, *args, epoch: int = None, optimizer: MultiWrappedOptimizer = None, **kwargs):
-        if optimizer.step(index=self.opt_idx):
-            self.amp_scaler.update()
-            optimizer.zero_grad_all(force=True)
+        optimizer.step(index=self.opt_idx)
+        self.amp_scaler.update()
+        optimizer.zero_grad_all()
 
-    def training_step(self, batch, batch_idx, key='train', **net_kwargs) -> TrainLogResult:
+    def training_step(self, batch, batch_idx, **net_kwargs) -> LogResult:
+        assert self.training, "The network must be in training mode here"
         self.opt_idx, real_batch = batch
-        key = key + ['/net', '/arc'][self.opt_idx]
+        key = self._key_test + ['/net', '/arc'][self.opt_idx]
         loss, dct = self._generic_step(real_batch, batch_idx, key, self.data_set.train_batch_augmentations, **net_kwargs)
-        return TrainLogResult(loss, dct)
+        return LogResult(loss, dct)
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> Union[CustomIterator, None]:
         self.train_loader = self.data_set.interleaved_train_valid_loader(multiples=(1, 1))
         return self.train_loader
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> Union[CustomIterator, None]:
         return None
 
     def configure_optimizers(self) -> ([MultiWrappedOptimizer], list):

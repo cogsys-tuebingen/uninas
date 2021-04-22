@@ -14,16 +14,22 @@ class MnistData(AbstractCNNClassificationDataSet):
     """
 
     length = (60000, 0, 10000)  # training, valid, test
-    data_raw_shape = Shape([1, 28, 28])  # channel height width
-    label_shape = Shape([10])
+    raw_data_shape = Shape([1, 28, 28])  # channel height width
+    raw_label_shape = Shape([10])
     data_mean = (0.1307,)
     data_std = (0.3081,)
 
-    def _get_train_data(self, used_transforms: transforms.Compose):
-        return datasets.MNIST(root=self.dir, train=True, download=self.download, transform=used_transforms)
+    @classmethod
+    def get_class_names(cls) -> [str]:
+        return datasets.MNIST.classes
 
-    def _get_test_data(self, used_transforms: transforms.Compose):
-        return datasets.MNIST(root=self.dir, train=False, download=self.download, transform=used_transforms)
+    def _get_train_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.MNIST(root=self.dir, train=True, download=self.download,
+                              transform=data_transforms, target_transform=label_transforms)
+
+    def _get_test_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.MNIST(root=self.dir, train=False, download=self.download,
+                              transform=data_transforms, target_transform=label_transforms)
 
 
 @Register.data_set(images=True, classification=True)
@@ -32,13 +38,19 @@ class FashionMnistData(AbstractCNNClassificationDataSet):
     """
 
     length = (60000, 0, 10000)  # training, valid, test
-    data_raw_shape = Shape([1, 28, 28])  # channel height width
-    label_shape = Shape([10])
+    raw_data_shape = Shape([1, 28, 28])  # channel height width
+    raw_label_shape = Shape([10])
     data_mean = (0.2860,)
     data_std = (0.3530,)
 
-    def _get_train_data(self, used_transforms: transforms.Compose):
-        return datasets.FashionMNIST(root=self.dir, train=True, download=self.download, transform=used_transforms)
+    @classmethod
+    def get_class_names(cls) -> [str]:
+        return datasets.FashionMNIST.classes
 
-    def _get_test_data(self, used_transforms: transforms.Compose):
-        return datasets.FashionMNIST(root=self.dir, train=False, download=self.download, transform=used_transforms)
+    def _get_train_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.FashionMNIST(root=self.dir, train=True, download=self.download,
+                                     transform=data_transforms, target_transform=label_transforms)
+
+    def _get_test_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.FashionMNIST(root=self.dir, train=False, download=self.download,
+                                     transform=data_transforms, target_transform=label_transforms)

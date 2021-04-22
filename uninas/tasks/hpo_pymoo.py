@@ -2,12 +2,12 @@ import os
 import shutil
 import numpy as np
 from uninas.tasks.abstract import AbstractTask, AbstractNetTask
-from uninas.optimization.common.task import common_s2_net_args_to_add, common_s2_extend_args, common_s2_prepare_run
+from uninas.optimization.task import common_s2_net_args_to_add, common_s2_extend_args, common_s2_prepare_run
 from uninas.optimization.hpo.pymoo.algorithms.abstract import AbstractPymooAlgorithm, Algorithm
-from uninas.optimization.common.estimators.abstract import AbstractEstimator
 from uninas.optimization.hpo.pymoo.problem import PymooProblem, BenchPymooProblem
 from uninas.optimization.hpo.pymoo.terminations import AbstractPymooTermination, Termination
 from uninas.optimization.hpo.pymoo.result import PymooResultWrapper
+from uninas.optimization.estimators.abstract import AbstractEstimator
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.args import MetaArgument, Argument, Namespace
 from uninas.utils.loggers.python import log_headline, Logger

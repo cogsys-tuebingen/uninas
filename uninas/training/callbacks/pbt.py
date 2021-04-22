@@ -4,7 +4,6 @@ from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.optimization.pbt.response import PbtServerResponse
 from uninas.training.callbacks.abstract import AbstractCallback
-from uninas.utils.torch.ema import ModelEMA
 from uninas.utils.torch.misc import itemize
 from uninas.utils.args import Argument
 from uninas.utils.loggers.python import LoggerManager
@@ -50,7 +49,7 @@ try:
                         self._client_id = response.client_id
                         self.log("local client id: %d" % self._client_id)
                         self._is_connected = True
-                        self._on_server_response(response, trainer, pl_module, None)
+                        self._on_server_response(response, trainer, pl_module)
 
         def teardown(self, trainer: AbstractTrainerFunctions, pl_module: AbstractMethod, stage: str):
             """Called when fit or test ends"""
@@ -67,45 +66,40 @@ try:
             ]
 
         def _on_server_response(self, response: PbtServerResponse, trainer: AbstractTrainerFunctions,
-                                pl_module: AbstractMethod, pl_ema_module: ModelEMA = None):
+                                pl_module: AbstractMethod):
             assert self._client_id == response.client_id,\
                 "client_id mismatch! Got %d, expected %d" % (response.client_id, self._client_id)
-            response.act(self, self.log, trainer, pl_module, pl_ema_module)
+            response.act(self.log, trainer)
 
-        def _client_result(self, log_dict: dict, trainer: AbstractTrainerFunctions,
-                           pl_module: AbstractMethod, pl_ema_module: ModelEMA = None):
+        def _client_result(self, log_dict: dict, trainer: AbstractTrainerFunctions, pl_module: AbstractMethod):
             assert isinstance(log_dict, dict)
             r = self._server.client_result(self._client_id, pl_module.current_epoch, itemize(log_dict))
             r = PbtServerResponse.from_dict(r)
-            self._on_server_response(r, trainer, pl_module, pl_ema_module)
+            self._on_server_response(r, trainer, pl_module)
 
         def on_train_epoch_start(self, trainer: AbstractTrainerFunctions,
                                  pl_module: AbstractMethod,
-                                 pl_ema_module: ModelEMA = None,
                                  log_dict: dict = None):
-            """Called when the train epoch begins."""
-            self._client_result(log_dict, trainer, pl_module, pl_ema_module)
+            """ Called when the train epoch begins. """
+            self._client_result(log_dict, trainer, pl_module)
 
         def on_train_epoch_end(self, trainer: AbstractTrainerFunctions,
                                pl_module: AbstractMethod,
-                               pl_ema_module: ModelEMA = None,
                                log_dict: dict = None):
-            """Called when the train epoch ends."""
-            self._client_result(log_dict, trainer, pl_module, pl_ema_module)
+            """ Called when the train epoch ends. """
+            self._client_result(log_dict, trainer, pl_module)
 
         def on_validation_epoch_end(self, trainer: AbstractTrainerFunctions,
                                     pl_module: AbstractMethod,
-                                    pl_ema_module: ModelEMA = None,
                                     log_dict: dict = None):
-            """Called when the val epoch ends."""
-            self._client_result(log_dict, trainer, pl_module, pl_ema_module)
+            """ Called when the val epoch ends. """
+            self._client_result(log_dict, trainer, pl_module)
 
         def on_test_epoch_end(self, trainer: AbstractTrainerFunctions,
                               pl_module: AbstractMethod,
-                              pl_ema_module: ModelEMA = None,
                               log_dict: dict = None):
-            """Called when the test epoch ends."""
-            self._client_result(log_dict, trainer, pl_module, pl_ema_module)
+            """ Called when the test epoch ends. """
+            self._client_result(log_dict, trainer, pl_module)
 
 except ImportError as e:
     Register.missing_import(e)

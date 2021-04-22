@@ -1,6 +1,7 @@
 import pickle
 import os
-from uninas.optimization.common.estimators.abstract import AbstractEstimator
+from typing import Union
+from uninas.optimization.estimators.abstract import AbstractEstimator
 from uninas.optimization.hpo.uninas.candidate import Candidate
 from uninas.optimization.hpo.uninas.population import Population
 from uninas.optimization.hpo.uninas.values import ValueSpace
@@ -9,14 +10,14 @@ from uninas.utils.loggers.python import Logger
 
 
 class AbstractAlgorithm:
-    def __init__(self, value_space: ValueSpace, logger: Logger, save_file='/tmp/alg.pickle', strategy_name: str = None,
-                 constraints=(), estimators_gen=(), estimators_eval=(), objectives=()):
+    def __init__(self, value_space: ValueSpace, logger: Logger, save_file: Union[str, None]='/tmp/alg.pickle',
+                 strategy_name: str = None, constraints=(), estimators_gen=(), estimators_eval=(), objectives=()):
         """
         basic constrained multi-objective optimization algorithm
 
         :param value_space: space where values can be sampled from
         :param logger: a logger to log to
-        :param save_file: to save+load the state of the algorithm
+        :param save_file: to save+load the state of the algorithm, skipped if None
         :param strategy_name: str to specify which weight strategy the architecture weights refer to
         :param constraints: AbstractEstimator evaluated at individual creation, bad individuals are resampled
         :param estimators_gen: AbstractEstimator evaluated at individual creation
@@ -74,23 +75,24 @@ class AbstractAlgorithm:
             if len(population) >= num:
                 break
 
-    def _save_file(self, save_file: str = None) -> str:
+    def _save_file(self, save_file: str = None) -> Union[str, None]:
         return save_file if save_file is not None else self.__save_file
 
     def save_state(self, save_file: str = None):
         """ save the current search state """
         save_file = self._save_file(save_file)
-        os.makedirs(os.path.dirname(save_file), exist_ok=True)
-        if os.path.isfile(save_file):
-            os.remove(save_file)
-        with open(save_file, 'wb') as file:
-            pickle.dump(self._save_dict(), file)
-        self.logger.info('Saved %s checkpoint [%s]' % (self.__class__.__name__, save_file))
+        if isinstance(save_file, str):
+            os.makedirs(os.path.dirname(save_file), exist_ok=True)
+            if os.path.isfile(save_file):
+                os.remove(save_file)
+            with open(save_file, 'wb') as file:
+                pickle.dump(self._save_dict(), file)
+            self.logger.info('Saved %s checkpoint [%s]' % (self.__class__.__name__, save_file))
 
     def load_state(self, save_file: str = None):
         """ try loading a search state """
         save_file = self._save_file(save_file)
-        if os.path.isfile(save_file):
+        if isinstance(save_file, str) and os.path.isfile(save_file):
             with open(save_file, 'rb') as file:
                 dct = pickle.load(file)
                 self._load_dict(dct)
@@ -102,7 +104,7 @@ class AbstractAlgorithm:
     def remove_saved_state(self, save_file: str = None):
         """ remove the saved search state """
         save_file = self._save_file(save_file)
-        if os.path.isfile(save_file):
+        if isinstance(save_file, str) and os.path.isfile(save_file):
             os.remove(save_file)
 
     def log_top_k(self, population=None, k=10000, log_all=False, log_all_fronts=False):

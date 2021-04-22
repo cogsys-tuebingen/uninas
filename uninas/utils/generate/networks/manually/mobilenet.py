@@ -7,11 +7,11 @@ https://arxiv.org/abs/1905.02244
 """
 
 import torch.nn as nn
-from uninas.model.networks.stackedcells import StackedCellsNetworkBody
-from uninas.model.stems.mobilenet import MobileNetV2Stem
-from uninas.model.layers.cnn import ConvLayer
-from uninas.model.layers.mobilenet import MobileInvertedConvLayer
-from uninas.model.heads.cnn import FeatureMixClassificationHead
+from uninas.modules.networks.stackedcells import StackedCellsNetworkBody
+from uninas.modules.stems.mobilenet import MobileNetV2Stem
+from uninas.modules.layers.cnn import ConvLayer
+from uninas.modules.layers.mobilenet import MobileInvertedConvLayer
+from uninas.modules.heads.cnn import FeatureMixClassificationHead
 from uninas.utils.shape import Shape
 from uninas.utils.generate.networks.manually.abstract import get_stem_instance, get_head_instance,\
     get_passthrough_partials, get_network

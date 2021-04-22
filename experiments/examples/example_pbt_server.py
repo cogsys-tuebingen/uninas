@@ -19,7 +19,7 @@ args = {
     "cls_pbt_selector": "DefaultPbtSelector",
     "{cls_pbt_selector}.each_epochs": 1,
     "{cls_pbt_selector}.grace_epochs": 0,
-    "{cls_pbt_selector}.save_ema": True,
+    "{cls_pbt_selector}.save_clone": True,
     "{cls_pbt_selector}.elitist": False,
     "{cls_pbt_selector}.replace_worst": 0.5,
     "{cls_pbt_selector}.copy_best": 0.5,
@@ -27,7 +27,7 @@ args = {
     "cls_pbt_targets": "OptimizationTarget, OptimizationTarget",
     "{cls_pbt_targets#0}.key": "val/loss",
     "{cls_pbt_targets#0}.maximize": False,
-    "{cls_pbt_targets#1}.key": "val_ema/loss",
+    "{cls_pbt_targets#1}.key": "val/clones/EMAClone/0.999/loss",
     "{cls_pbt_targets#1}.maximize": False,
 
     "cls_pbt_mutations": "OptimizerPbtMutation, RegularizerPbtMutation",

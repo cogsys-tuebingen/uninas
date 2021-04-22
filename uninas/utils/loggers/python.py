@@ -5,6 +5,7 @@ shared loggers with a custom logging format
 
 import logging
 import subprocess
+from typing import Union, Callable, Iterable
 from logging import Logger, Filter
 from uninas.utils.meta import Singleton
 
@@ -20,22 +21,44 @@ class CustomLoggerFilter(Filter):
         return True
 
 
-def log_in_columns(logger: Logger, lines: [[str]], start_space=0, between_space=4, add_bullets=False):
-    """ log all lines, making sure each column has the same width """
+def log_in_columns(logger: Union[Logger, Callable], lines: [[str]], min_widths: Iterable[int] = None,
+                   start_space=0, between_space=4, add_bullets=False, num_headers=0):
+    """
+    log all lines, making sure each column has the same width
+    :param logger: logger or callable to log to
+    :param lines: list of tuples/lists of column-strings to log
+    :param min_widths: optional minimum width for each column
+    :param start_space: empty space before the first column
+    :param between_space: added space between each two columns
+    :param add_bullets: whether to add bullets in front of each line
+    :param num_headers: number of header lines that will not get bullets
+    :return:
+    """
     if len(lines) <= 0:
         return
     lines = [[str(v) for v in line] for line in lines]
-    max_lens = [0 for _ in range(len(lines[0]))]
+
+    # figure out width for each column
+    if isinstance(min_widths, Iterable) and len(list(min_widths)) == len(lines[0]):
+        max_widths = list(min_widths)
+    else:
+        max_widths = [0 for _ in range(len(lines[0]))]
     for line in lines:
         for i, c in enumerate(line):
-            max_lens[i] = max(max_lens[i], len(c))
-    start = " " * start_space
+            max_widths[i] = max(max_widths[i], len(c))
+
+    # format strings
+    start = start_header = " " * start_space
     if add_bullets:
         start = " > %s" % start
+        start_header = "   %s" % start_header
     fmt = " " * between_space
-    fmt = fmt.join(["{:<%d}" % n for n in max_lens])
-    for line in lines:
-        logger.info("%s%s" % (start, fmt.format(*line)))
+    fmt = fmt.join(["{:<%d}" % n for n in max_widths])
+
+    # log
+    log_fun = logger.info if isinstance(logger, Logger) else logger
+    for i, line in enumerate(lines):
+        log_fun("%s%s" % (start_header if i < num_headers else start, fmt.format(*line)))
 
 
 def log_args(logger: Logger, writer, args, add_git_hash=True, descriptions: dict = None):
@@ -51,7 +74,10 @@ def log_args(logger: Logger, writer, args, add_git_hash=True, descriptions: dict
             writer.add_text('args', '%s: %s' % (k, v))
 
 
-def log_headline(logger: Logger, text: str, target_len=100, level=20):
+def log_headline(logger: Logger, text: str = None, target_len=100, level=20):
+    if text is None or len(text) == 0:
+        logger.log(level, '>' + '-'*(target_len-2) + '<')
+        return
     l0 = max((target_len - len(text) - 4) // 2, 0)
     l1 = max((target_len - len(text) - 4) - l0, 0)
     logger.log(level, '>' + '-'*l0 + ' ' + text + ' ' + '-'*l1 + '<')

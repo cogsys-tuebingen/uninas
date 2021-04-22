@@ -5,12 +5,12 @@ from uninas.methods.abstract import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.devices.abstract import AbstractDeviceMover
 from uninas.training.callbacks.checkpoint import CheckpointCallback
+from uninas.training.clones.abstract import AbstractMethodClone
 from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.utils.loggers.resources import ResourceLogThread
 from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.loggers.exp import AbstractExpLogger
 from uninas.utils.args import ArgsInterface, MetaArgument, Argument, Namespace
-from uninas.utils.torch.ema import ModelEMA
 from uninas.register import Register
 
 
@@ -36,10 +36,15 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
         self.args = args
         self.max_epoch, self.stop_epoch = self._parsed_arguments(['max_epochs', 'stop_epoch'], args)
         log_fs, log_ram, log_device = self._parsed_arguments(['log_fs', 'log_ram', 'log_device'], args)
+        self._is_test_run = is_test_run
 
-        # other
-        self.method = None
-        self.is_test_run = is_test_run
+        # method
+        self.method = method
+
+        # method clones, not yet initialized
+        self.method_clones = []
+        for i, clone_cls in enumerate(self._parsed_meta_arguments(Register.training_clones, 'cls_clones', self.args)):
+            self.method_clones.append(clone_cls.from_args(self.args, index=i))
 
         # dirs, files
         self.save_dir = save_dir
@@ -47,60 +52,65 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
             os.makedirs(self.save_dir, exist_ok=True)
 
         # logging basic
-        self.logger = self.get_logger(logger, self.is_test_run, self.save_dir)
+        self.logger = self.get_logger(logger, self._is_test_run, self.save_dir)
         logger_save_dir = '%sexp/' % save_dir
         os.makedirs(logger_save_dir, exist_ok=True)
 
         # device
         self.mover = mover
+        self.mover.empty_cache()
         self.logger.info("Using device: %s" % self.mover.name)
 
         # log resources
-        td = 5 if self.is_test_run else 300
+        td = 5 if self._is_test_run else 300
         exp_logger = AbstractExpLogger.collection(logger_save_dir, args, self._parsed_meta_arguments(Register.exp_loggers, 'cls_exp_loggers', args, index=None))
         self.resource_logger = ResourceLogThread(exp_logger=exp_logger, seconds=td,
                                                  mover=self.mover if log_device else None,
                                                  log_fs=log_fs, log_ram=log_ram)
         self.resource_logger.start()
         self.logger.info("Continuously logging (devices=%s, RAM=%s, file_system=%s) each %ds" %
-                         (str(self.mover.indices), str(log_ram), str(log_fs), td))
+                         (self.mover.name, str(log_ram), str(log_fs), td))
 
         # log experiment data to e.g. tensorboard
         self.exp_logger = AbstractExpLogger.collection(logger_save_dir, args, self._parsed_meta_arguments(Register.exp_loggers, 'cls_exp_loggers', args, index=None))
 
         # eval/test the last n steps
-        self.eval_last, self.test_last = self._parsed_arguments(['eval_last', 'test_last'], args)
+        self.eval_last, self.test_last = self._parsed_arguments(['eval_last', 'test_last'], args, index=None)
         if not self.can_eval_n:
             self.logger.info('This trainer can not eval/test the last n steps, the arguments are just for consistency.')
-
-        # EMA model
-        self.ema_decay, self.ema_device = self._parsed_arguments(['ema_decay', 'ema_device'], args)
-        if not self.can_use_ema:
-            self.logger.info('This trainer can not use an EMA model, the arguments are just for consistency.')
+        if not self.can_step_opt_n:
+            self.logger.info('This trainer can not step the optimizer(s) each n steps, but will always step per epoch')
 
         # callbacks
         self.callbacks = [cls.from_args(self.save_dir, self.args, index=i)
                           for i, cls in enumerate(self._parsed_meta_arguments(Register.training_callbacks, 'cls_callbacks', args, index=None))]
 
-        # more warnings
-        if not self.can_step_opt_n:
-            self.logger.info('This trainer can not step the optimizer(s) each n steps, but will always step per epoch')
+        # gradient accumulation
+        self.accumulate_batches = self._parsed_argument('accumulate_batches', args, index=None)
+        self._acc_step = 0
 
-        # set the method
-        self.set_method(method)
+    def _trigger_callbacks(self, callback_fun: str, *args, **kwargs):
+        for c in self.callbacks:
+            getattr(c, callback_fun)(*args, **kwargs)
+
+    def get_save_dir(self) -> str:
+        return self.save_dir
+
+    def is_test_run(self) -> bool:
+        return self._is_test_run
 
     def _str_dict(self) -> dict:
         dct = super()._str_dict()
         dct.update(dict(max_epoch=self.max_epoch, eval_last=self.eval_last, test_last=self.test_last))
         return dct
 
-    def set_method(self, method: AbstractMethod):
-        """ give the trainer a method to optimize """
-        self.method = method
-
     def get_method(self) -> AbstractMethod:
         assert isinstance(self.method, AbstractMethod)
         return self.method
+
+    def get_method_clones(self) -> [AbstractMethodClone]:
+        """ get the method clones """
+        return self.method_clones
 
     @classmethod
     def checkpoint_file(cls, save_dir: str, name='checkpoint.pt') -> str:
@@ -134,9 +144,11 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
 
             Argument('eval_last', default=10, type=int, help='run eval for the last n epochs'),
             Argument('test_last', default=10, type=int, help='run test for the last n epochs'),
-            Argument('ema_decay', default=-1, type=float, help='add an EMA model with slower weight changes if in [0, 1]'),
-            Argument('ema_device', default='disabled', type=str, choices=ModelEMA.devices,
-                     help='device for the EMA model, can only validate when using the same device'),
+
+            Argument('accumulate_batches', default=1, type=int,
+                     help='accumulate gradients over n batches before stepping updating. '
+                          'Does not change the learning rate, '
+                          'may cause issues when there are multiple alternating optimizers'),
         ]
 
     @classmethod
@@ -150,6 +162,7 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
             callbacks = callbacks.filter_match_all(requires_log_dict=False)
         return super().meta_args_to_add() + [
             MetaArgument('cls_callbacks', callbacks, help_name='training callbacks', allow_duplicates=True),
+            MetaArgument('cls_clones', Register.training_clones, help_name='training clones', allow_duplicates=True),
             MetaArgument('cls_exp_loggers', Register.exp_loggers, help_name='experiment logger', allow_duplicates=True),
         ]
 

@@ -3,50 +3,69 @@ import json
 import inspect
 from typing import Union
 from urllib.request import urlretrieve
-from enum import Enum
+from enum import Enum, auto
 from uninas.utils.loggers.python import LoggerManager
 
 
 name_task_config = 'task.run_config'
-project_dir = '%s/' % ('/'.join(__file__.split('/')[:-3]))
+standard_paths = {}
 
-global_config_path = '{}global_config.json'.format(project_dir)
-if not os.path.isfile(global_config_path):
-    print("-"*120)
-    print("missing global config file")
-    print("make a copy of global_config.example.json, name it global_config.json, and change the content if you like")
-    print("these values are only the defaults that can be changed for each experiment individually")
-    print("-"*120)
-    raise FileNotFoundError(global_config_path)
 
-standard_paths = {
-    'path_project_dir': project_dir,
+def initialize_paths(global_config_dir: str = None):
+    global standard_paths
+    code_dir = '%s/' % '/'.join(__file__.split('/')[:-3])
 
-    'path_conf_net': '{}experiments/configs/networks/'.format(project_dir),
-    'path_conf_net_originals': '{}experiments/configs/networks/originals/'.format(project_dir),
-    'path_conf_net_discovered': '{}experiments/configs/networks/discovered/'.format(project_dir),
-    'path_conf_net_search': '{}experiments/configs/networks/search/'.format(project_dir),
+    # default paths for uninas files/dirs
+    standard_paths.update({
+        # location where to find the current global config file
+        'path_config_dir': global_config_dir if isinstance(global_config_dir, str) else code_dir,
 
-    'path_conf_tasks': '{}experiments/configs/tasks/'.format(project_dir),
-    'path_conf_bench_tasks': '{}experiments/configs/tasks_bench/'.format(project_dir),
+        # location of the uninas code
+        'path_code_dir': code_dir,
 
-    # global_config
-    'path_data': None,
-    'path_pretrained': None,
-    "path_profiled": None,
-    'path_tmp': None,
-    'path_downloads_misc': None,
-}
-with open(global_config_path) as global_config_file:
-    standard_paths.update(json.load(global_config_file))
-for k, v in standard_paths.items():
-    assert v is not None, "config '%s' is None, is it missing in %s?" % (k, global_config_path)
+        'path_conf_net': '{}experiments/configs/networks/'.format(code_dir),
+        'path_conf_net_originals': '{}experiments/configs/networks/originals/'.format(code_dir),
+        'path_conf_net_discovered': '{}experiments/configs/networks/discovered/'.format(code_dir),
+        'path_conf_net_search': '{}experiments/configs/networks/search/'.format(code_dir),
+
+        'path_conf_tasks': '{}experiments/configs/tasks/'.format(code_dir),
+        'path_conf_bench_tasks': '{}experiments/configs/tasks_bench/'.format(code_dir),
+
+        # set in the global_config
+        'path_data': None,
+        'path_pretrained': None,
+        "path_profiled": None,
+        'path_tmp': None,
+        'path_downloads_misc': None,
+    })
+
+    # adding paths from the global config
+    if global_config_dir is None:
+        global_config_dir = code_dir
+    if not global_config_dir.endswith('/'):
+        global_config_dir += '/'
+
+    global_config_path = '{}global_config.json'.format(global_config_dir)
+    if not os.path.isfile(global_config_path):
+        print("-"*120)
+        print("missing global config file")
+        print("make a copy of global_config.example.json, name it global_config.json, and change the content if you like")
+        print("these values are only the defaults that can be changed for each experiment individually")
+        print("-"*120)
+        raise FileNotFoundError(global_config_path)
+    print('loading global config from %s' % global_config_path)
+
+    with open(global_config_path) as global_config_file:
+        standard_paths.update(json.load(global_config_file))
+    for k, v in standard_paths.items():
+        assert v is not None, "config '%s' is None, is it missing in %s?" % (k, global_config_path)
 
 
 def get_class_path(cls: type) -> str:
     """ find in which file a class is implemented, return relative path """
     path = inspect.getfile(cls)
-    return path[len(project_dir):]
+    # return path[len(project_dir):]
+    return path
 
 
 def replace_standard_paths(path: str) -> str:
@@ -69,9 +88,13 @@ def make_base_dirs(path: str) -> str:
 
 class FileType(Enum):
     """ where to download to """
-    MISC = standard_paths.get("path_downloads_misc")
-    WEIGHTS = standard_paths.get("path_pretrained")
-    DATA = standard_paths.get("path_data")
+    MISC = "path_downloads_misc"
+    WEIGHTS = "path_pretrained"
+    DATA = "path_data"
+
+    @property
+    def path(self) -> str:
+        return standard_paths.get(self.value)
 
 
 def maybe_download(path_or_url: str, file_type: FileType = FileType.MISC) -> Union[str, None]:
@@ -85,8 +108,8 @@ def maybe_download(path_or_url: str, file_type: FileType = FileType.MISC) -> Uni
         return path_or_url
     else:
         try:
-            os.makedirs(file_type.value, exist_ok=True)
-            file_path = '%s/%s' % (file_type.value, path_or_url.split('/')[-1])
+            os.makedirs(file_type.path, exist_ok=True)
+            file_path = '%s/%s' % (file_type.path, path_or_url.split('/')[-1])
             if not os.path.isfile(file_path):
                 urlretrieve(path_or_url, file_path)
                 LoggerManager().get_logger().info("downloaded %s to %s" % (path_or_url, file_path))
@@ -110,10 +133,10 @@ def get_net_config_dir(config_source: str) -> str:
     return '/'.join(splits)
 
 
-def find_all_files(dir_: str, extension='.t7') -> list:
+def find_all_files(dir_: str, extension='.pt') -> list:
     """ finds all files with given extension """
     file_paths = []
-    for sub_dir, _, file_names in os.walk(dir_):
+    for sub_dir, _, file_names in os.walk(replace_standard_paths(dir_)):
         for file_name in file_names:
             if file_name.endswith(extension):
                 file_paths.append('%s/%s' % (sub_dir, file_name))

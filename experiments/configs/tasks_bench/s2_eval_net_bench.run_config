@@ -6,10 +6,11 @@
     "{cls_task}.save_dir": "{path_tmp}/bench/s2/eval/",
     "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
     "{cls_task}.save_del_old": true,
-    "{cls_task}.measure_correlations": "'KendallTauCorrelation, PearsonCorrelation, SpearmanCorrelation'",
+    "{cls_task}.nas_metrics": "'ImprovementNasMetric, KendallTauNasMetric, PearsonNasMetric, SpearmanNasMetric, ByTargetsNasMetric'",
+    "{cls_task}.reset_bn": false,
 
     "cls_benchmark": "MiniNASTabularBenchmark",
-    "{cls_benchmark}.path": "{path_data}/nats_bench_1.1_mini.pt",
+    "{cls_benchmark}.path": "{path_data}/bench/nats/nats_bench_1.1_mini.pt",
 
     "cls_device": "CudaDevicesManager",
     "{cls_device}.num_devices": 1,
@@ -24,8 +25,8 @@
     "{cls_hpo_estimators#0}.is_constraint": false,
     "{cls_hpo_estimators#0}.is_objective": true,
     "{cls_hpo_estimators#0}.maximize": true,
-    "{cls_hpo_estimators#0}.load": false,
-    "{cls_hpo_estimators#0}.batches_forward": 0,
+    "{cls_hpo_estimators#0}.load": true,
+    "{cls_hpo_estimators#0}.batches_forward": 20,
     "{cls_hpo_estimators#0}.batches_train": 0,
     "{cls_hpo_estimators#0}.batches_eval": -1,
     "{cls_hpo_estimators#0}.value": "val/accuracy/1"

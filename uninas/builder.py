@@ -11,7 +11,7 @@ import json
 import os
 from glob import glob
 import importlib
-from uninas.utils.paths import replace_standard_paths
+from uninas.utils.paths import initialize_paths, replace_standard_paths
 from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.meta import Singleton
 from uninas.register import Register
@@ -20,7 +20,7 @@ from uninas.register import Register
 class Builder(metaclass=Singleton):
     extension_net_config = '.network_config'
 
-    def __init__(self, ignore_files=()):
+    def __init__(self, ignore_files=(), global_config_dir: str = None):
         """
         A class to save+rebuild network_configs,
         automatically crawls all classes in the directory its in, including sub directories
@@ -29,16 +29,30 @@ class Builder(metaclass=Singleton):
             useful to ignore the current file, if the Builder is created for the first time
             (i.e. due to a locally run __main__ there) in a file where also something is registered,
             to avoid an error due to registering it twice
+        :param global_config_dir:
+            dir used to locate and load the global config for path replacements
+            can be set manually to enable other projects extending the code base
         """
+        initialize_paths(global_config_dir=global_config_dir)
         self.classes = {}
-        own_path = os.path.abspath(__file__)
-        own_dir = os.path.dirname(own_path)
-        offset = len(os.path.abspath(own_dir + '/../') + '/')
-        ignore_dirs = ['/gui/']
-        ignore_files = [own_path] + list(ignore_files)
         Register.builder = self
 
-        for file in glob(own_dir + '/**', recursive=True):
+        own_path = os.path.abspath(__file__)
+        own_dir = os.path.dirname(own_path)
+        ignore_dirs = ['/gui/']
+        ignore_files = [own_path] + list(ignore_files)
+        self.add_dir(own_dir, ignore_files=ignore_files, ignore_dirs=ignore_dirs)
+
+    def add_modules(self, modules: list):
+        """ add class references from external modules """
+        for module in modules:
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                self.classes[name] = obj
+
+    def add_dir(self, dir_: str, ignore_files=(), ignore_dirs=()):
+        offset = len(os.path.abspath(dir_ + '/../') + '/')
+
+        for file in glob(dir_ + '/**', recursive=True):
             if file in ignore_files:
                 continue
             skip = False
@@ -53,12 +67,6 @@ class Builder(metaclass=Singleton):
                 module = importlib.import_module(module_name)
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     self.classes[name] = obj
-
-    def add_modules(self, modules: list):
-        """ add class references from external modules """
-        for module in modules:
-            for name, obj in inspect.getmembers(module, inspect.isclass):
-                self.classes[name] = obj
 
     def from_config(self, config: dict):
         """ try to load a nested substructure / net from the given instructions """

@@ -22,6 +22,9 @@ class AbstractDeviceMover:
     def name(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self.indices))
 
+    def get_indices(self) -> [int]:
+        return self.indices
+
     def get_device_subset(self, indices: [int]):
         """ remove indices/devices from this mover, return a new one that has them """
         for i in indices:

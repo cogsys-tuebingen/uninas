@@ -4,11 +4,11 @@ https://github.com/megvii-model/ShuffleNet-Series/tree/master/ShuffleNetV2%2B
 """
 
 import torch.nn as nn
-from uninas.model.networks.stackedcells import StackedCellsNetworkBody
-from uninas.model.stems.cnn import ConvStem
-from uninas.model.layers.cnn import ConvLayer
-from uninas.model.layers.shufflenet import ShuffleNetV2Layer, ShuffleNetV2XceptionLayer
-from uninas.model.heads.cnn import SeFeatureMixClassificationHead
+from uninas.modules.networks.stackedcells import StackedCellsNetworkBody
+from uninas.modules.stems.cnn import ConvStem
+from uninas.modules.layers.cnn import ConvLayer
+from uninas.modules.layers.shufflenet import ShuffleNetV2Layer, ShuffleNetV2XceptionLayer
+from uninas.modules.heads.cnn import SeFeatureMixClassificationHead
 from uninas.utils.shape import Shape
 from uninas.utils.generate.networks.manually.abstract import get_stem_instance, get_head_instance,\
     get_passthrough_partials, get_network

@@ -1,5 +1,5 @@
 import math
-from uninas.optimization.common.target import OptimizationTarget
+from uninas.optimization.target import OptimizationTarget
 from uninas.optimization.pbt.mutations.abstract import AbstractPbtMutation
 from uninas.optimization.pbt.save import PbtSave
 from uninas.optimization.pbt.selector.abstract import AbstractPbtSelector
@@ -19,9 +19,9 @@ class DefaultPbtSelector(AbstractPbtSelector):
     """
 
     def __init__(self, weights_dir: str, logger: Logger, targets: [OptimizationTarget], mutations: [AbstractPbtMutation],
-                 each_epochs: int, grace_epochs: int, save_ema: bool, elitist: bool,
+                 each_epochs: int, grace_epochs: int, save_clone: bool, elitist: bool,
                  replace_worst: float, copy_best: float):
-        super().__init__(weights_dir, logger, targets, mutations, each_epochs, grace_epochs, save_ema, elitist)
+        super().__init__(weights_dir, logger, targets, mutations, each_epochs, grace_epochs, save_clone, elitist)
         self.replace_worst = replace_worst
         self.copy_best = copy_best
 

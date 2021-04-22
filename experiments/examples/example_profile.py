@@ -9,25 +9,31 @@ args = {
     # the task is to profile
     "cls_task": "SearchNetworkProfileTask",
     "{cls_task}.save_dir": "{path_tmp}/profile/",
-    "{cls_task}.save_del_old": True,
+    "{cls_task}.save_del_old": False,
     "{cls_task}.is_test_run": False,
 
     # device on which the profiling function operates
-    "cls_device": "CpuDevicesManager",   # CpuDevicesManager, CudaDevicesManager
+    "cls_device": "CudaDevicesManager",   # CpuDevicesManager, CudaDevicesManager
     "{cls_device}.num_devices": 1,
 
     # profiler to select how the profiling and prediction works
-    "cls_profiler": "NetworkSurrogateProfiler",  # TabularCellsProfiler, NetworkSurrogateProfiler
+    # "cls_profiler": "TabularCellsProfiler",
+    "cls_profiler": "SampleArchitecturesProfiler",
+    "{cls_profiler}.sample_overcomplete": True,
+    "{cls_profiler}.sample_standalone": False,
+    "{cls_profiler}.num_train": 20,
+    "{cls_profiler}.num_test": 10,
 
     # function to profile one specific architecture in the super-network
-    "cls_profile_fun": "LatencyProfileFunction",  # ParamsProfileFunction
+    "cls_profile_fun": "LatencyTimeProfileFunction",  # ParamsProfileFunction
     "{cls_profile_fun}.num_warmup": 5,
     "{cls_profile_fun}.num_measure": 10,
 
     # data, just to know input/output sizes for the network
     "cls_data": "Imagenet1000Data",
     "{cls_data}.fake": True,
-    "{cls_data}.batch_size_train": 64,
+    "{cls_data}.batch_size_train": 16,
+    "{cls_data}.valid_as_test": True,
 
     "cls_augmentations": "DartsImagenetAug",
     "{cls_augmentations#0}.crop_size": 224,

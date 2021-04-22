@@ -4,7 +4,7 @@ https://arxiv.org/abs/1708.04552
 """
 
 import numpy as np
-from uninas.data.abstract import AbstractDataSet, AbstractAug, BatchAugmentations
+from uninas.data.abstract import AbstractDataSet, AbstractAug, AugType
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
 
@@ -44,14 +44,14 @@ class CutoutAug(AbstractAug):
         ]
 
     @classmethod
-    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        assert ds.data_raw_shape.num_dims() == 3
+    def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        assert ds.raw_data_shape.num_dims() == 3
         size = cls._parsed_argument('size', args, index=index)
         if size > 0:
-            return [Cutout(size)], []
-        return [], []
+            return AugType.ON_RAW, [Cutout(size)]
+        return AugType.NONE, []
 
     @classmethod
-    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-        assert ds.data_raw_shape.num_dims() == 3
-        return [], []
+    def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+        assert ds.raw_data_shape.num_dims() == 3
+        return AugType.NONE, []

@@ -92,8 +92,7 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
     # creation
 
     def __init__(self, torch_optimizer: Optimizer, scaler: GradScaler,
-                 clip_abs_value: float = -1, clip_norm_value: float = -1, clip_norm_type: float = -1,
-                 accumulate_batches: int = 1):
+                 clip_abs_value: float = -1, clip_norm_value: float = -1, clip_norm_type: float = -1):
         super().__init__()
         self.torch_optimizer = torch_optimizer
         self.scaler = scaler
@@ -104,10 +103,6 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
         self._do_clip_abs = self.clip_abs_value > 0
         self._do_clip_norm = (self.clip_norm_value > 0) and (self.clip_norm_type > 0)
         assert not (self._do_clip_abs and self._do_clip_norm), "Can not clip both, absolute and norm values"
-
-        self.accumulate_batches = accumulate_batches
-        self._took_steps = 0
-        self._can_zero = False
 
     @classmethod
     def from_args(cls, namespace: Namespace, index: Union[int, None] = 0, scaler: Union[GradScaler, None] = None,
@@ -125,9 +120,6 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
         clip_norm_value = o_args.pop('clip_norm_value')
         clip_norm_type = o_args.pop('clip_norm_type')
 
-        # accumulate gradients
-        accumulate_batches = o_args.pop('accumulate_batches')
-
         # possibly disable weight decay for certain types of parameters
         weight_decay = o_args.pop('weight_decay')
         weight_decay_filter = o_args.pop('weight_decay_filter')
@@ -135,8 +127,7 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
         torch_optimizer = cls.optimizer_cls(params=params, **o_args, weight_decay=weight_decay)
 
         return cls(torch_optimizer, scaler,
-                   clip_abs_value=clip_abs_value, clip_norm_value=clip_norm_value, clip_norm_type=clip_norm_type,
-                   accumulate_batches=accumulate_batches)
+                   clip_abs_value=clip_abs_value, clip_norm_value=clip_norm_value, clip_norm_type=clip_norm_type)
 
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
@@ -147,9 +138,6 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
             Argument('clip_abs_value', default=-1, type=float, help='clip gradient to +- value, <=0 to disable'),
             Argument('clip_norm_value', default=-1, type=float, help='clip gradient norm value, <=0 to disable'),
             Argument('clip_norm_type', default=2, type=float, help='clip gradient norm type'),
-            Argument('accumulate_batches', default=1, type=int,
-                     help='accumulate gradients over n batches before stepping/zeroing, '
-                          'does not change the learning rate'),
         ]
 
     @classmethod
@@ -191,8 +179,6 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
             clip_str = 'clip_norm=(%.2f, %.2f), ' % (self.clip_norm_value, self.clip_norm_type)
         if self._do_clip_abs:
             clip_str = 'clip_abs=%.2f, ' % self.clip_abs_value
-        if self.accumulate_batches > 1:
-            acc_str = 'acc batches: %d, ' % self.accumulate_batches
         return '%s ( %s%s%s )' % (self.__class__.__name__, clip_str, acc_str, self.torch_optimizer.__repr__())
 
     def state_dict(self):
@@ -201,38 +187,26 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
     def load_state_dict(self, state_dict):
         return self.torch_optimizer.load_state_dict(state_dict)
 
-    def zero_grad(self, set_to_none=False, force=False):
-        if self._can_zero or force:
-            self.torch_optimizer.zero_grad(set_to_none=set_to_none)
-            self._can_zero = False
+    def zero_grad(self, set_to_none=False):
+        self.torch_optimizer.zero_grad(set_to_none=set_to_none)
 
-    def step(self, closure=None) -> bool:
-        self._took_steps += 1
-        self._took_steps %= self.accumulate_batches
-        if self._should_step():
-            # unscale
-            self.scaler.unscale_(self.torch_optimizer)
-            # clip gradients, then step
-            if self._do_clip_abs:
-                for group in self.param_groups:
-                    nn.utils.clip_grad_value_(group['params'], self.clip_abs_value)
-            if self._do_clip_norm:
-                for group in self.param_groups:
-                    nn.utils.clip_grad_norm_(group['params'], self.clip_norm_value, self.clip_norm_type)
-            # step
-            self.scaler.step(optimizer=self.torch_optimizer, closure=closure)
-            # allow zero grad again
-            self._can_zero = True
-            return True
-        return False
+    def step(self, closure=None):
+        # unscale
+        self.scaler.unscale_(self.torch_optimizer)
+        # clip gradients, then step
+        if self._do_clip_abs:
+            for group in self.param_groups:
+                nn.utils.clip_grad_value_(group['params'], self.clip_abs_value)
+        if self._do_clip_norm:
+            for group in self.param_groups:
+                nn.utils.clip_grad_norm_(group['params'], self.clip_norm_value, self.clip_norm_type)
+        # step
+        self.scaler.step(optimizer=self.torch_optimizer, closure=closure)
 
     def add_param_group(self, param_group):
         self.torch_optimizer.add_param_group(param_group)
 
     # utilities
-
-    def _should_step(self) -> bool:
-        return self._took_steps == 0
 
     def get_lr_ratio(self) -> float:
         """ get ratio of current to initial learning rate """
@@ -288,7 +262,6 @@ class MultiWrappedOptimizer(AbstractOptimizerFunctions):
         self.param_groups = []
         for opt in self.optimizers:
             self.param_groups.extend(opt.param_groups)
-            assert opt.accumulate_batches == 1, "multi opt can not figure out correct handling of accumulating batches"
 
     def at_index(self, index: int) -> WrappedOptimizer:
         return self.optimizers[index]
@@ -317,9 +290,9 @@ class MultiWrappedOptimizer(AbstractOptimizerFunctions):
     def add_param_group(self, index, param_group):
         self.optimizers[index].add_param_group(param_group)
 
-    def zero_grad_all(self, force=False):
+    def zero_grad_all(self):
         for o in self.optimizers:
-            o.zero_grad(force=force)
+            o.zero_grad()
 
     def zero_grad(self, index: int):
         self.optimizers[index].zero_grad()
@@ -327,8 +300,9 @@ class MultiWrappedOptimizer(AbstractOptimizerFunctions):
     def step(self, index: int, closure=None) -> bool:
         return self.optimizers[index].step(closure)
 
-    def step_any(self, closure=None) -> bool:
-        return any([optimizer.step(closure=closure) for optimizer in self.optimizers])
+    def step_all(self, closure=None):
+        for o in self.optimizers:
+            o.step(closure=closure)
 
     # utilities
 

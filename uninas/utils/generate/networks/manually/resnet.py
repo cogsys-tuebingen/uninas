@@ -5,11 +5,11 @@ https://arxiv.org/abs/1512.03385
 
 from typing import Type
 import torch.nn as nn
-from uninas.model.networks.stackedcells import StackedCellsNetworkBody
-from uninas.model.stems.cnn import ConvStem
-from uninas.model.layers.cnn import PoolingLayer
-from uninas.model.layers.resnet import AbstractResNetLayer, ResNetLayer, ResNetBottleneckLayer
-from uninas.model.heads.cnn import ClassificationHead
+from uninas.modules.networks.stackedcells import StackedCellsNetworkBody
+from uninas.modules.stems.cnn import ConvStem
+from uninas.modules.layers.cnn import PoolingLayer
+from uninas.modules.layers.resnet import AbstractResNetLayer, ResNetLayer, ResNetBottleneckLayer
+from uninas.modules.heads.cnn import ClassificationHead
 from uninas.utils.shape import Shape
 from uninas.utils.generate.networks.manually.abstract import get_stem_instance, get_head_instance,\
     get_passthrough_partials, get_network

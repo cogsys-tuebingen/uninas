@@ -29,11 +29,6 @@
     "{cls_network_cells#4}.stride": 2,
 
     "cls_network_cells_primitives": "ShuffleNetV2Primitives, ShuffleNetV2Primitives, ShuffleNetV2Primitives, ShuffleNetV2Primitives, ShuffleNetV2Primitives",
-    "{cls_network_cells_primitives#0}.fused": false,
-    "{cls_network_cells_primitives#1}.fused": false,
-    "{cls_network_cells_primitives#2}.fused": false,
-    "{cls_network_cells_primitives#3}.fused": false,
-    "{cls_network_cells_primitives#4}.fused": false,
 
     "cls_network_stem": "ConvStem",
     "{cls_network_stem}.features": 16,

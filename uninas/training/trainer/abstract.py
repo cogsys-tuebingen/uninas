@@ -1,13 +1,12 @@
-from typing import Union, Iterable, Tuple
+from typing import Iterable, Tuple
 import torch.nn as nn
 from torch.optim.optimizer import Optimizer
-from torch.nn.parallel import DistributedDataParallel as Ddp
 from uninas.methods.abstract import AbstractMethod
-from uninas.networks.abstract import AbstractNetwork
+from uninas.models.networks.abstract import AbstractNetwork
+from uninas.training.clones.abstract import AbstractMethodClone
 from uninas.training.optimizers.abstract import WrappedOptimizer
 from uninas.training.regularizers.abstract import AbstractRegularizer
 from uninas.training.schedulers.abstract import AbstractScheduler
-from uninas.utils.torch.ema import ModelEMA
 
 
 class AbstractTrainerFunctions:
@@ -16,11 +15,33 @@ class AbstractTrainerFunctions:
     (e.g. in callbacks)
     """
 
+    def get_rank(self) -> int:
+        return 0
+
+    def is_rank_zero(self) -> bool:
+        return self.get_rank() == 0
+
+    def _trigger_callbacks(self, callback_fun: str, *args, **kwargs):
+        raise NotImplementedError
+
+    def get_save_dir(self) -> str:
+        raise NotImplementedError
+
+    def is_test_run(self) -> bool:
+        raise NotImplementedError
+
+    def get_metrics_save_dir(self, model_type='default') -> str:
+        return '%s/metrics/%s/' % (self.get_save_dir(), model_type)
+
     def get_method(self) -> AbstractMethod:
         raise NotImplementedError
 
     def get_network(self) -> AbstractNetwork:
         return self.get_method().get_network()
+
+    def get_method_clones(self) -> [AbstractMethodClone]:
+        """ get the method clones """
+        raise NotImplementedError
 
     def get_regularizers(self) -> [AbstractRegularizer]:
         """ get regularizers """
@@ -37,31 +58,22 @@ class AbstractTrainerFunctions:
     def get_optimizer_log_dict(self) -> dict:
         return WrappedOptimizer.get_optimizer_log_dict(self.get_optimizers())
 
-    @classmethod
-    def choose_method(cls, method: Union[Ddp, AbstractMethod, None],
-                      method_ema: Union[ModelEMA, AbstractMethod, None], prefer_ema=True) -> AbstractMethod:
-        """ get module or module_ema, using preference and avoiding None """
-        ms = [method_ema, method] if prefer_ema else [method, method_ema]
-        for m in ms:
-            if m is None:
-                continue
-            if isinstance(m, (Ddp, ModelEMA)):
-                return m.module
-            return m
+    def choose_method(self, prefer_clone=True) -> AbstractMethod:
+        """ get module or the first available clone, using preference and avoiding None """
+        if prefer_clone:
+            for clone in self.get_method_clones():
+                return clone.get_method()
+        return self.get_method()
 
-    @classmethod
-    def iterate_usable_methods(cls, method: nn.Module, method_ema: Union[ModelEMA, None]) -> Iterable[Tuple[AbstractMethod, str]]:
+    def iterate_methods_on_device(self) -> Iterable[Tuple[AbstractMethod, str]]:
         """
-        iterate the methods that can be used for forward passes
-
-        :param method:
-        :param method_ema:
+        iterate the methods that are placed on the main device
         :return: pairs of (method, format string for log_dicts)
         """
-        if isinstance(method, nn.Module):
-            yield method, '%s'
-        if isinstance(method_ema, ModelEMA) and method_ema.is_same_device:
-            yield method_ema, '%s_ema'
+        yield self.get_method(), '%s'
+        for clone in self.get_method_clones():
+            if clone.is_on_same_device():
+                yield clone.get_method(), '%s/clones/%s' % ('%s', clone.get_name())
 
     def get_checkpoint_update_dict(self, *_) -> dict:
         """ get the internal state """

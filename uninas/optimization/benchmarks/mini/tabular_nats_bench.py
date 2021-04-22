@@ -2,7 +2,7 @@ from collections import defaultdict
 from uninas.optimization.benchmarks.mini.tabular import MiniNASTabularBenchmark, plot
 from uninas.optimization.benchmarks.mini.result import MiniResult
 from uninas.optimization.hpo.uninas.values import DiscreteValues, ValueSpace
-from uninas.model.primitives.bench201 import Bench201Primitives
+from uninas.modules.primitives.bench201 import Bench201Primitives
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.loggers.python import LoggerManager, log_in_columns, log_headline
 from uninas.register import Register
@@ -21,13 +21,24 @@ try:
 
         the most relevant parts of the original API, requires significantly less RAM
         """
+        _arc_str_to_idx = {k: i for i, k in enumerate(Bench201Primitives.get_order())}
+
+        @classmethod
+        def get_arc_tuples_from_str(cls, arch_str: str) -> (tuple, tuple):
+            """
+            get the architecture tuples, [str] and [idx]
+            :param arch_str:
+            :return:
+            """
+            ops_str = arch_str[1:-1].replace('|+', '').split('|')
+            ops_str = [s.split('~')[0] for s in ops_str]
+            return ops_str, tuple([int(cls._arc_str_to_idx.get(s)) for s in ops_str])
 
         @classmethod
         def make_from_full_api(cls, api: NATStopology):
             """ creating a mini bench dataset from NAS-Bench-201 data """
             data_sets = ['cifar10-valid', 'cifar10', 'cifar100', 'ImageNet16-120']
             hp = '200'
-            str_to_idx = {k: i for i, k in enumerate(Bench201Primitives.get_order())}
             results = {}
             arch_to_idx = {}
             tuple_to_str = {}
@@ -35,9 +46,7 @@ try:
 
             for i, arch_str in enumerate(api.meta_archs):
                 # name to tuple, tuple to name and index
-                ops_str = arch_str[1:-1].replace('|+', '').split('|')
-                ops_str = [s.split('~')[0] for s in ops_str]
-                ops_tuple = tuple([int(str_to_idx.get(s)) for s in ops_str])
+                ops_str, ops_tuple = cls.get_arc_tuples_from_str(arch_str)
                 tuple_to_str[ops_tuple] = ops_str
                 tuple_to_idx[ops_tuple] = i
                 arch_to_idx[arch_str] = i
@@ -120,33 +129,34 @@ try:
         log_in_columns(logger, rows)
         logger.info("")
 
-        # best results by acc1
-        rows = [("acc1", "arch tuple", "arch str")]
-        c = 0
-        log_headline(logger, "highest acc1 topologies without skip (%s, %s, %s)" % (mini.get_name(), mini.get_default_data_set(), mini.get_default_result_type()))
-        for i, r in enumerate(mini.get_all_sorted(['acc1'], [True])):
-            if 1 not in r.arch_tuple:
-                rows.append((r.get_acc1(), str(r.arch_tuple), r.arch_str))
-                c += 1
-            if c > 9:
+        # best results by acc1, subset
+        mini2 = mini.subset(blacklist=(1,))
+        rows = [("acc1", "params", "arch tuple", "arch str")]
+        log_headline(logger, "highest acc1 topologies without skip (%s, %s, %s)" % (mini2.get_name(), mini2.get_default_data_set(), mini2.get_default_result_type()))
+        for i, r in enumerate(mini2.get_all_sorted(['acc1'], [True])):
+            rows.append((r.get_acc1(), r.get_params(), str(r.arch_tuple), r.arch_str))
+            if i > 8:
                 break
         log_in_columns(logger, rows)
 
 
     if __name__ == '__main__':
         Builder()
-        path_ = '{path_data}/nats_bench_1.1_mini.pt'
-        # path_ = "https://cloud.cs.uni-tuebingen.de/index.php/s/zBAA2yTEMA4otA8/download"  # link not up to date
+        path_ = '{path_data}/bench/nats/nats_bench_1.1_mini.pt'
+        # path_ = "https://cloud.cs.uni-tuebingen.de/index.php/s/kaxGB7csptYE9Jt/download"
         # mini_ = make_nats('{path_data}/NATS-tss-v1_0-3ffb9-simple/', path_)
         mini_ = MiniNATSBenchTabularBenchmark.load(path_)
 
-        mini_.set_default_result_type('train')  # train, valid, test
-        mini_.set_default_data_set('ImageNet16-120')  # cifar10, cifar10-valid, cifar100, ImageNet16-120
+        # mini_ = mini_.subset(blacklist=(0, 1, 4), max_size=5)
+        # mini_.save('{path_data}/bench/nats/nats_bench_1.1_subset_m014_test.pt')
+
+        mini_.set_default_result_type('test')  # train, valid, test
+        mini_.set_default_data_set('cifar10')  # cifar10, cifar10-valid, cifar100, ImageNet16-120
         explore(mini_)
 
         plot(mini_, ['flops', 'acc1'], [False, True], add_pareto=True)
 
-        # mini_.save('{path_data}/nasbench201_1.1_mini_2.pt')
+        # mini_.save('{path_data}/bench/nats/nats_bench_1.1_mini_2.pt')
         # mini_.save(path_)
 
 

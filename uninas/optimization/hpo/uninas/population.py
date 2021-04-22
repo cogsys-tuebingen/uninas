@@ -2,7 +2,7 @@ import random
 import matplotlib.pyplot as plt
 from collections import Iterable
 from uninas.optimization.hpo.uninas.candidate import Candidate
-from uninas.optimization.common.estimators.abstract import AbstractEstimator
+from uninas.optimization.estimators.abstract import AbstractEstimator
 from uninas.optimization.hpo.uninas.values import ValueSpace
 from uninas.utils.misc import power_list
 

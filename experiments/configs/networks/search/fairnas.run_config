@@ -37,13 +37,6 @@
     "{cls_network_cells#6}.stride": 1,
 
     "cls_network_cells_primitives": "MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives, MobileNetV2Primitives",
-    "{cls_network_cells_primitives#0}.fused": true,
-    "{cls_network_cells_primitives#1}.fused": true,
-    "{cls_network_cells_primitives#2}.fused": true,
-    "{cls_network_cells_primitives#3}.fused": true,
-    "{cls_network_cells_primitives#4}.fused": true,
-    "{cls_network_cells_primitives#5}.fused": true,
-    "{cls_network_cells_primitives#6}.fused": true,
 
     "cls_network_stem": "MobileNetV2Stem",
     "{cls_network_stem}.features": 32,

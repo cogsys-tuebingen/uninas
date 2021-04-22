@@ -3,8 +3,8 @@ regularizing networks during training
 """
 
 from uninas.training.regularizers.abstract import AbstractRegularizer
-from uninas.model.networks.abstract import AbstractNetworkBody
-from uninas.model.modules.misc import DropPathModule
+from uninas.modules.networks.abstract import AbstractNetworkBody
+from uninas.modules.modules.misc import DropPathModule
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
 

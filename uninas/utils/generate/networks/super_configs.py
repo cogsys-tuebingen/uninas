@@ -43,7 +43,6 @@ class Genotype(NetWrapper):
             '{cls_data}.fake': True,
             '{cls_task}.save_del_old': False,
             '{cls_task}.save_dir': '{path_tmp}/generate/',
-            '{cls_trainer}.ema_decay': -1,
         })
         net = task.get_method().get_network()
         args = task.args

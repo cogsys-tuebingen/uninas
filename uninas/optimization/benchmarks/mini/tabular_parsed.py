@@ -15,9 +15,11 @@ from uninas.builder import Builder
 @Register.benchmark_set(mini=True, tabular=True)
 class MiniNASParsedTabularBenchmark(MiniNASTabularBenchmark):
     """
+    go through a directory of training save-dirs,
+    parsing the results of each single training run and its used architecture
+
     assumptions:
         - all networks are created as RetrainFromSearchUninasNetwork, so that their genes can be easily read
-        - each architecture was only trained once
     """
 
     @classmethod
@@ -35,23 +37,19 @@ class MiniNASParsedTabularBenchmark(MiniNASTabularBenchmark):
             gene = config.get('{cls_network}.gene')
             gene = split(gene, int)
 
-            data_set = get_dataset_from_json(task_configs[0])
+            data_set = get_dataset_from_json(task_configs[0], fake=True)
             data_set_name = data_set.__class__.__name__
 
         # find loss and acc in the tensorboard files
-        average_last = 5
-        metric_accuracy_train, metric_loss_train = "train/accuracy/1", "train/loss"
-        metric_accuracy_test, metric_loss_test = "test/accuracy/1", "test/loss"
-
         tb_files = find_tb_files(path)
         assert len(tb_files) > 0
         events = read_event_files(tb_files)
 
-        loss_train = events.get(metric_loss_train, None)
-        loss_test = events.get(metric_loss_test, None)
+        loss_train = events.get("train/loss", None)
+        loss_test = events.get("test/loss", None)
         assert (loss_train is not None) and (loss_test is not None)
-        accuracy_train = events.get(metric_accuracy_train, None)
-        accuracy_test = events.get(metric_accuracy_test, None)
+        accuracy_train = events.get("train/accuracy/1", None)
+        accuracy_test = events.get("test/accuracy/1", None)
         assert (accuracy_train is not None) and (accuracy_test is not None)
 
         # figure out params and flops by building the network
@@ -62,6 +60,7 @@ class MiniNASParsedTabularBenchmark(MiniNASTabularBenchmark):
         pass
 
         # return result
+        average_last = 5
         return MiniResult(
             arch_index=arch_index,
             arch_str="%s(%s)" % (space_name, ", ".join([str(g) for g in gene])),
@@ -92,6 +91,7 @@ class MiniNASParsedTabularBenchmark(MiniNASTabularBenchmark):
 
         # find all results
         task_configs = find_all_files(path, extension=name_task_config)
+        assert len(task_configs) > 0
         for i, cfg_path in enumerate(sorted(task_configs)):
             dir_name = os.path.dirname(cfg_path)
             r = cls.make_from_single_dir(dir_name, space_name, arch_index=i)
@@ -146,17 +146,17 @@ def sample_architectures(mini: MiniNASParsedTabularBenchmark, n=10):
 if __name__ == '__main__':
     Builder()
 
-    path_ = replace_standard_paths('{path_data}/generated_bench/bench201_n5c16_1.pt')
-    # mini_ = create_bench201("/mnt/tcml-master01/mnt/beegfs/home/laube/Data/experiments/git/uninas/full/test_s3_bench/Cifar100Data/bench201_n5c16/")
+    # path_ = replace_standard_paths('{path_data}/bench/sin/bench201_n5c16_1.pt')
+    # mini_ = create_bench201("{path_cluster}/full/test_s3_bench/Cifar100Data/bench201_n5c16/")
 
-    # path_ = replace_standard_paths('{path_data}/generated_bench/bench201_n4c64_1.pt')
-    # mini_ = create_bench201("/mnt/tcml-master01/mnt/beegfs/home/laube/Data/experiments/git/uninas/full/test_s3_bench/Cifar100Data/bench201_n4c64/")
+    # path_ = replace_standard_paths('{path_data}/bench/sin/bench201_n4c64_1.pt')
+    # mini_ = create_bench201("{path_cluster}/full/test_s3_bench/Cifar100Data/bench201_n4c64/")
 
-    # path_ = replace_standard_paths('{path_data}/generated_bench/SIN_fairnas_mini_only2.pt')
-    # mini_ = create_fairnas("/mnt/tcml-master01/mnt/beegfs/home/laube/Data/experiments/git/uninas/full/s3sin/SubImagenet100Data/fairnas/2/")
+    # path_ = replace_standard_paths('{path_data}/bench/sin/SIN_fairnas_small_only1.pt')
+    # mini_ = create_fairnas("{path_cluster}/full/s3sin/SubImagenetMV100Data/fairnas/1/")
 
-    # path_ = replace_standard_paths('{path_data}/generated_bench/SIN_fairnas_mini_all.pt')
-    # mini_ = create_fairnas("/mnt/tcml-master01/mnt/beegfs/home/laube/Data/experiments/git/uninas/full/s3sin/SubImagenet100Data/fairnas/")
+    path_ = replace_standard_paths('{path_data}/bench/sin/SIN_fairnas_v0.1.pt')
+    # mini_ = create_fairnas("{path_cluster}/full/s3sin/SubImagenetMV100Data/fairnas/")
 
     mini_ = MiniNASParsedTabularBenchmark.load(path_)
 
@@ -165,5 +165,13 @@ if __name__ == '__main__':
     explore(mini_)
     plot(mini_, ['flops', 'acc1'], [False, True], add_pareto=True)
 
+    """
+    # average acc of the top 10 networks
+    mini_.set_default_result_type("test")
+    accs = []
+    for r in mini_.get_all_sorted(["acc1"], maximize=[True]):
+        accs.append(r.get_acc1())
+    print(sum(accs[:10]) / 10)
+    """
+
     mini_.save(path_)
-    # print(mini_.size())

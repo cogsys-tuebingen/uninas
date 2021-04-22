@@ -1,0 +1,24 @@
+{
+    "cls_task": "SearchNetworkProfileTask",
+    "{cls_task}.save_dir": "{path_tmp}/profile/",
+    "{cls_task}.save_del_old": true,
+    "{cls_task}.is_test_run": false,
+    "{cls_task}.seed": 0,
+    "{cls_task}.is_deterministic": false,
+
+    "cls_device": "CudaDevicesManager",
+    "{cls_device}.num_devices": 1,
+
+    "cls_profiler": "TabularCellsProfiler",
+
+    "cls_profile_fun": "MacsProfileFunction",
+
+    "cls_data": "Imagenet1000Data",
+    "{cls_data}.fake": true,
+    "{cls_data}.batch_size_train": 64,
+
+    "cls_augmentations": "DartsImagenetAug",
+    "{cls_augmentations#0}.crop_size": 224,
+
+    "cls_network": "SearchUninasNetwork"
+}

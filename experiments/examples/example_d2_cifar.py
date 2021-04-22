@@ -20,8 +20,10 @@ args = {
     "{cls_trainer}.max_epochs": 4,
     "{cls_trainer}.eval_last": 2,
     "{cls_trainer}.test_last": 2,
-    "{cls_trainer}.ema_decay": 0.9,
-    "{cls_trainer}.ema_device": "same",
+
+    "cls_clones": "EMAClone",
+    "{cls_clones#0}.device": "same",
+    "{cls_clones#0}.decay": 0.9,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": False,
@@ -33,7 +35,6 @@ args = {
     # "{cls_network}.config_path": "/{path_tmp}/from_config/finalized.network_config",
 
     "cls_data": "Cifar100Data",
-    # "cls_data": "Imagenet1000Data",  # should also use different stem then
     "{cls_data}.fake": True,
     "{cls_data}.batch_size_train": 4,
 

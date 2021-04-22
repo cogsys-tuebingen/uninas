@@ -1,5 +1,5 @@
 from torchvision import transforms
-from uninas.data.abstract import AbstractDataSet, AbstractAug, BatchAugmentations
+from uninas.data.abstract import AbstractDataSet, AbstractAug, AugType
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
 
@@ -20,7 +20,8 @@ try:
             return super().args_to_add(index) + [
                 Argument('crop_size', default=224, type=int, help='to which size to crop the images'),
                 Argument('color_jitter', default=0.4, type=float, help='jitter for brightness, contrast and saturation'),
-                Argument('interpolation', default='random', type=str, help='interpolation'),
+                Argument('interpolation', default='random', type=str, help='interpolation',
+                         choices=['random', 'bilinear', 'bicubic', 'lanczos', 'hamming']),
                 Argument('scale_min', default=0.08, type=float, help='scale min'),
                 Argument('scale_max', default=1.0, type=float, help='scale max'),
                 Argument('ratio_min', default=0.75, type=float, help='ratio min'),
@@ -28,8 +29,8 @@ try:
             ]
 
         @classmethod
-        def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-            assert ds.data_raw_shape.num_dims() == 3
+        def _get_train_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+            assert ds.raw_data_shape.num_dims() == 3
             all_parsed = cls._all_parsed_arguments(args, index=index)
             all_transforms = [
                 RandomResizedCropAndInterpolation(all_parsed.get('crop_size'),
@@ -42,17 +43,17 @@ try:
                     contrast=all_parsed.get('color_jitter'),
                     saturation=all_parsed.get('color_jitter')),
             ]
-            return all_transforms, []
+            return AugType.ON_RAW, all_transforms
 
         @classmethod
-        def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (list, [BatchAugmentations]):
-            assert ds.data_raw_shape.num_dims() == 3
+        def _get_test_transforms(cls, args: Namespace, index: int, ds: AbstractDataSet) -> (AugType, list):
+            assert ds.raw_data_shape.num_dims() == 3
             crop_size = cls._parsed_argument('crop_size', args, index=index)
             all_transforms = [
                 transforms.Resize(int(crop_size / 0.875)),
                 transforms.CenterCrop(crop_size),
             ]
-            return all_transforms, []
+            return AugType.ON_RAW, all_transforms
 
 except ImportError as e:
     Register.missing_import(e)

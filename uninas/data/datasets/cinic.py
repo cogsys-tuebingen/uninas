@@ -13,16 +13,19 @@ class Cinic10Data(AbstractCNNClassificationDataSet):
     """
 
     length = (90000, 90000, 90000)  # training, valid, test
-    data_raw_shape = Shape([3, 32, 32])
-    label_shape = Shape([10])
+    raw_data_shape = Shape([3, 32, 32])
+    raw_label_shape = Shape([10])
     data_mean = (0.47889522, 0.47227842, 0.43047404)
     data_std = (0.24205776, 0.23828046, 0.25874835)
 
-    def _get_train_data(self, used_transforms: transforms.Compose):
-        return datasets.ImageFolder(os.path.join(self.dir, 'train'), transform=used_transforms)
+    def _get_train_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.ImageFolder(os.path.join(self.dir, 'train'),
+                                    transform=data_transforms, target_transform=label_transforms)
 
-    def _get_valid_data(self, used_transforms: transforms.Compose):
-        return datasets.ImageFolder(os.path.join(self.dir, 'valid'), transform=used_transforms)
+    def _get_valid_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.ImageFolder(os.path.join(self.dir, 'valid'),
+                                    transform=data_transforms, target_transform=label_transforms)
 
-    def _get_test_data(self, used_transforms: transforms.Compose):
-        return datasets.ImageFolder(os.path.join(self.dir, 'test'), transform=used_transforms)
+    def _get_test_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose):
+        return datasets.ImageFolder(os.path.join(self.dir, 'test'),
+                                    transform=data_transforms, target_transform=label_transforms)

@@ -5,7 +5,7 @@ generically visualize a network by tracing input+output Shapes
 
 from graphviz import Digraph
 from collections import defaultdict
-from uninas.model.modules.abstract import AbstractModule
+from uninas.modules.modules.abstract import AbstractModule
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.shape import Shape
 from uninas.builder import Builder
@@ -110,4 +110,4 @@ def visualize_file(config_path: str, save_dir: str):
 
 
 if __name__ == '__main__':
-    visualize_file(Builder.find_net_config_path('MobileNetV2'), '{path_tmp}/viz/')
+    visualize_file(Builder().find_net_config_path('MobileNetV2'), '{path_tmp}/viz/')

@@ -61,7 +61,7 @@ if est == 0:
 if est == 1:
     args.update({
         # "cls_hpo_estimators": "NetValueEstimator, NetMacsEstimator",
-        "cls_hpo_estimators": "NetValueEstimator, ProfilerEstimator, ProfilerEstimator",
+        "cls_hpo_estimators": "NetValueEstimator, ModelEstimator, ModelEstimator",
         # accuracy, measured by forward passes
         "{cls_hpo_estimators#0}.key": "loss",
         "{cls_hpo_estimators#0}.is_constraint": False,
@@ -73,15 +73,16 @@ if est == 1:
         "{cls_hpo_estimators#0}.batches_eval": -1,
         "{cls_hpo_estimators#0}.value": "val/loss",
         # # profiled macs
-        "{cls_hpo_estimators#1}.key": "macs_prof",
+        "{cls_hpo_estimators#1}.key": "macs_model",
         "{cls_hpo_estimators#1}.is_objective": True,
         "{cls_hpo_estimators#1}.maximize": False,
-        "{cls_hpo_estimators#1}.profiler_file_path": '{path_profiled}/fairnas_macs.pt',
+        "{cls_hpo_estimators#1}.model_file_path": '{path_profiled}/tab_fairnas_macs.pt',
         # # profiled latency
-        "{cls_hpo_estimators#2}.key": "latency_prof",
+        "{cls_hpo_estimators#2}.key": "latency_model",
         "{cls_hpo_estimators#2}.is_objective": True,
         "{cls_hpo_estimators#2}.maximize": False,
-        "{cls_hpo_estimators#2}.profiler_file_path": '{path_profiled}/fairnas_latency.pt',
+        # "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/rf_fairnas_latency_cpu.pt',
+        "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/tab_fairnas_latency.pt',
     })
 
 

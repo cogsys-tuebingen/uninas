@@ -2,7 +2,7 @@
     "cls_task": "SingleSearchTask",
     "{cls_task}.is_test_run": false,
     "{cls_task}.seed": 0,
-    "{cls_task}.note": "s1 FairNAS-like training",
+    "{cls_task}.note": "s1 SPOS-like training",
     "{cls_task}.save_dir": "{path_tmp}/bench/s1/fairnas/",
     "{cls_task}.save_del_old": true,
 
@@ -23,7 +23,6 @@
     "{cls_trainer}.log_ram": true,
     "{cls_trainer}.eval_last": 10,
     "{cls_trainer}.test_last": 10,
-    "{cls_trainer}.ema_device": "disabled",
 
     "cls_callbacks": "CheckpointCallback",
     "{cls_callbacks#0}.top_n": 0,

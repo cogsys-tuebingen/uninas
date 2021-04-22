@@ -1,5 +1,5 @@
 from collections import defaultdict
-from uninas.model.primitives.bench101 import Bench101Primitives
+from uninas.modules.primitives.bench101 import Bench101Primitives
 from uninas.optimization.benchmarks.mini.tabular import MiniNASTabularBenchmark, plot, explore
 from uninas.optimization.benchmarks.mini.result import MiniResult
 from uninas.optimization.hpo.uninas.values import DiscreteValues, ValueSpace

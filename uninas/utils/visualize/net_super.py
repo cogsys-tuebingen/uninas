@@ -4,12 +4,13 @@ visualize a super network
 
 
 from graphviz import Digraph
-from uninas.networks.uninas.search import SearchUninasNetwork
-from uninas.model.cells.single_layer import SingleLayerCell
-from uninas.model.heads.cnn import FeatureMixClassificationHead
+from uninas.models.networks.uninas.search import SearchUninasNetwork
+from uninas.modules.cells.single_layer import SingleLayerCell
+from uninas.modules.heads.cnn import FeatureMixClassificationHead
 from uninas.utils.generate.networks.super_configs import NetWrapper
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.misc import get_var_name
+from uninas.builder import Builder
 
 run_config = '{path_conf_tasks}/super1.run_config'
 
@@ -33,6 +34,7 @@ def width_str(expansion: str):
 
 
 def visualize_genotype(wrapper: NetWrapper, save_dir: str):
+    Builder()
     config_name = get_var_name(wrapper)
     save_dir = replace_standard_paths('%s%s/' % (save_dir, config_name))
     wrapper_net, config, _ = wrapper.generate(save_dir, 'viz')

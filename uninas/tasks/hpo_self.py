@@ -4,9 +4,9 @@ from collections import defaultdict
 from copy import deepcopy
 import numpy as np
 from uninas.tasks.abstract import AbstractTask, AbstractNetTask
-from uninas.networks.uninas.search import SearchUninasNetwork
+from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.methods.strategies.manager import StrategyManager
-from uninas.optimization.common.task import common_s2_net_args_to_add, common_s2_extend_args, common_s2_prepare_run
+from uninas.optimization.task import common_s2_net_args_to_add, common_s2_extend_args, common_s2_prepare_run
 from uninas.optimization.benchmarks.mini.benchmark import MiniNASBenchmark, MiniResult
 from uninas.optimization.benchmarks.mini.tabular import MiniNASTabularBenchmark, explore
 from uninas.optimization.benchmarks.mini.tabular_search import MiniNASSearchTabularBenchmark
@@ -74,6 +74,12 @@ class SelfHPOUtils:
             space.remove_value(i)
         return space
 
+    @staticmethod
+    def bench_subspace(args: Namespace, bench: MiniNASTabularBenchmark) -> MiniNASTabularBenchmark:
+        _, mask = find_in_args(args, ".mask_indices")
+        masked = [i for i in split(mask, int)]
+        return bench.subset(blacklist=masked)
+
 
 @Register.task(search=True)
 class MiniBenchHPOTask(AbstractTask):
@@ -111,7 +117,7 @@ class MiniBenchHPOTask(AbstractTask):
 
     def _run(self):
         file_viz = '%s/%s.pdf' % (self.checkpoint_dir(self.save_dir), self.hpo.__name__)
-        space = SelfHPOUtils.mask_architecture_space(self.args, self.benchmark_set.get_value_space())
+        space = SelfHPOUtils.bench_subspace(self.args, self.benchmark_set).get_value_space()
         algorithm = self.hpo.run_opt(hparams=self.args, logger=self.logger,
                                      checkpoint_dir=self.checkpoint_dir(self.save_dir),
                                      value_space=space,
@@ -228,8 +234,8 @@ class EvalBenchTask(AbstractTask):
 
         # correlations
         self.correlation_cls = []
-        for name in split(self._parsed_argument('measure_correlations', self.args)):
-            self.correlation_cls.append(Register.correlation_metrics.get(name))
+        for name in self._parsed_argument('measure_correlations', self.args, split_=True):
+            self.correlation_cls.append(Register.nas_metrics.get(name))
 
     @classmethod
     def meta_args_to_add(cls) -> [MetaArgument]:
@@ -249,7 +255,7 @@ class EvalBenchTask(AbstractTask):
         return super().args_to_add(index) + [
             Argument('same_dataset', default='False', type=str, is_bool=True,
                      help="correlate only if the bench results are on the same dataset"),
-            Argument('measure_correlations', default='KendallTauCorrelation', type=str, help='correlations to measure'),
+            Argument('measure_correlations', default='KendallTauNasMetric', type=str, help='correlations to measure'),
         ]
 
     def _run(self):
@@ -317,21 +323,10 @@ class EvalBenchTask(AbstractTask):
                         values0 = np.nan_to_num(values0, nan=-1)
                         values1 = np.nan_to_num(values1, nan=-1)
 
-                        # generate plot
-                        m = self.correlation_cls[0](
-                            column_names=('%s %s' % (bench0.get_name(), type0), '%s %s' % (bench1.get_name(), type1)),
-                            add_lines=False, can_show=False)
-                        m.add_data(values0, values1, key, other_metrics=self.correlation_cls, s=8)
-                        m.plot(legend=True, show=False, save_path=file_plot % (i0, i1, name, key, ds_str))
-
-                        # can not log if there is no exp_logger...
-                        """
-                        # log general things
-                        self.get_method().log_metrics({
-                            'corr_bench/%s/%s/%s/avg/bench/%d' % (name, key, ds_str, i0): sum(values0) / len(values0),
-                            'corr_bench/%s/%s/%s/avg/bench/%d' % (name, key, ds_str, i1): sum(values1) / len(values1),
-                        })
-                        """
+                        self.correlation_cls[0].plot_correlations(
+                            values0, values1, self.correlation_cls,
+                            axes_names=('%s %s' % (bench0.get_name(), type0), '%s %s' % (bench1.get_name(), type1)),
+                            show=False, save_path=file_plot % (i0, i1, name, key, ds_str))
 
 
 @Register.task(search=True)
@@ -348,9 +343,10 @@ class EvalNetBenchTask(NetHPOTask):
 
         # bench part
         benchmark_set = self._parsed_meta_argument(Register.benchmark_sets, 'cls_benchmark', args, index=None)
-        self.benchmark_set = benchmark_set.from_args(args, index=None)
+        benchmark_set = benchmark_set.from_args(args, index=None)
+        self.benchmark_set = SelfHPOUtils.bench_subspace(args, benchmark_set)
         assert isinstance(self.benchmark_set, MiniNASBenchmark)
-        self.measure_top = split(self._parsed_argument('measure_top', self.args), int)
+        self.measure_top = self._parsed_argument('measure_top', self.args)
         # check if the cell architecture was shared during training
         self.num_normal = 1
         _, arc_shared = find_in_args(self.args, '.arc_shared')
@@ -358,10 +354,10 @@ class EvalNetBenchTask(NetHPOTask):
             _, cell_order = find_in_args(self.args, '.cell_order')
             self.num_normal = cell_order.count('n')
 
-        # correlations
-        self.correlation_cls = []
-        for name in split(self._parsed_argument('measure_correlations', self.args)):
-            self.correlation_cls.append(Register.correlation_metrics.get(name))
+        # nas metrics
+        self.nas_cls = []
+        for name in self._parsed_argument('nas_metrics', self.args, split_=True):
+            self.nas_cls.append(Register.nas_metrics.get(name))
 
     @classmethod
     def meta_args_to_add(cls, algorithm=True) -> [MetaArgument]:
@@ -378,32 +374,33 @@ class EvalNetBenchTask(NetHPOTask):
     def args_to_add(cls, index=None) -> [Argument]:
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
-            Argument('measure_top', default='10, 50', type=str, help='measure top-N bench architectures'),
-            Argument('measure_correlations', default='KendallTauCorrelation', type=str, help='correlations to measure'),
+            Argument('measure_top', default=500, type=int, help='measure top-N bench architectures'),
+            Argument('nas_metrics', default='ImprovementNasMetric, KendallTauNasMetric', type=str, help='metrics to calculate'),
         ]
 
     def _run(self, save=False):
         checkpoint_dir = self.checkpoint_dir(self.save_dir)
-        file_plot = '%s/plots/%s/%s/%s.pdf' % (checkpoint_dir, '%s', '%s', '%s')
 
         # what are the best architectures in a surrogate benchmark...?
-        if (len(self.measure_top) > 0) and (not self.benchmark_set.is_tabular()):
+        if (self.measure_top > 0) and (not self.benchmark_set.is_tabular()):
             raise NotImplementedError("can not measure top-N networks on a non-tabular benchmark")
 
-        # value space
+        # value space, already sorted by best
         sm = StrategyManager()
         svs = [v.arch_tuple for v in self.benchmark_set.get_all_sorted(['acc1'], [True])]
         arc_len = len(svs[0])
         if (self.num_normal > 1) and (len(svs)*self.num_normal == sm.get_num_choices(unique=True)):
             # compensate now for late architecture sharing by duplicating the indices
             svs = [tuple(list(v)*self.num_normal) for v in svs]
-        self._svs = SelfHPOUtils.mask_architecture_space(self.args, SpecificValueSpace(svs))
+        self._svs = SpecificValueSpace(svs)
 
-        algorithm, name_num_rem = None, [(str(v), v, False) for v in self.measure_top] + [('all', 9999999999, True)]
-        for name, num, rem in name_num_rem:
-            if algorithm is not None and rem:
+        # run
+        algorithm, name_num = None, [(str(self.measure_top), self.measure_top), ('random', 9999999999)]
+        for name, num in name_num:
+            if algorithm is not None:
                 algorithm.remove_saved_state()
 
+            # tweak self params and let the super class run
             self._architecture_space = deepcopy(self._svs)
             self._architecture_space.specific_values = self._architecture_space.specific_values[:num]
             algorithm, population = super()._run(save=save)
@@ -418,31 +415,25 @@ class EvalNetBenchTask(NetHPOTask):
                 for ds in r.get_data_sets():
                     bench_values[ds].append(r.get(kind=obj_key, data_set=ds))
 
-            # plots, tb
+            # plots, logging
             self.get_method().log_metrics({
                 'net_bench/%s/num' % name: population.size
             })
             for ben_ds, ben_values in bench_values.items():
-                # generate plot
-                m = self.correlation_cls[0](
-                    column_names=(
-                        "network %s" % self.objectives[0].short_name(),
-                        "bench %s, %s" % (self.benchmark_set.get_name(), self.benchmark_set.default_result_type)),
-                    add_lines=False, can_show=False)
-                m.add_data(net_values, ben_values, "%s, %s" % (ben_ds, obj_key), other_metrics=self.correlation_cls, s=8)
-                m.plot(legend=True, show=False, save_path=file_plot % ('metrics', name, ben_ds))
+                for nas_cls in self.nas_cls:
+                    # calculate metric
+                    metric_dct = nas_cls.get_data(net_values, ben_values)
 
-                # log general things
-                self.get_method().log_metrics({
-                    'net_bench/%s/%s/%s/avg/bench' % (name, obj_key, ben_ds): sum(ben_values) / len(ben_values),
-                    'net_bench/%s/%s/%s/avg/net' % (name, obj_key, ben_ds): sum(net_values) / len(net_values),
-                })
+                    # plot
+                    file_plot = '%s/plots/metrics/%s/%s/%s_%s.pdf' %\
+                                (checkpoint_dir, name, ben_ds, obj_key, nas_cls.__name__)
+                    nas_cls.plot(data=metric_dct, title='', legend=True, show=False, save_path=file_plot)
 
-                # log metrics
-                for m in self.correlation_cls:
-                    self.get_method().log_metrics({
-                        'net_bench/%s/%s/%s/%s' % (name, obj_key, ben_ds, m.short_name()): m.calculate(net_values, ben_values),
-                    })
+                    # log
+                    for k, v in metric_dct.items():
+                        self.get_method().log_metric_lists({
+                            'net_bench/%s/%s/%s/%s/%s' % (name, ben_ds, obj_key, nas_cls.__name__, k): v
+                        })
 
 
 @Register.task(search=True)

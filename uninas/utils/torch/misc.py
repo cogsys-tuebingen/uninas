@@ -1,5 +1,7 @@
 from typing import Union
+from uninas.training.result import ResultValue
 import torch
+import torch.nn as nn
 
 
 def drop_path(x: torch.Tensor, drop_prob: float) -> torch.Tensor:
@@ -10,6 +12,13 @@ def drop_path(x: torch.Tensor, drop_prob: float) -> torch.Tensor:
         x.div_(keep_prob)
         x.mul_(mask)
     return x
+
+
+def reset_bn(module: nn.Module):
+    """ reset all batch-norm modules """
+    for m in module.modules():
+        if isinstance(m, nn.BatchNorm2d):
+            m.reset_running_stats()
 
 
 def count_parameters(model, ignore_aux=True) -> int:
@@ -72,5 +81,7 @@ def itemize(x):
     if isinstance(x, list):
         return [itemize(v) for v in x]
     if isinstance(x, torch.Tensor):
+        return x.item()
+    if isinstance(x, ResultValue):
         return x.item()
     return x

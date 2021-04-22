@@ -16,10 +16,12 @@ args = {
     "cls_device": "CudaDevicesManager",   # CpuDevicesManager, CudaDevicesManager, TestCpuDevicesManager
     "{cls_device}.num_devices": 1,
 
-    "cls_trainer": "SimpleDDPTrainer",  # SimpleTrainer, SimpleDDPTrainer, LightningTrainer
-    "{cls_trainer}.max_epochs": 3,
-    "{cls_trainer}.ema_decay": 0.5,
-    "{cls_trainer}.ema_device": "cpu",
+    "cls_trainer": "SimpleTrainer",  # SimpleTrainer, SimpleDDPTrainer, LightningTrainer
+    "{cls_trainer}.max_epochs": 5,
+
+    "cls_clones": "EMAClone",
+    "{cls_clones#0}.device": "cpu",
+    "{cls_clones#0}.decay": 0.99,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": False,
@@ -31,19 +33,19 @@ args = {
 
     "cls_method": "RetrainMethod",
 
-    "cls_network": "EfficientNetTimmNetwork",
-    "{cls_network}.model_name": "tf_efficientnet_b0",
-    "{cls_network}.checkpoint_path": "{path_pretrained}",
+    # "cls_network": "EfficientNetTimmNetwork",
+    # "{cls_network}.model_name": "tf_efficientnet_b0",
+    # "{cls_network}.checkpoint_path": "{path_pretrained}",
 
-    # "cls_network": "RetrainUninasNetwork",
-    # "{cls_network}.config_path": "FairNasC",
+    "cls_network": "RetrainUninasNetwork",
+    "{cls_network}.config_path": "FairNasC",
     # "{cls_network}.config_path": "ShuffleNetV2PlusMedium",
     # "{cls_network}.config_path": "EfficientNetB0",
     # "{cls_network}.config_path": "imagenet_small",
     # maybe amp problematic: ScarletNasC, SPOSNet, ShuffleNetV2PlusMedium, ResNet18
     # "{cls_network}.checkpoint_path": "{path_pretrained}",
 
-    # "cls_network": "RetrainFromSearchUninasNetwork",  # build from a fairnas search space
+    # "cls_network": "RetrainFromSearchUninasNetwork",  # build from a search space
     # "{cls_network}.search_config_path": "{path_tmp}/run_config/",
     # "{cls_network}.gene": "random",
 
@@ -51,6 +53,7 @@ args = {
     "{cls_data}.batch_size_train": 4,
     "{cls_data}.fake": False,
     "{cls_data}.dir": '{path_data}/ImageNet_ILSVRC2012/',
+    "{cls_data}.valid_as_test": True,
 
     # "cls_data": "SubImagenet100Data",  # disable pretrained weights, otherwise there will be a weight mismatch
     # "{cls_data}.dir": "{path_data}/subImageNet/",
@@ -77,7 +80,6 @@ args = {
     "cls_optimizers": "SGDOptimizer",
     "{cls_optimizers#0}.lr": 0.00,
     "{cls_optimizers#0}.momentum": 0.9,
-    "{cls_optimizers#0}.accumulate_batches": 2,
 
     "cls_schedulers": "CosineScheduler",
     "{cls_schedulers#0}.warmup_epochs": 2,

@@ -4,12 +4,14 @@ verify the top1/top5 test accuracy of a network
 
 import argparse
 import torch
-from uninas.training.metrics.accuracy import accuracy
+from uninas.training.metrics.accuracy import AccuracyMetric
 from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.torch.standalone import get_network, get_imagenet
+from uninas.builder import Builder
 
 
 def verify():
+    Builder()
     logger = LoggerManager().get_logger()
 
     parser = argparse.ArgumentParser('get_network')
@@ -18,7 +20,7 @@ def verify():
     parser.add_argument('--data_dir', type=str, default='{path_data}/ImageNet_ILSVRC2012/')
     parser.add_argument('--data_batch_size', type=int, default=128)
     parser.add_argument('--data_num_workers', type=int, default=8)
-    parser.add_argument('--num_batches', type=int, default=-1, help='>0 to stop early')
+    parser.add_argument('--num_batches', type=int, default=10, help='>0 to stop early, <0 for all')
     args, _ = parser.parse_known_args()
 
     # ImageNet with default augmentations / cropping
@@ -47,7 +49,7 @@ def verify():
             if i >= args.num_batches > 0:
                 break
             outputs = network(data.cuda())
-            t1, t5 = accuracy(outputs, targets.cuda(), topk=(1, 5))
+            t1, t5 = AccuracyMetric.accuracy(outputs, targets.cuda(), top_k=(1, 5))
             n = data.size(0)
             top1 += t1 * n
             top5 += t5 * n
