@@ -30,6 +30,9 @@ class AbstractNetworkBody(AbstractArgsModule):
         """
         raise NotImplementedError
 
+    def build(self, s_in: Shape, s_out: Shape) -> ShapeList:
+        return super().build(s_in, s_out)
+
     def _build(self, s_in: Shape, s_out: Shape) -> ShapeList:
         raise NotImplementedError
 

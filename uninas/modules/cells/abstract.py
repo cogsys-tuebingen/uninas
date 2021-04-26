@@ -50,6 +50,9 @@ class AbstractCell(AbstractArgsModule):
             Argument('features_fixed', type=int, default=-1, help='fixed number of output features'),
         ]
 
+    def build(self, s_ins: ShapeList, features_mul=1, features_fixed=-1) -> ShapeList:
+        return super().build(s_ins, features_mul=features_mul, features_fixed=features_fixed)
+
     def _build(self, s_ins: ShapeList, features_mul=1, features_fixed=-1) -> ShapeList:
         """
         :param s_ins: input Shapes

@@ -43,14 +43,24 @@ class TabularSumModel(AbstractModel):
         return cls(table=model_state.get('table'), constant=model_state.get('constant'))
 
     def fit(self, data: np.array, labels: np.array):
+        """
+        fit the model to data+labels
+        :param data: n-dimensional np array, first dimension is the batch
+        :param labels: n-dimensional np array, first dimension is the batch
+        :return:
+        """
         raise NotImplementedError("This model type can not be fit to data, it uses a fixed lookup table")
 
     def predict(self, data: np.array) -> np.array:
         """
+        predict the labels of the data
         sum up values for a batch of: [op idx in cell 0, ... op idx in cell -1]
-        :param data: 2D np array
-        :return: 1D np array
+        requires 2D data
+
+        :param data: n-dimensional np array, first dimension is the batch
+        :return: n-dimensional np array, first dimension is the batch
         """
+        assert len(data.shape) == 2, "Can only look up 2D (batch, indices) data in the tables"
         values = np.zeros(shape=(len(data),))
         values += self.constant
         for i, arr in enumerate(data):

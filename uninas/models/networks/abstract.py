@@ -52,6 +52,8 @@ class AbstractNetwork(AbstractModel, AbstractArgsModule):
     def _load_state(self, model_state: dict) -> bool:
         """ update the current model with this state """
         assert self.kwargs() == model_state['kwargs'], "Can not load the model, their arguments differ"
+        if not self.is_built():
+            self.build_from_cache()
         self.load_state_dict(model_state['state_dict'])
         self.load_from_state_dict(model_state['add_state_dict'])
         self.loaded_weights(True)
@@ -73,6 +75,25 @@ class AbstractNetwork(AbstractModel, AbstractArgsModule):
             Argument('assert_output_match', default='True', type=str, is_bool=True,
                      help='assert that the network output shape (each head) matches the expectations (by the dataset)'),
         ]
+
+    def fit(self, data: np.array, labels: np.array):
+        """
+        fit the model to data+labels
+        :param data: n-dimensional np array, first dimension is the batch
+        :param labels: n-dimensional np array, first dimension is the batch
+        :return:
+        """
+        raise TypeError("Network models can not be fit directly")
+
+    def predict(self, data: np.array) -> np.array:
+        """
+        predict the labels of the data, only from the last head
+        :param data: n-dimensional np array, first dimension is the batch
+        :return: n-dimensional np array, first dimension is the batch
+        """
+        with torch.no_grad():
+            data = torch.from_numpy(data).to(torch.float32).to(self.get_device())
+            return self(data)[-1].cpu().numpy()
 
     def get_model_name(self) -> str:
         return self.model_name
@@ -188,6 +209,9 @@ class AbstractNetwork(AbstractModel, AbstractArgsModule):
         shape_in = Shape(self.shape_in_list)
         shape_out = Shape(self.shape_out_list)
         return self.build(shape_in, shape_out)
+
+    def build(self, s_in: Shape, s_out: Shape) -> ShapeList:
+        return super().build(s_in, s_out)
 
     def _build(self, s_in: Shape, s_out: Shape) -> ShapeList:
         raise NotImplementedError

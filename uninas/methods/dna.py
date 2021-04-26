@@ -14,7 +14,7 @@ from uninas.models.networks.abstract import AbstractNetwork
 from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.methods.abstract import AbstractOptimizationMethod
 from uninas.methods.strategies.manager import StrategyManager
-from uninas.training.criteria.common import AbstractCriterion
+from uninas.training.criteria.abstract import MultiCriterion
 from uninas.training.optimizers.abstract import MultiWrappedOptimizer
 from uninas.utils.shape import Shape, ShapeList
 from uninas.utils.args import MetaArgument, Argument, Namespace
@@ -269,7 +269,7 @@ class DnaMethod(AbstractOptimizationMethod):
         assert isinstance(net, SearchUninasNetwork)
         return net
 
-    def get_weights_criterion(self) -> (list, AbstractCriterion):
+    def get_weights_criterion(self) -> (list, MultiCriterion):
         cells_first, cells_last = self._parsed_arguments(['teacher_cells_first', 'teacher_cells_last'], self.hparams)
         n = cells_last - cells_first + 1
         weights = self._parsed_argument('loss_weights', self.hparams, split_=float)
@@ -279,7 +279,7 @@ class DnaMethod(AbstractOptimizationMethod):
             weights = [weights[0]]*n
         assert len(weights) == n, "number of weights (%d) and cells (%d) must match" % (len(weights), n)
         cls_criterion = self._parsed_meta_argument(Register.criteria, 'cls_criterion', self.hparams, index=None)
-        criterion = cls_criterion(weights, self.hparams, self.data_set)
+        criterion = MultiCriterion.from_args(weights, cls_criterion, self.data_set, self.hparams)
         LoggerManager().get_logger().info("Weighting model block loss: %s" % str(weights))
         return weights, criterion
 

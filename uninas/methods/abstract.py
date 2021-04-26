@@ -11,7 +11,7 @@ from uninas.data.abstract import AbstractBatchAugmentation, AbstractDataSet
 from uninas.models.networks.abstract import AbstractNetwork
 from uninas.methods.strategies.manager import StrategyManager
 from uninas.training.result import LogResult
-from uninas.training.criteria.common import AbstractCriterion
+from uninas.training.criteria.abstract import MultiCriterion
 from uninas.training.regularizers.abstract import AbstractRegularizer
 from uninas.training.optimizers.abstract import WrappedOptimizer, MultiWrappedOptimizer
 from uninas.training.result import ResultValue
@@ -441,10 +441,10 @@ class AbstractMethod(pl.LightningModule, ArgsInterface):
             return [optimizer], [self._cls_schedulers[0].from_args(self.hparams, optimizer, self.max_epochs, index=0)]
         return [optimizer], []
 
-    def get_weights_criterion(self) -> (list, AbstractCriterion):
+    def get_weights_criterion(self) -> (list, MultiCriterion):
         weights = self.net.get_head_weightings()
         cls_criterion = self._parsed_meta_argument(Register.criteria, 'cls_criterion', self.hparams, index=None)
-        criterion = cls_criterion(weights, self.hparams, self.data_set)
+        criterion = MultiCriterion.from_args(weights, cls_criterion, self.data_set, self.hparams)
         if len(weights) > 1:
             LoggerManager().get_logger().info("Weighting model heads: %s" % str(weights))
         return weights, criterion

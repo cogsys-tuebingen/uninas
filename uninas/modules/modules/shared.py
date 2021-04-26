@@ -13,6 +13,9 @@ class _AbstractSharedPathsOp(AbstractModule):
     def _add_shared_path(self, p: tuple):
         self._all_paths.append(p)
 
+    def build(self, s_in: Shape, c_out: int) -> Shape:
+        return super().build(s_in, c_out)
+
     def _build(self, s_in: Shape, c_out: int) -> Shape:
         raise NotImplementedError
 

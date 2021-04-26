@@ -38,6 +38,9 @@ class AbstractStem(AbstractArgsModule):
         for m in self.base_modules(recursive=False):
             m.set_dropout_rate(p)
 
+    def build(self, s_in: Shape) -> ShapeList:
+        return super().build(s_in)
+
     def _build(self, s_in: Shape) -> ShapeList:
         raise NotImplementedError
 

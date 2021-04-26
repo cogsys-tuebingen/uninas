@@ -27,13 +27,14 @@ class FitClassicModelTask(AbstractTask):
 
         # data
         data_set_cls = self._parsed_meta_argument(Register.data_sets, 'cls_data', args, index=None)
-        data_set = data_set_cls.from_args(args, index=None)
+        self.data_set = data_set_cls.from_args(args, index=None)
+        self._undo_label_normalization = self._parsed_argument('undo_label_normalization', args, index=None)
 
         # reduce the data set size to fit significantly in test runs
         max_num = 100 if self.is_test_run else -1
-        self.data_train = data_set.get_full_train_data(to_numpy=True, num=max_num)
-        self.data_valid = data_set.get_full_valid_data(to_numpy=True, num=max_num)
-        self.data_test = data_set.get_full_test_data(to_numpy=True, num=max_num)
+        self.data_train = self.data_set.get_full_train_data(to_numpy=True, num=max_num)
+        self.data_valid = self.data_set.get_full_valid_data(to_numpy=True, num=max_num)
+        self.data_test = self.data_set.get_full_test_data(to_numpy=True, num=max_num)
 
         # exp logger
         logger_save_dir = '%sexp/' % self.save_dir
@@ -42,16 +43,16 @@ class FitClassicModelTask(AbstractTask):
 
         # metrics
         cls_metrics = self._parsed_meta_arguments(Register.metrics, 'cls_metrics', args, index=None)
-        self.metrics = [m.from_args(args, i, data_set, [1.0]) for i, m in enumerate(cls_metrics)]
+        self.metrics = [m.from_args(args, i, self.data_set, [1.0]) for i, m in enumerate(cls_metrics)]
         for m in self.metrics:
             m.on_epoch_start(0, is_last=True)
 
         # log
         rows = [
-            ("Data set", data_set.str()),
-            (" > train", data_set.list_train_transforms()),
-            (" > valid", data_set.list_valid_transforms()),
-            (" > test", data_set.list_test_transforms()),
+            ("Data set", self.data_set.str()),
+            (" > train", self.data_set.list_train_transforms()),
+            (" > valid", self.data_set.list_valid_transforms()),
+            (" > test", self.data_set.list_test_transforms()),
         ]
         if max_num > 0:
             rows.append((" > LIMIT", "only %d data points used for train/valid/test each" % max_num))
@@ -81,6 +82,7 @@ class FitClassicModelTask(AbstractTask):
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
             Argument('fit_loaded_model', default="False", type=str, help='fit a model again if it was loaded successfully', is_bool=True),
+            Argument('undo_label_normalization', default="False", type=str, help='undo normalization for metrics', is_bool=True),
         ]
 
     @classmethod
@@ -88,12 +90,18 @@ class FitClassicModelTask(AbstractTask):
         return '%s/model.pt' % dir_
 
     def _compute_metrics(self, inputs: Union[np.array, None], targets: Union[np.array, None], key: str) -> dict:
+        """ compute metrics on non-normalized labels """
         log_dict = {}
-        if inputs is not None and targets is not None:
+        if (inputs is not None) and (targets is not None):
             # predict
             predictions = self.model.predict(inputs)
             if len(predictions.shape) < len(targets.shape):
                 predictions = np.expand_dims(predictions, axis=-1)
+
+            # undo normalization?
+            if self._undo_label_normalization:
+                targets = self.data_set.undo_label_normalization(targets)
+                predictions = self.data_set.undo_label_normalization(predictions)
 
             # need tensors
             inputs_ = torch.Tensor(inputs)

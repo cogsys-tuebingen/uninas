@@ -36,4 +36,4 @@ class ModelEstimator(AbstractEstimator):
         assert strategy_name is None, "this estimator does not support specific strategy settings yet"
         if self._cast_oh:
             values = self._space.as_one_hot(values)
-        return self.model.predict(np.array([values]))[0]
+        return float(self.model.predict(np.array([values]))[0])

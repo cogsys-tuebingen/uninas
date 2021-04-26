@@ -23,7 +23,7 @@ try:
                 Argument('max_depth', default=-1, type=int, help='maximum depth for base learners'),
                 Argument('n_estimators', default=100, type=int, help='number of trees'),
                 Argument('booster', default="dart", type=str, choices=['gbtree', 'gblinear', 'dart'], help='which booster to use'),
-                Argument('objective', default="reg:squarederror", type=str, help='objective to minimize'),
+                Argument('objective', default="reg:squarederror", type=str, choices=["reg:linear", "reg:squarederror"], help='objective to minimize'),
             ] + super().args_to_add(index)
 
 

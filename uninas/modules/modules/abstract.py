@@ -2,11 +2,11 @@ import types
 from collections.abc import Iterator
 import torch
 import torch.nn as nn
-
 from uninas.register import Register
 from uninas.utils.shape import Shape, ShapeList, ShapeOrList
 from uninas.utils.args import ArgsInterface
 from uninas.utils.paths import make_base_dirs
+from uninas.utils.torch.misc import randomize_parameters
 from typing import Union, List
 
 tensor_type = Union[torch.Tensor, List[torch.Tensor]]
@@ -317,6 +317,12 @@ class AbstractModule(nn.Module):
 
         _disable_state_dict(self)
         _disable_state_dict = None
+
+    # misc -------------------------------------------------------------------------------------------------------------
+
+    def randomize_parameters(self):
+        """ set all parameters to normally distributed values """
+        randomize_parameters(self)
 
 
 class AbstractArgsModule(AbstractModule, ArgsInterface):

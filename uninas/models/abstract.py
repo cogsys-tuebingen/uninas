@@ -71,9 +71,20 @@ class AbstractModel(ArgsInterface):
         raise NotImplementedError
 
     def fit(self, data: np.array, labels: np.array):
+        """
+        fit the model to data+labels
+        :param data: n-dimensional np array, first dimension is the batch
+        :param labels: n-dimensional np array, first dimension is the batch
+        :return:
+        """
         raise NotImplementedError
 
     def predict(self, data: np.array) -> np.array:
+        """
+        predict the labels of the data
+        :param data: n-dimensional np array, first dimension is the batch
+        :return: n-dimensional np array, first dimension is the batch
+        """
         raise NotImplementedError
 
 
@@ -124,7 +135,18 @@ class AbstractWrapperModel(AbstractModel):
         return self._model_kwargs
 
     def fit(self, data: np.array, labels: np.array):
+        """
+        fit the model to data+labels
+        :param data: n-dimensional np array, first dimension is the batch
+        :param labels: n-dimensional np array, first dimension is the batch
+        :return:
+        """
         self.model.fit(squeeze_keep_batch(data), squeeze_keep_batch(labels))
 
     def predict(self, data: np.array) -> np.array:
+        """
+        predict the labels of the data
+        :param data: n-dimensional np array, first dimension is the batch
+        :return: n-dimensional np array, first dimension is the batch
+        """
         return self.model.predict(squeeze_keep_batch(data))

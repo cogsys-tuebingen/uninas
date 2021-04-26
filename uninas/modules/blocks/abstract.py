@@ -11,6 +11,9 @@ from uninas.utils.shape import Shape, ShapeList
 
 class AbstractBlock(AbstractArgsModule):
 
+    def build(self, s_ins: ShapeList, num_features: int) -> Shape:
+        return super().build(s_ins, num_features)
+
     def _build(self, s_ins: ShapeList, num_features: int) -> Shape:
         raise NotImplementedError
 

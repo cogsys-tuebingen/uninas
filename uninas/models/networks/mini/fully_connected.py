@@ -22,7 +22,10 @@ class FullyConnectedNetwork(AbstractExternalNetwork):
     """
 
     def __init__(self, *args, layer_widths: str, act_fun: str, use_bn: bool, use_bias: bool, **kwargs):
-        super().__init__(model_name=self.__class__.__name__, *args, **kwargs)
+        kwargs.update(dict(model_name=self.__class__.__name__))
+        super().__init__(*args, **kwargs)
+        self._add_to_kwargs(layer_widths=layer_widths, act_fun=act_fun,
+                            use_bn=use_bn, use_bias=use_bias)
         self._layer_widths = split(layer_widths, int)
         bias = use_bias and not use_bn
 

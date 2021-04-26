@@ -70,22 +70,17 @@ try:
 
         @classmethod
         def _plot_to_axis(cls, ax: plt.Axes, x: np.array, data: {str: np.array}, name: str, index=0, has_multiple=False,
-                          **_) -> dict:
-            """
-            plots the data to an axis
-            :param ax: plt axis to plot to
-            :param data: {key: np.array(runs, data)} as returned from get_data,
-                         but possibly containing data of multiple runs
-            :param name: name
-            :return: dict of plotting state
-            """
+                          last_on_axis=True, rem_last=1, prev_state={}, **_) -> dict:
             ax.set_ylabel('%s, correlation' % cls.short_name())
             mean = np.mean(data.get('corr'), axis=0)
             std = np.std(data.get('corr'), axis=0)
             label = "%s, mean + std" if data.get('corr').shape[0] > 1 else "%s, mean"
             ax.plot(x, mean, cls._markers[index], label=label % name, color=cls._cols[index])
             ax.fill_between(x, mean - std, mean + std, alpha=0.3, color=cls._cols[index])
-            return {}
+
+            cls._update_state_mean(prev_state, mean, rem_last=rem_last)
+            cls._limit_ax_by_mean(prev_state, ax, last_on_axis=last_on_axis, min_y=-1, max_y=1, mul=1.1)
+            return prev_state
 
 
     @Register.nas_metric(is_correlation=True)

@@ -194,10 +194,10 @@ we will possibly create a whitepaper at some point
 
 
 ```
-@article{TODO str,
-  title={TODO title},
-  author={TODO authors},
-  journal={TODO arxiv},
-  year={TODO year}
+@article{laube2021interchoice,
+  title={Inter-choice dependent super-network weights},
+  author={Kevin Alexander Laube, Andreas Zell},
+  journal={arXiv preprint arXiv:2104.11522},
+  year={2021}
 }
 ```

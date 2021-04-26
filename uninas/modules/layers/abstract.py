@@ -12,6 +12,9 @@ from uninas.register import Register
 
 class AbstractLayer(AbstractModule):
 
+    def build(self, s_in: Shape, c_out: int) -> Shape:
+        return super().build(s_in, c_out)
+
     def _build(self, s_in: Shape, c_out: int) -> Shape:
         raise NotImplementedError
 

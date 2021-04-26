@@ -85,3 +85,10 @@ def itemize(x):
     if isinstance(x, ResultValue):
         return x.item()
     return x
+
+
+def randomize_parameters(module: nn.Module):
+    """ set all parameters to normally distributed values """
+    for param in module.parameters(recurse=True):
+        param.data.zero_()
+        param.data.add_(torch.randn(size=param.data.size(), dtype=param.data.dtype, device=param.data.device))

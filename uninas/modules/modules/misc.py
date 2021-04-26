@@ -61,6 +61,9 @@ class MultiModules(AbstractModule):
     def is_layer_path(self, cls) -> [bool]:
         return [m.is_layer(cls) for m in self.submodules]
 
+    def build(self, s_in: ShapeOrList, c_out: int) -> Shape:
+        return super().build(s_in, c_out)
+
     def _build(self, s_in: ShapeOrList, c_out: int) -> Shape:
         raise NotImplementedError
 

@@ -1,8 +1,36 @@
+from typing import Union
 import torch
 import torch.nn as nn
-
 from uninas.data.abstract import AbstractDataSet
-from uninas.utils.args import ArgsInterface, Namespace
+from uninas.utils.args import ArgsInterface, Namespace, Argument
+
+
+class AbstractCriterion(nn.Module, ArgsInterface):
+    def __init__(self, data_set: Union[AbstractDataSet, None], **kwargs):
+        nn.Module.__init__(self)
+        ArgsInterface.__init__(self)
+        for k, v in kwargs.items():
+            self.__setattr__(k, v)
+
+    @classmethod
+    def from_args(cls, data_set: Union[AbstractDataSet, None], args: Namespace, index: int = None) -> 'AbstractCriterion':
+        all_parsed = cls._all_parsed_arguments(args, index=index)
+        return cls(data_set, **all_parsed)
+
+    @classmethod
+    def args_to_add(cls, index=None) -> [Argument]:
+        """ list arguments to add to argparse when this class (or a child class) is chosen """
+        return super().args_to_add(index) + [
+            Argument('reduction', default="mean", type=str, choices=["mean", "sum", "none"], help='how to reduce the error'),
+        ]
+
+    def _reduce(self, x: torch.Tensor) -> torch.Tensor:
+        """ reduce x according to the set 'reduction' """
+        if self.reduction == "mean":
+            return x.mean(0)
+        if self.reduction == "sum":
+            return x.sum(0)
+        return x
 
 
 class MultiCriterion(nn.Module):
@@ -10,7 +38,7 @@ class MultiCriterion(nn.Module):
     wraps a normal criterion to be applicable to multiple model outputs, weights their respective loss values
     """
 
-    def __init__(self, criterion, weights: [float]):
+    def __init__(self, criterion: AbstractCriterion, weights: [float]):
         super().__init__()
         self.criterion = criterion
         self.weights = weights
@@ -26,16 +54,8 @@ class MultiCriterion(nn.Module):
             losses.append(self.criterion(output, target) * weight)
         return sum(losses)
 
-
-class MetaMultiCriterion(type):
-    """ meta class that automatically wraps the criterion in a MultiCriterion """
-
-    def __call__(cls, weights, *args, **kwargs):
-        criterion = super(MetaMultiCriterion, cls).__call__(*args, **kwargs)
-        return MultiCriterion(criterion, weights)
-
-
-class AbstractCriterion(nn.Module, ArgsInterface, metaclass=MetaMultiCriterion):
-    def __init__(self, args: Namespace, data_set: AbstractDataSet):
-        nn.Module.__init__(self)
-        ArgsInterface.__init__(self)
+    @classmethod
+    def from_args(cls, head_weights: [float], criterion_cls: AbstractCriterion.__class__,
+                  data_set: AbstractDataSet, args: Namespace) -> 'MultiCriterion':
+        criterion = criterion_cls.from_args(data_set, args, index=None)
+        return cls(criterion, head_weights)

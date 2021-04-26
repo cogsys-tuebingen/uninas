@@ -1,6 +1,7 @@
 import torch
 from uninas.data.abstract import AbstractDataSet
 from uninas.models.networks.abstract import AbstractNetwork
+from uninas.training.criteria.abstract import MultiCriterion
 from uninas.training.metrics.abstract import AbstractLogMetric, ResultValue
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
@@ -16,7 +17,7 @@ class CriterionMetric(AbstractLogMetric):
         return 'criterion'
 
     @classmethod
-    def from_args(cls, args: Namespace, index: int, data_set: AbstractDataSet, head_weights: list) -> 'AbstractLogMetric':
+    def from_args(cls, args: Namespace, index: int, data_set: AbstractDataSet, head_weights: list) -> 'CriterionMetric':
         """
         :param args: global arguments namespace
         :param index: index of this metric
@@ -26,7 +27,8 @@ class CriterionMetric(AbstractLogMetric):
         all_parsed = cls._all_parsed_arguments(args, index=index)
         criterion_str = all_parsed.pop('criterion')
         criterion_cls = Register.criteria.get(criterion_str)
-        criterion = criterion_cls(head_weights, args, data_set)
+        criterion = criterion_cls(data_set)
+        criterion = MultiCriterion(criterion, head_weights)
         return cls(head_weights=head_weights, criterion_str=criterion_str, criterion=criterion, **all_parsed)
 
     @classmethod

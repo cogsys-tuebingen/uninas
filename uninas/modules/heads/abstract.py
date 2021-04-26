@@ -35,6 +35,9 @@ class AbstractHead(AbstractArgsModule):
     def set_dropout_rate(self, p=None):
         raise NotImplementedError
 
+    def build(self, s_in: Shape, s_out: Shape) -> Shape:
+        return super().build(s_in, s_out)
+
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         raise NotImplementedError
 

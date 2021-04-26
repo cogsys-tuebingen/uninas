@@ -20,7 +20,7 @@ class L1Criterion(AbstractCriterion):
     """
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        return F.l1_loss(outputs, maybe_one_hot(outputs, targets))
+        return F.l1_loss(outputs, maybe_one_hot(outputs, targets), reduction=self.reduction)
 
 
 @Register.criterion()
@@ -31,7 +31,7 @@ class RelativeL1Criterion(AbstractCriterion):
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         l1 = F.l1_loss(outputs, maybe_one_hot(outputs, targets), reduction="none")
-        return (l1 / targets).mean()
+        return self._reduce(l1 / targets)
 
 
 @Register.criterion()
@@ -41,27 +41,39 @@ class L2Criterion(AbstractCriterion):
     """
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        return F.mse_loss(outputs, maybe_one_hot(outputs, targets))
+        return F.mse_loss(outputs, maybe_one_hot(outputs, targets), reduction=self.reduction)
 
 
 @Register.criterion()
-class Huber1Criterion(AbstractCriterion):
+class HuberCriterion(AbstractCriterion):
     """
     Mean over all (output, target) pairs:
         L1 loss if L1(output, target) < delta
         L2 loss if L1(output, target) >= delta
+
+    https://en.wikipedia.org/wiki/Huber_loss
+    https://pytorch.org/docs/master/generated/torch.nn.HuberLoss.html
     """
-    _delta = 1.0
+
+    @classmethod
+    def args_to_add(cls, index=None) -> [Argument]:
+        """ list arguments to add to argparse when this class (or a child class) is chosen """
+        return super().args_to_add(index) + [
+            Argument('delta', default=1.0, type=float, help='use L1 when x < delta, otherwise L2'),
+        ]
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         # in torch 1.9 onwards:
         # return F.huber_loss(outputs, maybe_one_hot(outputs, targets))
         targets = maybe_one_hot(outputs, targets)
         l1 = F.l1_loss(outputs, targets, reduction='none').squeeze()
-        l2 = F.mse_loss(outputs, targets, reduction='none').squeeze()
-        cond = (l1 < self._delta).to(torch.float32)
-        v = (l1 * cond) + (l2 * (1 - cond))
-        return v.mean()
+        larger = self.delta * (l1 - 0.5 * self.delta)
+        smaller = 0.5 * F.mse_loss(outputs, targets, reduction='none').squeeze()
+        cond = (l1 < self.delta)
+        assert isinstance(cond, torch.Tensor)
+        cond = cond.to(torch.float32)
+        v = (smaller * cond) + (larger * (1 - cond))
+        return self._reduce(v)
 
 
 @Register.criterion()
@@ -70,11 +82,10 @@ class CrossEntropyCriterion(AbstractCriterion):
     Cross-Entropy with optionally smoothed labels
     """
 
-    def __init__(self, args: Namespace, data_set: AbstractDataSet):
-        super().__init__(args, data_set)
+    def __init__(self, data_set: AbstractDataSet, **kwargs):
+        super().__init__(data_set, **kwargs)
+        assert isinstance(data_set, AbstractDataSet), "A data set is required to figure out the number of classes"
         self.num_classes = data_set.num_classes()
-        self.smoothing_epsilon = self._parsed_argument('smoothing_epsilon', args)
-        self.ignore_index = self._parsed_argument('ignore_index', args)
         self.smoothing = self.smoothing_epsilon > 0
 
     @classmethod
@@ -94,11 +105,11 @@ class CrossEntropyCriterion(AbstractCriterion):
         log_prob = F.log_softmax(outputs, dim=1)
         if len(targets.shape) == 1:
             if not self.smoothing:
-                return F.nll_loss(log_prob, targets, ignore_index=self.ignore_index)
+                return F.nll_loss(log_prob, targets, ignore_index=self.ignore_index, reduction=self.reduction)
             targets = torch.zeros_like(log_prob).scatter_(1, targets.unsqueeze(1), 1)
         if self.smoothing:
             targets = (1 - self.smoothing_epsilon) * targets + self.smoothing_epsilon / self.num_classes
         s = (-targets * log_prob)
         if self.ignore_index >= 0:
             s = s * (targets != self.ignore_index)
-        return s.mean(0).sum()
+        return self._reduce(s).sum()

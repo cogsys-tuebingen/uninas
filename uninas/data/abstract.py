@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from uninas.utils.torch.loader import InfIterator, MultiLoader, InterleavedLoader
-from uninas.utils.args import ArgsInterface, MetaArgument, Argument, Namespace, find_in_args, ArgsTreeNode
+from uninas.utils.args import ArgsInterface, MetaArgument, Argument, Namespace, find_in_args
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.shape import Shape
 from uninas.utils.loggers.python import LoggerManager
@@ -477,6 +477,14 @@ class AbstractDataSet(ArgsInterface):
     def _get_fake_test_data(self, data_transforms: transforms.Compose, label_transforms: transforms.Compose)\
             -> Union[torch.utils.data.Dataset, None]:
         return None
+
+    def undo_label_normalization(self, labels: Union[torch.Tensor, np.array]) -> Union[torch.Tensor, np.array]:
+        """
+        Undo possible normalization for the labels
+        :param labels: [batch, ...]
+        """
+        assert self.is_regression()
+        return labels
 
     @classmethod
     def is_on_images(cls) -> bool:
