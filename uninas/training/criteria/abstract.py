@@ -9,7 +9,9 @@ class AbstractCriterion(nn.Module, ArgsInterface):
     def __init__(self, data_set: Union[AbstractDataSet, None], **kwargs):
         nn.Module.__init__(self)
         ArgsInterface.__init__(self)
-        for k, v in kwargs.items():
+        defaults = self.parsed_argument_defaults()
+        defaults.update(kwargs)
+        for k, v in defaults.items():
             self.__setattr__(k, v)
 
     @classmethod
