@@ -1,7 +1,6 @@
 from typing import Iterable, Tuple
-import torch.nn as nn
 from torch.optim.optimizer import Optimizer
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.models.networks.abstract import AbstractNetwork
 from uninas.training.clones.abstract import AbstractMethodClone
 from uninas.training.optimizers.abstract import WrappedOptimizer

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from torch.nn.parallel.scatter_gather import scatter
-from uninas.training.devices.abstract import AbstractDevicesManager, AbstractDeviceMover, TensorOrList
+from uninas.training.devices.abstract import AbstractDevicesManager, AbstractDeviceMover, T
 from uninas.utils.args import Argument
 from uninas.register import Register
 
@@ -12,6 +12,11 @@ class CudaDeviceMover(AbstractDeviceMover):
     """
     handle data flow to specific CUDA devices
     """
+
+    def set_rank(self):
+        """ set the rank (in distributed training) to all available remaining devices """
+        assert self.get_num_devices() == 1
+        torch.cuda.set_device(self.get_indices()[0])
 
     def empty_cache(self):
         """
@@ -41,7 +46,7 @@ class CudaDeviceMover(AbstractDeviceMover):
         assert self.get_num_devices() == 1
         return module.cuda(device=self.indices[0])
 
-    def _move(self, t: TensorOrList) -> TensorOrList:
+    def _move(self, t: T) -> T:
         """ move (nested) tensors to the assigned devices """
         return scatter(t, target_gpus=self.indices)[0]
 

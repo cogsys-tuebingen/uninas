@@ -80,11 +80,16 @@ class ConfusionMatrixMetric(AbstractAccumulateMetric):
             Argument('ignore_prediction_index', default=-999, type=int, help='if the network predicts this index, choose the next most-likely prediction instead.'),
         ]
 
-    def _viz_stats(self, save_dir: str, key: str, prefix: str, stats: dict):
-        """ visualize this metric """
+    def _viz_stats(self, save_path: str, stats: dict):
+        """
+        visualize this metric
+
+        :param save_path: where to save
+        :param stats: accumulated stats throughout the _evaluate() calls, after calling _update_stats() on them
+        :return:
+        """
         matrix = stats['matrix'].detach().cpu().numpy()
-        path = '%s/%s/%s_cm.pdf' % (save_dir, prefix, key)
-        save_confusion_matrix(path, matrix, classes=self.class_names)
+        save_confusion_matrix("%s_cm.pdf" % save_path, matrix, classes=self.class_names)
 
     def _evaluate(self, net: AbstractNetwork, inputs: torch.Tensor,
                   logits: [torch.Tensor], targets: torch.Tensor) -> {str: ResultValue}:

@@ -6,7 +6,6 @@ from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from uninas.optimization.benchmarks.mini.result import MiniResult
 from uninas.optimization.hpo.uninas.values import ValueSpace, SpecificValueSpace
 from uninas.utils.args import ArgsInterface, Namespace, Argument
-from uninas.utils.loggers.exp import LightningLoggerBase
 from uninas.utils.loggers.python import LoggerManager
 from uninas.utils.paths import maybe_download
 from uninas.register import Register
@@ -106,9 +105,9 @@ class MiniNASBenchmark(ArgsInterface):
         """ lower and upper limits (both included) for pymoo """
         space = self.get_value_space()
         lower, upper = [], []
-        for s in space.values:
-            lower.append(s.min())
-            upper.append(s.max())
+        for s in space.get_values():
+            lower.append(s.get_min_value())
+            upper.append(s.get_max_value())
         return np.array(lower), np.array(upper)
 
     def get_all(self) -> [MiniResult]:
@@ -165,8 +164,9 @@ class MiniNASBenchmark(ArgsInterface):
                     start, end = group_size * i, min(group_size * (i + 1), len(all_values))
                     idx = np.arange(start, end)
                     group = all_values[idx]
-                    pareto_idx = nds.do(group, only_non_dominated_front=True) + start
-                    best_idx.append(pareto_idx)
+                    if group.shape[0] > 0:
+                        pareto_idx = nds.do(group, only_non_dominated_front=True) + start
+                        best_idx.append(pareto_idx)
                 # concat subgroups and find best
                 best_idx = np.concatenate(best_idx, axis=0)
                 pareto_idx = nds.do(all_values[best_idx], only_non_dominated_front=True)
@@ -202,13 +202,11 @@ class MiniNASBenchmark(ArgsInterface):
             print_fun('-'*180)
             r.print(print_fun=print_fun)
 
-    def log_result(self, result: MiniResult, logger: LightningLoggerBase):
-        fmt = "bench_{name}/{ds}/{key}"
+    def get_result_dict(self, result: MiniResult) -> {str: float}:
         log_dct = dict()
-        for key, dct in result.named_dicts().items():
-            for ds, v in dct.items():
-                log_dct[fmt.format(name=self.bench_name, ds=ds, key=key)] = v
-        logger.log_metrics(log_dct, step=200)
+        for k, v in result.get_log_dict().items():
+            log_dct['bench/%s/%s' % (self.bench_name, k)] = v
+        return log_dct
 
     def is_tabular(self) -> bool:
         return Register.get_my_kwargs(self.__class__).get('tabular', False)

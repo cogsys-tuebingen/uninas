@@ -1,7 +1,7 @@
 """
 Convenience wrapper for a NAS network,
 - bundle functions for arc_params / net_params
-- automatically call WeightHelper(s) each forward pass, to update / sample architecture weights
+- automatically call WeightStrategy(s) each forward pass, to update / sample architecture weights
 - saving + restoring this also keeps trained architecture weights
 - track used parameters/buffers depending on architecture indices
 """
@@ -11,8 +11,8 @@ from typing import Union
 import torch
 import torch.nn as nn
 from uninas.modules.networks.abstract import AbstractNetworkBody
-from uninas.methods.strategies.abstract import AbstractWeightStrategy
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.abstract_strategy import AbstractWeightStrategy
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.models.networks.uninas.abstract import AbstractUninasNetwork
 from uninas.utils.args import MetaArgument, Namespace
 from uninas.utils.shape import Shape, ShapeList
@@ -190,9 +190,9 @@ class SearchUninasNetwork(AbstractUninasNetwork):
 
     def named_net_arc_parameters(self) -> (list, list):
         # all named parameters
-        net_params, arc_params, duplicate_idx = list(self.net.named_parameters()), [], []
-        for ws in self.strategies:
-            arc_params += list(ws.named_parameters())
+        net_params = list(self.net.named_parameters())
+        arc_params = list(self.strategy_manager.named_parameters())
+        duplicate_idx = []
         # remove arc parameters from the network
         for an, ap in arc_params:
             for idx, (n, p) in enumerate(net_params):

@@ -12,17 +12,17 @@
     "{cls_data}.dir": "{path_data}/profiling/HW-NAS/",
     "{cls_data}.file_name": "ImageNet16-120-raspi4_latency.pt",
     "{cls_data}.cast_one_hot": true,
-    "{cls_data}.scale": 1.0,
+    "{cls_data}.normalize_labels": true,
     "{cls_data}.train_num": -1,
 
     "cls_augmentations": "",
 
     "cls_model": "RegressionXGBoostModel",
 
-    "cls_metrics": "CriterionMetric, CriterionMetric, CriterionMetric, CriterionMetric, CorrelationsMetric",
-    "{cls_metrics#0}.criterion": "RelativeL1Criterion",
-    "{cls_metrics#1}.criterion": "L1Criterion",
-    "{cls_metrics#2}.criterion": "L2Criterion",
-    "{cls_metrics#3}.criterion": "Huber1Criterion",
-    "{cls_metrics#4}.correlations": "KendallTauNasMetric, SpearmanNasMetric"
+    "cls_metrics": "CriterionMetric, CriterionMetric, CorrelationsMetric, FitDistributionsMetric",
+    "{cls_metrics#0}.criterion": "L1Criterion",
+    "{cls_metrics#1}.criterion": "L2Criterion",
+    "{cls_metrics#2}.correlations": "KendallTauNasMetric, SpearmanNasMetric",
+    "{cls_metrics#3}.fit_normal": true,
+    "{cls_metrics#3}.test_ks": true
 }

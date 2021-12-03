@@ -70,6 +70,10 @@ class AbstractModel(ArgsInterface):
         """ create this model from a state dict """
         raise NotImplementedError
 
+    def prepare_predict(self, device: str) -> 'AbstractModel':
+        """ place the model on some hardware device, go eval mode """
+        return self
+
     def fit(self, data: np.array, labels: np.array):
         """
         fit the model to data+labels

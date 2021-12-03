@@ -17,7 +17,7 @@ beware that we are using fake data
 
 # single/multi path nets
 # config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/fairnas.run_config"
-config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/fairnas_shared.run_config"
+# config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/fairnas_shared.run_config"
 # config_files = "{path_conf_tasks}/s1_random.run_config, {path_conf_net_search}/fairnas_small.run_config"
 # config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/test_small_net.run_config"
 # config_files = "{path_conf_tasks}/s1_random.run_config, {path_conf_net_search}/scarletnas.run_config"
@@ -31,6 +31,7 @@ config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/
 # config_files = "{path_conf_tasks}/s3.run_config"
 # config_files = "{path_conf_tasks}/s3_extract_s1.run_config"
 # config_files = "{path_conf_tasks}/s3rms.run_config"
+# config_files = "{path_conf_tasks}/s3_labpal.run_config"
 
 # distill
 # config_files = "{path_conf_tasks}/dna1.run_config, {path_conf_net_search}/fairnas.run_config"
@@ -41,14 +42,18 @@ config_files = "{path_conf_tasks}/s1_fairnas.run_config, {path_conf_net_search}/
 # cream of the crop search
 # config_files = "{path_conf_tasks}/cream1.run_config, {path_conf_net_search}/fairnas.run_config"
 
+# search + retrain in one
+config_files = "{path_conf_tasks}/dsnas_imagenet.run_config, {path_conf_net_search}/fairnas.run_config"
+
 # profile
 # config_files = "{path_conf_tasks}/profile_macs.run_config, {path_conf_net_search}/fairnas.run_config"
 
 # further bench-related tasks
 # config_files = "{path_conf_bench_tasks}/s2_create_net_bench.run_config"
 
-# fit classic
+# fit profiling data
 # config_files = "{path_conf_tasks}/fit_classic.run_config"
+# config_files = "{path_conf_tasks}/fit_net.run_config"
 
 
 changes = {

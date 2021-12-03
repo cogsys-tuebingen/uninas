@@ -34,9 +34,11 @@ class AbstractStem(AbstractArgsModule):
         assert cls._num_outputs is not None, "Stem class must define number of outputs"
         return cls._num_outputs
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
+        n = 0
         for m in self.base_modules(recursive=False):
-            m.set_dropout_rate(p)
+            n += m.set_dropout_rate(p)
+        return n
 
     def build(self, s_in: Shape) -> ShapeList:
         return super().build(s_in)

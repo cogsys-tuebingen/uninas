@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from uninas.modules.mixed.mixedop import AbstractDependentMixedOp
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.utils.shape import Shape, ShapeOrList
 from uninas.utils.torch.misc import make_divisible
 from uninas.register import Register
@@ -17,27 +17,24 @@ class AbstractAttentionMixedOp(AbstractDependentMixedOp):
 
     this implementation can nearly double the required training time and has not shown an improvement over the baseline.
     """
-    _depth = None
     _num_layers = None
     _expansion_width = None
     _expansion_act_fun = None
     _final_act_fun = None
     _include_self = False
 
-    def __init__(self, submodules: list, name: str, strategy_name: str):
+    def __init__(self, submodules: list, priors: list, name: str, strategy_name: str):
         """
         :param submodules: list or nn.ModuleList of choices
+        :param priors: list of indices, which prior candidates to consider for additional super-network weights
         :param name: name of the architecture weight
         :param strategy_name: name of the architecture strategy to use
         """
-        assert None not in [self._depth, self._final_act_fun], "this class should not be initialized directly"
-        super().__init__(submodules, name, strategy_name)
+        super().__init__(submodules, priors, name, strategy_name)
         # store previous names (and maybe current one), get their number of choices, no need to store the own name
         sm = StrategyManager()
-        self._all_prev_names = sm.ordered_names(unique=False)[-self._depth - 1:]
-        if not self._include_self:
-            self._all_prev_names = self._all_prev_names[:-1]
-        self._all_prev_sizes = [sm.get_num_weight_choices(n) for n in self._all_prev_names]
+        prev_names = self._get_prev_names(name, priors, self._include_self)
+        self._all_prev_sizes = [sm.get_num_weight_choices(n) for n in prev_names]
         self._eye = np.eye(N=max(self._all_prev_sizes + [1]))
         self._attention_op = None
         self._expand_axis = []
@@ -77,14 +74,13 @@ class AbstractAttentionMixedOp(AbstractDependentMixedOp):
 
 
 @Register.network_mixed_op()
-class AttentionD1SigmoidMixedOp(AbstractAttentionMixedOp):
+class AttentionSigmoidMixedOp(AbstractAttentionMixedOp):
     """
     all op choices on one path in parallel,
     the weight strategy decides which results to compute and combine
 
     in addition, apply a channel-weighting, depending on the previous arc choice
     """
-    _depth = 1
     _num_layers = 1
     _expansion_width = 2
     _expansion_act_fun = 'relu'
@@ -93,39 +89,7 @@ class AttentionD1SigmoidMixedOp(AbstractAttentionMixedOp):
 
 
 @Register.network_mixed_op()
-class AttentionD2SigmoidMixedOp(AbstractAttentionMixedOp):
-    """
-    all op choices on one path in parallel,
-    the weight strategy decides which results to compute and combine
-
-    in addition, apply a channel-weighting, depending on the previous two arc choices
-    """
-    _depth = 2
-    _num_layers = 1
-    _expansion_width = 2
-    _expansion_act_fun = 'relu'
-    _final_act_fun = 'sigmoid'
-    _include_self = False
-
-
-@Register.network_mixed_op()
-class AttentionD3SigmoidMixedOp(AbstractAttentionMixedOp):
-    """
-    all op choices on one path in parallel,
-    the weight strategy decides which results to compute and combine
-
-    in addition, apply a channel-weighting, depending on the previous two arc choices
-    """
-    _depth = 3
-    _num_layers = 1
-    _expansion_width = 2
-    _expansion_act_fun = 'relu'
-    _final_act_fun = 'sigmoid'
-    _include_self = False
-
-
-@Register.network_mixed_op()
-class AttentionD1SSigmoidMixedOp(AbstractAttentionMixedOp):
+class AttentionSSigmoidMixedOp(AbstractAttentionMixedOp):
     """
     all op choices on one path in parallel,
     the weight strategy decides which results to compute and combine
@@ -141,39 +105,7 @@ class AttentionD1SSigmoidMixedOp(AbstractAttentionMixedOp):
 
 
 @Register.network_mixed_op()
-class AttentionD2SSigmoidMixedOp(AbstractAttentionMixedOp):
-    """
-    all op choices on one path in parallel,
-    the weight strategy decides which results to compute and combine
-
-    in addition, apply a channel-weighting, depending on the previous arc choice
-    """
-    _depth = 2
-    _num_layers = 1
-    _expansion_width = 2
-    _expansion_act_fun = 'relu'
-    _final_act_fun = 'sigmoid'
-    _include_self = True
-
-
-@Register.network_mixed_op()
-class AttentionD3SSigmoidMixedOp(AbstractAttentionMixedOp):
-    """
-    all op choices on one path in parallel,
-    the weight strategy decides which results to compute and combine
-
-    in addition, apply a channel-weighting, depending on the previous arc choice
-    """
-    _depth = 3
-    _num_layers = 1
-    _expansion_width = 2
-    _expansion_act_fun = 'relu'
-    _final_act_fun = 'sigmoid'
-    _include_self = True
-
-
-@Register.network_mixed_op()
-class Attention2x1D1SSigmoidMixedOp(AbstractAttentionMixedOp):
+class Attention2x1SSigmoidMixedOp(AbstractAttentionMixedOp):
     """
     all op choices on one path in parallel,
     the weight strategy decides which results to compute and combine
@@ -181,38 +113,6 @@ class Attention2x1D1SSigmoidMixedOp(AbstractAttentionMixedOp):
     in addition, apply a channel-weighting, depending on the previous arc choice
     """
     _depth = 1
-    _num_layers = 2
-    _expansion_width = 1
-    _expansion_act_fun = 'relu'
-    _final_act_fun = 'sigmoid'
-    _include_self = True
-
-
-@Register.network_mixed_op()
-class Attention2x1D2SSigmoidMixedOp(AbstractAttentionMixedOp):
-    """
-    all op choices on one path in parallel,
-    the weight strategy decides which results to compute and combine
-
-    in addition, apply a channel-weighting, depending on the previous arc choice
-    """
-    _depth = 2
-    _num_layers = 2
-    _expansion_width = 1
-    _expansion_act_fun = 'relu'
-    _final_act_fun = 'sigmoid'
-    _include_self = True
-
-
-@Register.network_mixed_op()
-class Attention2x1D3SSigmoidMixedOp(AbstractAttentionMixedOp):
-    """
-    all op choices on one path in parallel,
-    the weight strategy decides which results to compute and combine
-
-    in addition, apply a channel-weighting, depending on the previous arc choice
-    """
-    _depth = 3
     _num_layers = 2
     _expansion_width = 1
     _expansion_act_fun = 'relu'

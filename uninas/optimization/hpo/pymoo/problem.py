@@ -14,11 +14,14 @@ class PymooProblem(Problem):
         self.strategy_name = strategy_name
         super().__init__(n_obj=sum([1 if e.is_objective() else 0 for e in self.estimators]),
                          n_constr=sum([1 if e.is_constraint() else 0 for e in self.estimators]),
-                         elementwise_evaluation=True,
+                         elementwise_evaluation=False,
                          **kwargs)
 
+    def get_estimators(self) -> [AbstractEstimator]:
+        return self.estimators
+
     def objectives(self) -> [AbstractEstimator]:
-        return [e for e in self.estimators if e.is_objective()]
+        return [e for e in self.get_estimators() if e.is_objective()]
 
     def objective_labels(self, only_minimize=True) -> [str]:
         return [e.name(only_minimize) for e in self.objectives()]
@@ -33,17 +36,27 @@ class PymooProblem(Problem):
         return np.array([e.get_ref_point(default=d) for e, d in zip(self.objectives(), default)])
 
     def _evaluate(self, x: np.array, out: dict, *args, **kwargs):
-        values, constraints, in_constraints = [], [], True
-        for e in self.estimators:
-            v, c = e.evaluate_pymoo(x, in_constraints, strategy_name=self.strategy_name)
-            if v is not None:
-                values.append(v)
+        """
+        evaluate a batch of parameters on the problem
+
+        :param x: batch of parameters to evaluate
+        :param out: dict to write to
+                    ['F'] function evaluations
+                    ['G'] constraints, violated where >0
+        :param args:
+        :param kwargs:
+        """
+        results, constraints, in_constraints = [], [], np.ones(shape=(x.shape[0],), dtype=np.bool)
+        for e in self.get_estimators():
+            r, c = e.evaluate_pymoo(x, in_constraints=in_constraints, strategy_name=self.strategy_name)
+            results.append(r)
             if c is not None:
-                in_constraints = in_constraints and c < 0
+                in_constraints &= c
                 constraints.append(c)
-        out["F"] = np.array(values)
+        out["F"] = np.column_stack(results)
         if len(constraints) > 0:
-            out["G"] = np.array(constraints)
+            # set -1 where everything is fine and 1 where the constraint is violated
+            out["G"] = -(np.column_stack(constraints).astype(np.float32) - 0.5) * 2
 
     def plottable_pareto_front(self) -> (np.array, np.array):
         return [], []

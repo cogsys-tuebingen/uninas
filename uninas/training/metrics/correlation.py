@@ -23,7 +23,7 @@ class CorrelationsMetric(AbstractAccumulateMetric):
         return torch.cat(tensors, dim=0)
 
     @classmethod
-    def from_args(cls, args: Namespace, index: int, data_set: AbstractDataSet, head_weights: list) -> 'AbstractAccumulateMetric':
+    def from_args(cls, args: Namespace, index: int, data_set: AbstractDataSet, head_weights: list) -> AbstractAccumulateMetric:
         """
         :param args: global arguments namespace
         :param index: index of this metric
@@ -67,15 +67,38 @@ class CorrelationsMetric(AbstractAccumulateMetric):
             "targets": ResultValue(targets),
         }
 
-    def _compute_stats(self, save_dir: str, key: str, stats: dict) -> dict:
-        logits, targets = stats["logits"].cpu().numpy(), stats["targets"].cpu().numpy()
-        return {c.short_name(): ResultValue(c.correlation_value(logits, targets), count=targets.shape[0])
-                for c in self.correlation_cls}
+    def _update_stats(self, stats: dict) -> dict:
+        """
+        pre-compute things on the stats that may be shared across log/viz
 
-    def _viz_stats(self, save_dir: str, key: str, prefix: str, stats: dict):
-        """ visualize this metric """
-        logits, targets = stats["logits"].cpu().numpy(), stats["targets"].cpu().numpy()
-        label = ", ".join(["%s=%.2f" % (c.short_name(), c.correlation_value(logits, targets)) for c in self.correlation_cls])
+        :param stats: accumulated stats throughout the _evaluate calls
+        :return: stats
+        """
+        new_stats = {k: v.cpu() for k, v in stats.items()}
+        new_stats["correlations"] = {c.short_name(): c.correlation_value(new_stats["logits"].numpy(), new_stats["targets"].numpy())
+                                     for c in self.correlation_cls}
+        return new_stats
+
+    def _log_stats(self, stats: dict) -> dict:
+        """
+        compute this metric
+
+        :param stats: accumulated stats throughout the _evaluate() calls, after calling _update_stats() on them
+        :return: log dict
+        """
+        count = stats["logits"].shape[0]
+        return {k: ResultValue(v, count=count) for k, v in stats["correlations"].items()}
+
+    def _viz_stats(self, save_path: str, stats: dict):
+        """
+        visualize this metric
+
+        :param save_path: where to save
+        :param stats: accumulated stats throughout the _evaluate() calls, after calling _update_stats() on them
+        :return:
+        """
+        logits, targets = stats["logits"].numpy(), stats["targets"].numpy()
+        label = ", ".join(["%s=%.2f" % (k, v) for k, v in stats["correlations"].items()])
         x0, x1 = min(targets), max(targets)
         plt.clf()
         plt.plot((x0, x1), (x0, x1), color="red")
@@ -83,7 +106,7 @@ class CorrelationsMetric(AbstractAccumulateMetric):
         plt.legend()
         plt.xlabel("predictions")
         plt.ylabel("targets")
-        if isinstance(save_dir, str):
-            path = "%s/%s/%s.pdf" % (save_dir, prefix, key)
+        if isinstance(save_path, str):
+            path = "%s.pdf" % save_path
             os.makedirs(os.path.dirname(path), exist_ok=True)
             plt.savefig(path)

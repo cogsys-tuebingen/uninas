@@ -3,15 +3,63 @@ abstract optimizer with some default args
 """
 
 from copy import deepcopy
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional, Callable
 import torch
 import torch.nn as nn
 from torch.optim.optimizer import Optimizer
 from torch.cuda.amp import GradScaler
+from uninas.training.devices.abstract import AbstractDeviceMover
+from uninas.training.result import LogResult
 from uninas.utils.args import ArgsInterface, Argument, Namespace
 
 
+class AbstractOptimizerClosure:
+    """
+    Abstract closure (either re-usable or as factory) that can be used by optimizers.
+    It has to be prepared with the arguments for the training step (i.e. net input, ...),
+    and saves the first result it gets (the results of further calls are discarded).
+    """
+
+    def __init__(self, mover: AbstractDeviceMover, training_step: Callable):
+        self.mover = mover
+        self.training_step = training_step
+        self.training_step_args = None
+        self.training_step_kwargs = None
+        self.num_calls = 0
+        self.result = None
+
+    def prepare(self, *training_step_args, **training_step_kwargs) -> 'AbstractOptimizerClosure':
+        """
+        Add args/kwargs to the training step
+
+        :param training_step_args:
+        :param training_step_kwargs:
+        """
+        self.training_step_args = training_step_args
+        self.training_step_kwargs = training_step_kwargs
+        self.num_calls = 0
+        self.result = None
+        return self
+
+    def get_result(self) -> LogResult:
+        """
+        Get the result after the optimizer is done
+        :return: detached LogResult
+        """
+        assert self.num_calls > 0, "This closure was not called, can not have a result"
+        assert isinstance(self.result, LogResult), "The closure does not have a log result!"
+        return self.result
+
+    def __call__(self):
+        """
+        The optimizer calls the closure
+        """
+        raise NotImplementedError
+
+
 class AbstractOptimizerFunctions:
+    closure_cls = None      # closure class for the optimizer, optional
+
     def set_optimizer_lr(self, lr: float, update_initial=True, is_multiplier=False, at_index=0):
         """
         set the (initial) learning rate to 'lr'
@@ -72,6 +120,12 @@ class AbstractOptimizerFunctions:
                 filtered[k] = v
         return filtered
 
+    def get_closure(self, mover: AbstractDeviceMover, training_step: Callable) -> Optional[AbstractOptimizerClosure]:
+        """ if this optimizer requires a closure to train, return it, otherwise None """
+        if (self.closure_cls is not None) and issubclass(self.closure_cls, AbstractOptimizerClosure):
+            return self.closure_cls(mover, training_step)
+        return None
+
     # lightning compatibility
 
     def items(self):
@@ -87,7 +141,7 @@ class AbstractOptimizerFunctions:
 
 
 class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
-    optimizer_cls = None  # callable to create a torch optimizer
+    optimizer_cls = None    # callable to create a torch optimizer
 
     # creation
 
@@ -134,7 +188,7 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
         """ list arguments to add to argparse when this class (or a child class) is chosen """
         return super().args_to_add(index) + [
             Argument('weight_decay', default=0.0, type=float, help='weight decay'),
-            Argument('weight_decay_filter', default='True', type=str, help='filter bias/bn from decay', is_bool=True),
+            Argument('weight_decay_filter', default='True', type=str, help='filter bias/bn and architecture weights from decay', is_bool=True),
             Argument('clip_abs_value', default=-1, type=float, help='clip gradient to +- value, <=0 to disable'),
             Argument('clip_norm_value', default=-1, type=float, help='clip gradient norm value, <=0 to disable'),
             Argument('clip_norm_type', default=2, type=float, help='clip gradient norm type'),
@@ -143,14 +197,14 @@ class WrappedOptimizer(ArgsInterface, AbstractOptimizerFunctions, Optimizer):
     @classmethod
     def _decay_and_params(cls, named_params: list, weight_decay: float, weight_decay_filter: bool) -> (list, float):
         """
-        possibly filter bias and bn params so that they don't have weight decay
+        possibly filter bias, bn and architecture params so that they don't have weight decay
         the original (?) idea is from https://github.com/rwightman/pytorch-image-models
         """
         if weight_decay_filter and weight_decay > 0.0:
             decay, no_decay = [], []
             for n, param in named_params:
                 # keep params with no_grad, may be enabled later
-                if len(param.shape) == 1 or n.endswith('.bias'):
+                if len(param.shape) == 1 or n.endswith('.bias') or n.startswith('strategies'):
                     no_decay.append(param)
                 else:
                     decay.append(param)
@@ -303,6 +357,12 @@ class MultiWrappedOptimizer(AbstractOptimizerFunctions):
     def step_all(self, closure=None):
         for o in self.optimizers:
             o.step(closure=closure)
+
+    def get_closure(self, mover: AbstractDeviceMover, training_step: Callable) -> Optional[AbstractOptimizerClosure]:
+        """ if this optimizer requires a closure to train, return it, otherwise None """
+        closures = [opt.get_closure(mover, training_step) for opt in self.optimizers]
+        assert all([c is None for c in closures]), "Closures are not implemented for MultiWrappedOptimizer yet"
+        return None
 
     # utilities
 

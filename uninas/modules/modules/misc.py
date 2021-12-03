@@ -46,9 +46,11 @@ class MultiModules(AbstractModule):
         submodules = submodules if isinstance(submodules, nn.ModuleList) else nn.ModuleList(submodules)
         self._add_to_submodule_lists(submodules=submodules)
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
+        n = 0
         for m in self.submodules:
-            m.set_dropout_rate(p)
+            n += m.set_dropout_rate(p)
+        return n
 
     def config(self, minimize=False, **_) -> dict:
         if len(self.submodules) == 1 and minimize:

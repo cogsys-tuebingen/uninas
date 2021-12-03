@@ -46,7 +46,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -72,7 +73,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -98,7 +100,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -124,7 +127,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -150,7 +154,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -176,7 +181,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -202,7 +208,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -228,7 +235,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -254,7 +262,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -280,7 +289,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -306,7 +316,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -332,7 +343,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -358,7 +370,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -384,7 +397,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -410,7 +424,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -436,7 +451,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -462,7 +478,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -488,7 +505,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -514,7 +532,8 @@
               "bn_affine": true,
               "act_fun": "relu6",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -569,7 +588,8 @@
             "bn_affine": true,
             "act_fun": "relu6",
             "act_inplace": true,
-            "att_dict": null
+            "att_dict": null,
+            "fused": false
           }
         }
       }

@@ -1,5 +1,5 @@
 import torch
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.clones.abstract import AbstractMethodClone
 from uninas.utils.args import Argument
 from uninas.register import Register

@@ -4,6 +4,7 @@ blocks as used in the DARTS search space
 
 import torch
 import torch.nn as nn
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.modules.modules.misc import InputChoiceWrapperModule, DropPathModule
 from uninas.modules.blocks.abstract import AbstractBlock, SearchCNNBlockInterface
 from uninas.modules.layers.common import SkipLayer
@@ -59,10 +60,11 @@ class DartsCNNSearchBlock(DartsCNNBlock, SearchCNNBlockInterface):
         """ select the paths with the highest softmax weights, despite them being evaluated separately (like DARTS) """
         if finalize:
             # DARTS style, we enforce having two different inputs for each block, can not model e.g. NASNet
+            sm = StrategyManager()
             weights, modules = [], []
             for i, (path_name, op) in enumerate(zip(self.path_names, self.ops)):
                 # for each block: remove all paths using the Zero, take the highest weighted remaining one
-                w_sm = op.module.wrapped.ws.get_weight_sm(path_name)
+                w_sm = sm.get_strategy_by_weight(path_name).get_weight_sm(path_name)
                 for j, z in enumerate(op.module.wrapped.is_layer_path(ZeroLayer)):
                     if z:
                         w_sm[j].zero_()

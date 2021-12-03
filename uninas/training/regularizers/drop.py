@@ -3,7 +3,7 @@ regularizing networks during training
 """
 
 from uninas.training.regularizers.abstract import AbstractRegularizer
-from uninas.modules.networks.abstract import AbstractNetworkBody
+from uninas.models.networks.abstract import AbstractNetwork
 from uninas.modules.modules.misc import DropPathModule
 from uninas.utils.args import Argument, Namespace
 from uninas.register import Register
@@ -20,11 +20,13 @@ class DropOutRegularizer(AbstractRegularizer):
         super().__init__(args, index)
         self.prob = self._parsed_argument('prob', args, self.index)
 
-    def on_epoch_start(self, cur_epoch: int, max_epochs: int, net: AbstractNetworkBody) -> dict:
+    def on_epoch_start(self, cur_epoch: int, max_epochs: int, net: AbstractNetwork) -> dict:
+        dct = {self._dict_key('p'): self.prob}
         if self._changed:
             self._changed = False
-            net.set_dropout_rate(p=self.prob)
-        return {self._dict_key('p'): self.prob}
+            dct['num'] = n = net.set_dropout_rate(p=self.prob)
+            assert n > 0, "Should set dropout probabilities, but found no dropout layer to affect"
+        return dct
 
     @classmethod
     def args_to_add(cls, index=None) -> [Argument]:
@@ -69,7 +71,7 @@ class DropPathRegularizer(AbstractRegularizer):
             Argument('drop_id_paths', default='False', type=str, help='can drop identity paths', is_bool=True),
         ]
 
-    def on_start(self, max_epochs: int, net: AbstractNetworkBody) -> dict:
+    def on_start(self, max_epochs: int, net: AbstractNetwork) -> dict:
         num = 0
         for m in net.base_modules_by_condition(lambda m2: isinstance(m2, DropPathModule), recursive=True):
             m.set_drop_ids(self.drop_id_paths)
@@ -78,7 +80,7 @@ class DropPathRegularizer(AbstractRegularizer):
         return {self._dict_key('drop_id_paths'): 1 if self.drop_id_paths else 0,
                 self._dict_key('num_modules'): num}
 
-    def on_epoch_start(self, cur_epoch: int, max_epochs: int, net: AbstractNetworkBody) -> dict:
+    def on_epoch_start(self, cur_epoch: int, max_epochs: int, net: AbstractNetwork) -> dict:
         dp = (self.max_prob - self.min_prob) * cur_epoch / max_epochs + self.min_prob
         for m in net.base_modules_by_condition(lambda m2: isinstance(m2, DropPathModule), recursive=True):
             m.set_drop_rate(dp)

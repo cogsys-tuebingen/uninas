@@ -10,12 +10,14 @@ see https://github.com/microsoft/Cream/blob/main/tools/generate_subImageNet.py
 
 
 import os
-from uninas.utils.paths import replace_standard_paths
+from uninas.utils.paths import initialize_paths, replace_standard_paths
 
 
 if __name__ == '__main__':
     # vars to change
+    initialize_paths()
     subImageNet_name = 'subImageNet'
+    num_classes = 100
     splits = {
         'train': (0, 250),
         'val': (250, 500),  # originally only 250-300
@@ -33,8 +35,8 @@ if __name__ == '__main__':
         os.makedirs(class_idx_txt_path, exist_ok=True)
         subImageNet = dict()
         with open(os.path.join(class_idx_txt_path, 'subimages_list.txt'), 'w') as f:
-            subImageNet_class = classes[:100]
-            for iclass in subImageNet_class:
+            subImageNet_class = classes[:num_classes]
+            for i, iclass in enumerate(subImageNet_class):
                 class_path = os.path.join(ImageNet_train_path, iclass)
                 if not os.path.exists(
                     os.path.join(
@@ -50,6 +52,7 @@ if __name__ == '__main__':
                     raw_path = os.path.join(ImageNet_train_path, iclass, image)
                     new_ipath = os.path.join(data_path, subImageNet_name, key, iclass, image)
                     os.system('cp {} {}'.format(raw_path, new_ipath))
+            print("copied class %d/%d" % (i+1, num_classes))
 
         sub_classes = sorted(subImageNet.keys())
         with open(os.path.join(class_idx_txt_path, 'info.txt'), 'w') as f:

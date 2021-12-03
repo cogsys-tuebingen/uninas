@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from typing import Union
 from collections import OrderedDict
-from uninas.methods.strategies.manager import StrategyManagerDefault
+from uninas.methods.strategy_manager import StrategyManagerDefault
 from uninas.modules.networks.abstract import AbstractNetworkBody
 from uninas.modules.modules.abstract import AbstractModule
 from uninas.modules.cells.abstract import AbstractCell, SearchCellInterface, FixedSearchCellInterface
@@ -69,13 +69,14 @@ class StackedCellsNetworkBody(AbstractNetworkBody):
     def str(self, *args, **kwargs):
         return super().str(*args, **kwargs, add_sl=dict(Cells=self.cells))
 
-    def set_dropout_rate(self, p=None, stem_p=None, cells_p=None):
+    def set_dropout_rate(self, p=None, stem_p=None, cells_p=None) -> int:
         """ set the dropout rate of every dropout layer to p, no change for p=None, only change the head by default """
-        self.stem.set_dropout_rate(stem_p)
+        n = self.stem.set_dropout_rate(stem_p)
         for m in self.cells:
-            m.set_dropout_rate(cells_p)
+            n += m.set_dropout_rate(cells_p)
         for m in self.heads:
-            m.set_dropout_rate(p)
+            n += m.set_dropout_rate(p)
+        return n
 
     def get_head_weightings(self) -> [float]:
         """ get the weights of all heads, in order (the last head at -1 has to be last) """

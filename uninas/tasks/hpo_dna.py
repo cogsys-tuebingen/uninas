@@ -1,5 +1,5 @@
 from uninas.tasks.hpo_self import NetHPOTask, SelfHPOUtils
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.optimization.hpo.uninas.algorithms.randomly import RandomHPO, RandomlyEval
 from uninas.optimization.hpo.uninas.population import Population
 from uninas.optimization.hpo.uninas.values import DiscreteValues, ValueSpace
@@ -57,7 +57,7 @@ class DnaHPOTask(NetHPOTask):
         strategies = sm.get_strategies()
         populations = []
         for sb in self.get_method().sync_blocks.blocks:
-            s = strategies.get(sb.name)
+            s = strategies[sb.name]
             checkpoint_dir = self.checkpoint_dir(self.save_dir + '/strategies/%s/' % s.name)
             sm.forward_const(const=0)  # reset arc to only zeros for a fair comparison
 

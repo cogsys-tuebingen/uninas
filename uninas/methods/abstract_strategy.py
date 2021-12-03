@@ -16,6 +16,7 @@ class RequestedWeight:
         self.requested_by = []
         self._num_requests = 0
         self._choice_indices = []
+        self._masked_choice_indices = set()
 
     def add_request(self, choices: nn.ModuleList = None, num_choices: int = None):
         assert isinstance(choices, nn.ModuleList) or isinstance(num_choices, int)
@@ -34,16 +35,22 @@ class RequestedWeight:
     def num_choices(self) -> int:
         return len(self._choice_indices)
 
+    def num_choices_str(self) -> str:
+        if len(self._masked_choice_indices) > 0:
+            return "%d (of %d)" % (self.num_choices(), self.num_choices() + len(self._masked_choice_indices))
+        return str(self.num_choices())
+
     def get_choices(self) -> [int]:
         return self._choice_indices.copy()
 
     def mask_index(self, idx: int):
         self._choice_indices.remove(idx)
+        self._masked_choice_indices.add(idx)
 
 
 class AbstractWeightStrategy(nn.Module, ArgsInterface):
     """
-    Storing architecture weights (if any) and defining how they are used
+    Storing architecture weights (if any) and defining how they are used in super-network forward passes
     """
 
     def __init__(self, max_epochs: int, name='default'):
@@ -54,6 +61,11 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         self._requested = {}            # {name: RequestedWeight}
         self._ordered = []              # RequestedWeights in order of requests
         self._ordered_unique = []       # RequestedWeights in order of requests, ignoring duplicates
+
+        self._losses = defaultdict(list)
+
+    def get_name(self) -> str:
+        return self.name
 
     def on_epoch_start(self, current_epoch: int):
         """ whenever the method starts a new epoch """
@@ -74,6 +86,12 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
 
     def str(self) -> str:
         return '%s("%s", %d architecture weights)' % (self.__class__.__name__, self.name, len(self._ordered_unique))
+
+    def get_log_dict(self) -> {str: float}:
+        """
+        :return: dict of values that are interesting to log
+        """
+        return {}
 
     def make_weight(self, name: str, choices: nn.ModuleList = None, num_choices: int = None):
         """
@@ -142,10 +160,6 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         """ softmax over the specified weight """
         raise NotImplementedError
 
-    def highest_value_per_weight(self) -> dict:
-        """ {name: value} of the highest weight probability value """
-        raise NotImplementedError
-
     def get_finalized_index(self, name: str) -> int:
         """ return index of the module that should constitute the new architecture, for this specific weight """
         indices = self.get_finalized_indices(name)
@@ -163,6 +177,17 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         except:
             return (0, 1.0),
 
+    def _add_loss(self, name: str, loss: torch.Tensor):
+        """ add a loss tensor to the stored losses """
+        self._losses[name].append(loss)
+
+    def get_losses(self, clear=True) -> {str, torch.Tensor}:
+        """ get loss tensors, maybe clear storage """
+        losses = {k: sum(v) for k, v in self._losses.items()}
+        if clear:
+            self._losses.clear()
+        return losses
+
     def _combine_info(self, name: str) -> Sequence:
         """ get a tuple or list of (idx, weight), instructing how to sum the path modules """
         raise NotImplementedError
@@ -171,20 +196,11 @@ class AbstractWeightStrategy(nn.Module, ArgsInterface):
         """
         combine multiple outputs into one, depending on arc weights
 
-        the try-except is only necessary since the model may perform forward passes to probe output shapes,
-        before the weight strategies are built
-
         :param name: name of the SearchModule object
         :param x: input (e.g. torch.Tensor)
         :param modules: torch.nn.Modules, may be None if module_results are available
         :return: combination of module results
         """
-        try:
-            return self._combine(name, x, modules)
-        except:
-            return modules[0](x)
-
-    def _combine(self, name: str, x, modules: [nn.Module]) -> torch.Tensor:
         raise NotImplementedError
 
     def mask_index(self, idx: int, weight_name: str = None):

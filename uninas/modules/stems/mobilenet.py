@@ -41,7 +41,7 @@ class MobileNetV2Stem(AbstractStem):
         att_dict = dict(att_cls='SqueezeExcitationChannelModule', squeeze_act=act_fun1, c_mul=se_cmul1)\
             if se_cmul1 > 0 else None
         stem1 = MobileInvertedConvLayer(k_size=kwargs.get('k_size1'), dilation=1, stride=kwargs.get('stride1'),
-                                        act_fun=act_fun1, bn_affine=True, expansion=1.0, att_dict=att_dict)
+                                        act_fun=act_fun1, bn_affine=True, expansion=1.0, att_dict=att_dict, fused=False)
         return cls(stem0, stem1, **kwargs)
 
     def _build(self, s_in: Shape) -> ShapeList:

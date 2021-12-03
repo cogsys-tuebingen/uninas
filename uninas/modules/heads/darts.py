@@ -48,7 +48,7 @@ class DartsCifarAuxHead(AbstractHead):
     CIFAR network auxiliary head as in DARTS
     """
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         return self.head_module.set_dropout_rate(p)
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:

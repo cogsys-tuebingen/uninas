@@ -9,7 +9,7 @@ args = {
     "cls_task": "SingleSearchTask",
     "{cls_task}.save_dir": "{path_tmp}/s1_toy/",
     "{cls_task}.save_del_old": True,
-    "{cls_task}.is_test_run": False,
+    "{cls_task}.is_test_run": True,
     "{cls_task}.is_deterministic": False,
 
     "cls_device": "CudaDevicesManager",  # CpuDevicesManager, CudaDevicesManager, TestCpuDevicesManager
@@ -19,10 +19,11 @@ args = {
     "{cls_trainer}.max_epochs": 10,
     "{cls_trainer}.eval_last": 2,
     "{cls_trainer}.test_last": 2,
+    # "{cls_trainer}.sharing_strategy": 'file_system',
 
-    "cls_clones": "EMAClone",
-    "{cls_clones#0}.device": "same",
-    "{cls_clones#0}.decay": 0.9,
+    # "cls_clones": "EMAClone",
+    # "{cls_clones#0}.device": "same",
+    # "{cls_clones#0}.decay": 0.9,
 
     "cls_exp_loggers": "TensorBoardExpLogger",
 
@@ -43,8 +44,8 @@ args = {
 
     "cls_augmentations": "",
 
-    "cls_method": "StrictlyFairRandomMethod",  # StrictlyFairRandomMethod, UniformRandomMethod
-    "{cls_method}.mask_indices": "",
+    "cls_method": "DSNASMethod",  # StrictlyFairRandomMethod, UniformRandomMethod, DSNASMethod
+    "{cls_method}.mask_indices": "0, 2, 4",
 
     "cls_network": "SearchUninasNetwork",
 

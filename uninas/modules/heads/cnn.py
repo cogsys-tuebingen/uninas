@@ -12,7 +12,7 @@ from uninas.register import Register
 @Register.network_head()
 class ClassificationHead(AbstractHead):
     """
-    Network output
+    Network output,
     batchnorm, global average pooling, (dropout), linear
     """
 
@@ -24,7 +24,7 @@ class ClassificationHead(AbstractHead):
             Argument('dropout', default=0.0, type=float, help='dropout, <0 to disable entirely'),
         ]
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         return self.head_module.set_dropout_rate(p)
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
@@ -54,9 +54,11 @@ class FeatureMixClassificationHead(AbstractHead):
             Argument('gap_first', default='False', type=str, help='GAP before the convolution', is_bool=True),
         ]
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         if p is not None:
             self.head_module[-2].p = p
+            return 1
+        return 0
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         before, after, squeeze = [], [], [
@@ -110,9 +112,11 @@ class SeFeatureMixClassificationHead(AbstractHead):
             Argument('bias1', default='False', type=str, help='add a bias to the final fc layer', is_bool=True),
         ]
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         if p is not None:
             self.head_module[-2].p = p
+            return 1
+        return 0
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         ops = [nn.AdaptiveAvgPool2d(1)]

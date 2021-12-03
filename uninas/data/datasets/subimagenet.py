@@ -34,3 +34,17 @@ class SubImagenetMV100Data(SubImagenet100Data):
     """
 
     length = (25000, 25000, 0)  # training, valid, test
+
+
+@Register.data_set(images=True, classification=True)
+class SubImagenetc100t1000v500Data(SubImagenet100Data):
+    """
+    Subset of the ImageNet data set with fewer classes, and fewer images per class
+    http://image-net.org/
+    https://github.com/microsoft/Cream/blob/main/tools/generate_subImageNet.py
+    This data set variation simply contains many more validation images than the original by Microsoft
+
+    A script to generate this dataset from ImageNet is in the utils
+    """
+
+    length = (100000, 50000, 0)  # training, valid, test

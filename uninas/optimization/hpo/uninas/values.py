@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from typing import List
 from copy import deepcopy
 from collections.abc import Iterable
 
@@ -7,10 +8,10 @@ from collections.abc import Iterable
 class AbstractValues:
     """ Values for the hyper-param / gene """
 
-    def min(self) -> float:
+    def get_min_value(self) -> float:
         raise NotImplementedError
 
-    def max(self) -> float:
+    def get_max_value(self) -> float:
         raise NotImplementedError
 
     def is_allowed(self, v) -> bool:
@@ -32,10 +33,10 @@ class DiscreteValues(AbstractValues):
     def size(self) -> int:
         return len(self.allowed_values)
 
-    def min(self) -> int:
+    def get_min_value(self) -> int:
         return min(self.allowed_values)
 
-    def max(self) -> int:
+    def get_max_value(self) -> int:
         return max(self.allowed_values)
 
     def is_allowed(self, v: int) -> bool:
@@ -53,8 +54,8 @@ class DiscreteValues(AbstractValues):
             self.allowed_values.remove(v)
 
     def as_one_hot(self, v: int, dtype=np.int32) -> np.array:
-        arr = np.zeros((self.max()+1,), dtype=dtype)
-        arr[v] = 1
+        arr = np.zeros((self.get_max_value() + 1,), dtype=dtype)
+        arr[int(v)] = 1
         return arr
 
     @classmethod
@@ -73,6 +74,9 @@ class ValueSpace:
 
     def __init__(self, *values: [AbstractValues]):
         self.values = values
+
+    def get_values(self) -> [AbstractValues]:
+        return self.values
 
     def num_choices(self) -> int:
         return len(self.values)
@@ -98,7 +102,7 @@ class ValueSpace:
             if isinstance(value, DiscreteValues):
                 value.remove_value(v)
 
-    def as_one_hot(self, values: tuple, dtype=np.int32) -> np.array:
+    def as_one_hot(self, values: List, dtype=np.int32) -> np.array:
         assert len(values) == self.num_choices(), "mismatching number of values to be represented as one-hot"
         return np.concatenate([val.as_one_hot(v, dtype=dtype) for val, v in zip(self.values, values)], axis=0)
 

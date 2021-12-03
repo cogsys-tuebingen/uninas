@@ -23,8 +23,8 @@ class SingleLayerCell(AbstractCell):
         super().__init__(**stored_kwargs)
         self._add_to_submodules(op=op)
 
-    def set_dropout_rate(self, p=None):
-        self.op.set_dropout_rate(p)
+    def set_dropout_rate(self, p=None) -> int:
+        return self.op.set_dropout_rate(p)
 
     def is_layer(self, cls) -> bool:
         return super().is_layer(cls) or self.op.is_layer(cls)

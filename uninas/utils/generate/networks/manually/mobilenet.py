@@ -22,7 +22,7 @@ def get_mobilenet_v2(s_in=Shape([3, 224, 224]), s_out=Shape([1000])) -> nn.Modul
     head = get_head_instance(FeatureMixClassificationHead, features=1280, act_fun='relu6')
 
     defaults = dict(k_size=3, stride=1, padding='same', expansion=6, dilation=1, bn_affine=True,
-                    act_fun='relu6', act_inplace=True, att_dict=None)
+                    act_fun='relu6', act_inplace=True, att_dict=None, fused=False)
     cell_partials, cell_order = get_passthrough_partials([
         (24, MobileInvertedConvLayer, defaults, dict(stride=2)),
         (24, MobileInvertedConvLayer, defaults, dict(stride=1)),
@@ -55,7 +55,7 @@ def get_mobilenet_v3_large100(s_in=Shape([3, 224, 224]), s_out=Shape([1000])) ->
     head = get_head_instance(FeatureMixClassificationHead, features=1280, act_fun='hswish', gap_first=True, bias=True)
 
     # weird squeeze + excitation channel numbers
-    defaults = dict(padding='same', dilation=1, bn_affine=True, act_inplace=True)
+    defaults = dict(padding='same', dilation=1, bn_affine=True, act_inplace=True, fused=False)
     se0 = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=False,
                c_mul=0.33334, squeeze_act='relu', excite_act='sigmoid', divisible=8,
                squeeze_bias=True, excite_bias=True, squeeze_bn=False)
@@ -95,7 +95,7 @@ def get_mobilenet_v3_small100(s_in=Shape([3, 224, 224]), s_out=Shape([1000])) ->
                              stride1=2, se_cmul1=0.5)
     head = get_head_instance(FeatureMixClassificationHead, features=1024, act_fun='hswish', gap_first=True, bias=True)
 
-    defaults = dict(padding='same', dilation=1, bn_affine=True, act_inplace=True)
+    defaults = dict(padding='same', dilation=1, bn_affine=True, act_inplace=True, fused=False)
     se = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=False,
               c_mul=0.25, squeeze_act='relu', excite_act='sigmoid', divisible=8,
               squeeze_bias=True, excite_bias=True, squeeze_bn=False)

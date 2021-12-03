@@ -11,7 +11,7 @@ beware that s1 is using fake data
 
 args = {
     "cls_task": "NetPymooHPOTask",
-    "{cls_task}.s1_path": "{path_tmp}/run_config/",  # run_config, s1
+    "{cls_task}.s1_path": "{path_tmp}/s1/",  # run_config, s1
 
     "{cls_task}.save_dir": "{path_tmp}/s2/",
     "{cls_task}.save_del_old": True,
@@ -89,8 +89,9 @@ if est == 1:
         "{cls_hpo_estimators#2}.maximize": False,
         # "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/tab_fairnas_latency.pt',
         # "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/rf_fairnas_latency_cpu.pt',
-        "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/xgb_fairnas_latency_cpu_oh.pt',
-        # "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/nn_fairnas_latency_cpu_oh.pt',
+        # "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/xgb_fairnas_latency_cpu_oh.pt',
+        "{cls_hpo_estimators#2}.model_file_path": '{path_profiled}/nn_fairnas_latency_cpu_oh_test.pt',
+        "{cls_hpo_estimators#2}.model_device": 'cuda:0',
         "{cls_hpo_estimators#2}.cast_one_hot": True,
     })
 

@@ -7,6 +7,7 @@ from uninas.training.schedulers.common import CosineScheduler as Scheduler
 
 if __name__ == '__main__':
     max_epochs = 50
+    fake_max_epochs = -1
     cooldown_epochs = 5
     warmup_epochs = 5
     warmup_lr = 0.0
@@ -23,6 +24,7 @@ if __name__ == '__main__':
     args.__setattr__('%s.lr' % Optimizer.__name__, init_lr)
     args.__setattr__('%s.cooldown_epochs' % Scheduler.__name__, cooldown_epochs)
     args.__setattr__('%s.warmup_epochs' % Scheduler.__name__, warmup_epochs)
+    args.__setattr__('%s.fake_num_epochs' % Scheduler.__name__, fake_max_epochs)
     args.__setattr__('%s.warmup_lr' % Scheduler.__name__, warmup_lr)
     args.__setattr__('%s.eta_min' % Scheduler.__name__, min_lr)
 

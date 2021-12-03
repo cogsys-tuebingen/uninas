@@ -8,12 +8,13 @@ simplified
  - cheaper, each forward pass can train all blocks at once
 """
 
+from typing import Callable, Optional
 import torch
 import torch.nn as nn
 from uninas.models.networks.abstract import AbstractNetwork
 from uninas.models.networks.uninas.search import SearchUninasNetwork
-from uninas.methods.abstract import AbstractOptimizationMethod
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.abstract_method import AbstractOptimizationMethod
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.training.criteria.abstract import MultiCriterion
 from uninas.training.optimizers.abstract import MultiWrappedOptimizer
 from uninas.utils.shape import Shape, ShapeList
@@ -99,6 +100,14 @@ class DnaMethod(AbstractOptimizationMethod):
     """
     Uses a teacher model to search smaller parts of the network, which imitate the teacher's outputs at certain cells.
     Each block uses its own learning rate and has a multiplier on the loss
+
+    Blockwisely Supervised Neural Architecture Search with Knowledge Distillation
+    https://arxiv.org/abs/1911.13053
+    https://github.com/changlin31/DNA
+
+    differences to the original:
+    - here only one path exists per stage, not multiple in parallel (can use e.g. skip / linear transformers)
+    - here a pareto front for each stage is built, and their combinations are searched later for a global pareto front
     """
 
     def __init__(self, hparams: Namespace):
@@ -283,8 +292,9 @@ class DnaMethod(AbstractOptimizationMethod):
         LoggerManager().get_logger().info("Weighting model block loss: %s" % str(weights))
         return weights, criterion
 
-    def optimizer_step(self, *args, epoch: int = None, optimizer: MultiWrappedOptimizer = None, **kwargs):
-        optimizer.step_all()
+    def optimizer_step(self, *args, epoch: int = None, optimizer: MultiWrappedOptimizer = None,
+                       optimizer_closure: Optional[Callable] = None, **kwargs):
+        optimizer.step_all(closure=optimizer_closure)
         self.amp_scaler.update()
         optimizer.zero_grad_all()
 

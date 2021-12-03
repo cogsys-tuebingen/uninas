@@ -1,6 +1,6 @@
 import json
 import torch
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.simple import SimpleTrainer
 from uninas.utils.loggers.python import Logger, log_headline
 from uninas.utils.paths import get_task_config_path

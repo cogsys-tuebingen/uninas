@@ -28,6 +28,7 @@ class PymooResultWrapper:
         return cls(result)
 
     def sorted_best(self, reverse=False) -> [SingleResult]:
+        assert (self.result.X is not None) and (self.result.F is not None), "No valid parameters / results found"
         best = [SingleResult(x, f, g, cv)
                 for x, f, g, cv in zip(self.result.X, self.result.F, self.result.G, self.result.CV)]
         return sorted(best, reverse=reverse, key=lambda sr: sr.f[0])

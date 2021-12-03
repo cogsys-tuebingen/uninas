@@ -24,17 +24,6 @@ class L1Criterion(AbstractCriterion):
 
 
 @Register.criterion()
-class RelativeL1Criterion(AbstractCriterion):
-    """
-    Compute the mean (L1(output, target) / target)
-    """
-
-    def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        l1 = F.l1_loss(outputs, maybe_one_hot(outputs, targets), reduction="none")
-        return self._reduce(l1 / targets)
-
-
-@Register.criterion()
 class L2Criterion(AbstractCriterion):
     """
     Mean squared difference between outputs and targets
@@ -47,9 +36,9 @@ class L2Criterion(AbstractCriterion):
 @Register.criterion()
 class HuberCriterion(AbstractCriterion):
     """
-    Mean over all (output, target) pairs:
-        L1 loss if L1(output, target) < delta
-        L2 loss if L1(output, target) >= delta
+    Effectively the mean over all (output, target) pairs:
+        L1 loss if L1(output, target) > delta
+        L2 loss if L1(output, target) <= delta
 
     https://en.wikipedia.org/wiki/Huber_loss
     https://pytorch.org/docs/master/generated/torch.nn.HuberLoss.html

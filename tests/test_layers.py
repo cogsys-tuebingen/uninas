@@ -1,8 +1,8 @@
 import unittest
 import torch
 import torch.nn as nn
-from uninas.methods.strategies.manager import StrategyManager
-from uninas.methods.strategies.random import RandomChoiceStrategy
+from uninas.methods.strategy_manager import StrategyManager
+from uninas.methods.random import RandomChoiceStrategy
 from uninas.modules.layers.common import SkipLayer
 from uninas.modules.layers.cnn import ZeroLayer, FactorizedReductionLayer, PoolingLayer, ConvLayer, SepConvLayer
 from uninas.modules.layers.shufflenet import ShuffleNetV2Layer, ShuffleNetV2XceptionLayer
@@ -12,7 +12,6 @@ from uninas.modules.layers.superkernels import SuperConvLayer, SuperSepConvLayer
 from uninas.modules.layers.scarletnas import LinearTransformerLayer
 from uninas.modules.attention.abstract import AttentionLayer
 from uninas.modules.modules.shared import AbstractSharedPathsOp
-from uninas.modules.mixed.mixedop import MixedOp
 from uninas.utils.shape import Shape
 from uninas.builder import Builder
 
@@ -55,9 +54,12 @@ class TestLayers(unittest.TestCase):
             (PoolingLayer,                          [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3)),
             (ConvLayer,                             [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3)),
             (SepConvLayer,                          [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3)),
-            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3)),
-            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3,))),
-            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1))),
+            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3, fused=False)),
+            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3,), fused=False)),
+            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1), fused=False)),
+            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=3, fused=True)),
+            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3,), fused=True)),
+            (MobileInvertedConvLayer,               [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(k_size=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1), fused=True)),
             (SharedMixedMobileInvertedConvLayer,    [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(name='mmicl1', k_sizes=(3, 5, 7), k_size_in=(1, 1), k_size_out=(1, 1))),
             (SharedMixedMobileInvertedConvLayer,    [case_s1_c1, case_s1_c2, case_s2_c1, case_s2_c2], dict(name='mmicl2', k_sizes=((3, 5), (3, 5, 7)), k_size_in=(1, 1), k_size_out=(1, 1))),
             (ShuffleNetV2Layer,                     [case_s1_c1, case_s1_c2, case_s2_c2],             dict(k_size=3)),
@@ -82,7 +84,8 @@ class TestLayers(unittest.TestCase):
 
     def test_rebuild(self):
         """
-        getting finalized configs from which we can build modules
+        getting finalized configs from which we can build modules,
+        (re)builds module, makes a forward pass
         """
         builder = Builder()
         sm = StrategyManager()
@@ -92,7 +95,8 @@ class TestLayers(unittest.TestCase):
         x = torch.empty(size=[n, c, h, w])
         shape = Shape([c, h, w])
         layers = [
-            SharedMixedMobileInvertedConvLayer(name='smmicl', k_sizes=(3, 5, 7), expansions=(3, 6)),
+            SharedMixedMobileInvertedConvLayer(name='smmicl', k_sizes=(3, 5, 7), expansions=(3, 6), fused=False),
+            SharedMixedMobileInvertedConvLayer(name='smmicl', k_sizes=(3, 5, 7), expansions=(3, 6), fused=True),
             SuperConvThresholdLayer(k_sizes=(3, 5, 7)),
             SuperSepConvThresholdLayer(k_sizes=(3, 5, 7)),
             SuperMobileInvertedConvThresholdLayer(k_sizes=(3, 5, 7), expansions=(3, 6), sse_dict=dict(c_muls=(0.0, 0.25, 0.5))),

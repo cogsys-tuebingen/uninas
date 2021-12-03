@@ -7,7 +7,7 @@ import argparse
 from collections import namedtuple
 
 from uninas.builder import Builder
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.main import Main
 from uninas.utils.paths import replace_standard_paths, get_net_config_dir
 

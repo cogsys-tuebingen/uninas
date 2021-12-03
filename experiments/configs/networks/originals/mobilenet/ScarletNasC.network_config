@@ -55,7 +55,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -90,7 +91,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -125,7 +127,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -177,7 +180,8 @@
               "bn_affine": true,
               "act_fun": "hswish",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -212,7 +216,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -247,7 +252,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -282,7 +288,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -308,7 +315,8 @@
               "bn_affine": true,
               "act_fun": "hswish",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -343,7 +351,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -369,7 +378,8 @@
               "bn_affine": true,
               "act_fun": "hswish",
               "act_inplace": true,
-              "att_dict": null
+              "att_dict": null,
+              "fused": false
             }
           }
         }
@@ -404,7 +414,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -439,7 +450,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -474,7 +486,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -522,7 +535,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -557,7 +571,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -592,7 +607,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -647,7 +663,8 @@
             "bn_affine": true,
             "act_fun": "relu6",
             "act_inplace": true,
-            "att_dict": null
+            "att_dict": null,
+            "fused": false
           }
         }
       }

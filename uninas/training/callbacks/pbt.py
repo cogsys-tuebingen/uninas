@@ -1,6 +1,6 @@
 import os
 import time
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.optimization.pbt.response import PbtServerResponse
 from uninas.training.callbacks.abstract import AbstractCallback

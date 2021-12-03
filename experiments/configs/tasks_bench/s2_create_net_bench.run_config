@@ -4,7 +4,7 @@
     "{cls_task}.seed": 0,
     "{cls_task}.note": "full bench eval",
     "{cls_task}.save_dir": "{path_tmp}/bench/s2/create/",
-    "{cls_task}.s1_path": "{path_tmp}/run_config/",
+    "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
     "{cls_task}.save_del_old": true,
     "{cls_task}.measure_min": 1000,
     "{cls_task}.reset_bn": false,

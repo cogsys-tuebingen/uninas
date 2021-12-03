@@ -51,7 +51,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -86,7 +87,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -121,7 +123,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -156,7 +159,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -191,7 +195,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -226,7 +231,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -261,7 +267,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -296,7 +303,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -331,7 +339,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -366,7 +375,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -401,7 +411,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -436,7 +447,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -471,7 +483,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -506,7 +519,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -541,7 +555,8 @@
                 "squeeze_bias": true,
                 "excite_bias": true,
                 "squeeze_bn": false
-              }
+              },
+              "fused": false
             }
           }
         }
@@ -600,7 +615,8 @@
               "att_cls": "SqueezeExcitationChannelModule",
               "squeeze_act": "swish",
               "c_mul": 0.25
-            }
+            },
+            "fused": false
           }
         }
       }

@@ -3,8 +3,8 @@ from uninas.models.networks.uninas.abstract import AbstractUninasNetwork
 from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.modules.modules.abstract import AbstractModule
 from uninas.training.callbacks.checkpoint import CheckpointCallback
-from uninas.methods.strategies.manager import StrategyManager
-from uninas.methods.strategies.random import RandomChoiceStrategy
+from uninas.methods.strategy_manager import StrategyManager
+from uninas.methods.random import RandomChoiceStrategy
 from uninas.utils.args import Namespace, Argument
 from uninas.utils.misc import split
 from uninas.utils.loggers.python import logging, log_in_columns, log_headline

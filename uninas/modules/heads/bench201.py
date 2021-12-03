@@ -13,9 +13,11 @@ class Bench201Head(AbstractHead):
     batchnorm, relu, global average pooling, (dropout), linear
     """
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         if p is not None:
             self.head_module[-2].p = p
+            return 1
+        return 0
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         self.head_module = nn.Sequential(*[

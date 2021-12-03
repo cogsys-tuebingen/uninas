@@ -16,13 +16,20 @@ args = {
     "cls_device": "CudaDevicesManager",
     "{cls_device}.num_devices": 1,
     
-    "cls_trainer": "SimpleTrainer",   # SimpleTrainer, LightningTrainer
+    "cls_trainer": "SimpleDDPTrainer",   # SimpleTrainer, SimpleDDPTrainer
     "{cls_trainer}.max_epochs": 3,
     "{cls_trainer}.eval_last": 2,
     "{cls_trainer}.test_last": 2,
+    "{cls_trainer}.sharing_strategy": 'file_system',
 
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": False,
+
+    "cls_callbacks": "CheckpointCallback",
+    "{cls_callbacks#0}.save_clone": True,
+    "{cls_callbacks#0}.top_n": 0,
+    "{cls_callbacks#0}.key": "train/loss",
+    "{cls_callbacks#0}.minimize_key": True,
 
     "cls_data": "Cinic10Data",
     # "cls_data": "Cifar10Data",
@@ -32,7 +39,7 @@ args = {
 
     "cls_augmentations": "DartsCifarAug",
     
-    "cls_method": "DartsSearchMethod",  # DartsSearchMethod
+    "cls_method": "DartsSearchMethod",  # DartsSearchMethod, GdasSearchMethod
 
     "cls_network": "SearchUninasNetwork",
 

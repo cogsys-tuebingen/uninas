@@ -32,7 +32,7 @@ class AbstractHead(AbstractArgsModule):
     def head_from_kwargs(cls, **kwargs) -> AbstractArgsModule:
         return cls(**kwargs)
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         raise NotImplementedError
 
     def build(self, s_in: Shape, s_out: Shape) -> Shape:

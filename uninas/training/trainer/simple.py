@@ -1,7 +1,7 @@
 import torch
-from torch.optim.optimizer import Optimizer
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.abstract2 import AbstractTrainer
+from uninas.training.optimizers.abstract import AbstractOptimizerClosure, Optimizer
 from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.training.result import LogResult
 from uninas.utils.args import Namespace
@@ -25,19 +25,22 @@ class SimpleTrainer(AbstractTrainer):
         self.method = self.mover.move_module(self.method)
         assert isinstance(self.method, AbstractMethod)
         self.optimizers, self.schedulers = self.method.configure_optimizers()
+        self.optimizer_closures = [o.get_closure(self.mover, self.method.training_step) for o in self.optimizers]
         self.method.set_logger(self.exp_logger)
 
         # data loaders
-        self.loader_train = self.method.train_dataloader()
-        self.loader_eval = self.method.val_dataloader()
-        self.loader_test = self.method.test_dataloader()
+        self.loader_train = self.method.train_dataloader(dist=False)
+        self.loader_eval = self.method.val_dataloader(dist=False)
+        self.loader_test = self.method.test_dataloader(dist=False)
 
         # initialize clones
         for clone in self.get_method_clones():
             clone.init(self.method)
 
         assert self.mover.get_num_devices() == 1, 'Can only use this trainer on a single gpu'
-        assert len(self.optimizers) == 1
+        assert len(self.optimizers) == len(self.optimizer_closures) == 1
+        assert (not any([isinstance(c, AbstractOptimizerClosure) for c in self.optimizer_closures])) or\
+               (self.accumulate_batches == 1), "Can not accumulate batches when optimizer(s) use closures"
 
     def _get_state_dict(self) -> dict:
         """ get the internal state """
@@ -61,9 +64,11 @@ class SimpleTrainer(AbstractTrainer):
     def summarize_results(self, results: [LogResult]) -> LogResult:
         return self.method.summarize_outputs(results)
 
-    def _next_batch(self, loader: CustomIterator) -> list:
+    def _next_batch(self, loader: CustomIterator, move=True) -> list:
         """ get the next batch of the loader, move all tensors to the correct device """
-        return self.mover.move(loader.__next__())
+        if move:
+            return self.mover.move(loader.__next__())
+        return loader.__next__()
 
     def train_epochs(self, epochs=1, run_eval=True, run_test=True, **net_kwargs):
         """ train 'epochs' epochs """
@@ -135,18 +140,31 @@ class SimpleTrainer(AbstractTrainer):
             results = []
             n = self.num_opt_steps(self.loader_train, 1, self._is_test_run)
             for i in range(steps):
-                result = self.method.training_step(batch=self._next_batch(self.loader_train), batch_idx=i, **net_kwargs)
-                result.minimize.backward()
-                result.detach()
-                results.append(result)
+                opt, closure = self.optimizers[0], self.optimizer_closures[0]
 
-                self._acc_step += 1
-                self._acc_step %= self.accumulate_batches
-                if self._acc_step == 0:
+                # maybe use closure
+                if isinstance(closure, AbstractOptimizerClosure):
+                    c = closure.prepare(batch=self._next_batch(self.loader_train, move=False), batch_idx=i, **net_kwargs)
                     self.method.optimizer_step(epoch=self.method.current_epoch, batch_idx=i,
-                                               optimizer=self.optimizers[0], optimizer_idx=0)
+                                               optimizer=opt, optimizer_idx=0, optimizer_closure=c)
+                    results.append(c.get_result())
                     for clone in self.get_method_clones():
                         clone.on_update(self.method)
+
+                # default step
+                else:
+                    result = self.method.training_step(batch=self._next_batch(self.loader_train), batch_idx=i, **net_kwargs)
+                    result.backward()
+                    result.detach()
+                    results.append(result)
+
+                    self._acc_step += 1
+                    self._acc_step %= self.accumulate_batches
+                    if self._acc_step == 0:
+                        self.method.optimizer_step(epoch=self.method.current_epoch, batch_idx=i,
+                                                   optimizer=opt, optimizer_idx=0, optimizer_closure=closure)
+                        for clone in self.get_method_clones():
+                            clone.on_update(self.method)
 
                 for scheduler in self.schedulers:
                     scheduler.step_samples(n=n)
@@ -194,8 +212,9 @@ class SimpleTrainer(AbstractTrainer):
                     funs.append(m.validation_step if is_eval else m.test_step)
                 # iterate num batches, same batch for all methods
                 for i in range(steps):
+                    batch = self._next_batch(loader)
                     for j in range(len(methods_fmts)):
-                        results[j].append(funs[j](batch=self._next_batch(loader), batch_idx=i, **net_kwargs))
+                        results[j].append(funs[j](batch=batch, batch_idx=i, **net_kwargs))
                 # add suffix to the string before the first /
                 for r, (_, fmt) in zip(results, methods_fmts):
                     for k, v in self.summarize_results(r).get_log_info().items():

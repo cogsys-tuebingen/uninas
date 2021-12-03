@@ -22,9 +22,11 @@ class PwClassificationHead(AbstractHead):
             Argument('dropout', default=0.0, type=float, help='initial dropout probability'),
         ]
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         if p is not None:
             self.head_module[-2].p = p
+            return 1
+        return 0
 
     def _build(self, s_in: Shape, s_out: Shape) -> Shape:
         ops = [

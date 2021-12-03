@@ -1,6 +1,6 @@
 from typing import Iterable
-from uninas.methods.abstract import AbstractMethod
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.abstract_method import AbstractMethod
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.modules.mixed.weights import SplitWeightsMixedOp
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.callbacks.abstract import AbstractCallback
@@ -91,11 +91,11 @@ class SplitWeightsMixedOpCallback(AbstractCallback):
                              pl_module: AbstractMethod,
                              log_dict: dict = None):
         """ Called when the train epoch begins. """
-        if pl_module.current_epoch in self.milestones:
+        for i in range(self.milestones.count(pl_module.current_epoch)):
             self.current_depth += 1
             logger = LoggerManager().get_logger()
             logger.info('%s: depth=%d, pattern=%s' % (self.__class__.__name__, self.current_depth, str(self.pattern)))
-            # TODO clones
+            # TODO also apply to network clones (e.g. using EMA weights)
             count, mixed_ops = 0, self.get_mixed_ops(pl_module)
             for mixed_op, apply in zip(mixed_ops, self._iterate_pattern()):
                 if apply:

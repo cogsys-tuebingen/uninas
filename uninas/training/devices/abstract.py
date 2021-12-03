@@ -4,7 +4,7 @@ import torch.nn as nn
 from uninas.utils.args import ArgsInterface, Argument, Namespace
 
 
-TensorOrList = typing.Union[torch.Tensor, typing.List[torch.Tensor]]
+T = typing.TypeVar('T')
 
 
 class AbstractDeviceMover:
@@ -25,7 +25,7 @@ class AbstractDeviceMover:
     def get_indices(self) -> [int]:
         return self.indices
 
-    def get_device_subset(self, indices: [int]):
+    def get_device_subset(self, indices: [int]) -> 'AbstractDeviceMover':
         """ remove indices/devices from this mover, return a new one that has them """
         for i in indices:
             assert i in self.indices, "Can not give a device that is not owned"
@@ -36,13 +36,17 @@ class AbstractDeviceMover:
         """ number of devices """
         return len(self.indices)
 
+    def set_rank(self):
+        """ set the rank (in distributed training) to all available remaining devices """
+        pass
+
     def deallocate(self):
         """ deallocate the devices so that the handler can allocate them again, irreversible """
         if self._is_alive:
             self.handler.deallocate_devices(self)
             self._is_alive = False
 
-    def move(self, t: TensorOrList) -> TensorOrList:
+    def move(self, t: T) -> T:
         """ move the tensor(s) to the assigned devices """
         assert self._is_alive, "Can not move to device after de-allocating it"
         return self._move(t)
@@ -72,7 +76,7 @@ class AbstractDeviceMover:
         """ move module to the assigned devices """
         raise NotImplementedError
 
-    def _move(self, t: TensorOrList) -> TensorOrList:
+    def _move(self, t: T) -> T:
         """ move (nested) tensors to the assigned devices """
         raise NotImplementedError
 

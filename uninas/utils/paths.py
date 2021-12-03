@@ -45,6 +45,7 @@ def initialize_paths(global_config_dir: str = None):
     if not global_config_dir.endswith('/'):
         global_config_dir += '/'
 
+    # make sure all paths are set, otherwise instruct to do so
     global_config_path = '{}global_config.json'.format(global_config_dir)
     if not os.path.isfile(global_config_path):
         print("-"*120)
@@ -68,12 +69,15 @@ def get_class_path(cls: type) -> str:
     return path
 
 
-def replace_standard_paths(path: str) -> str:
+def replace_standard_paths(path: str, make_dir=False) -> str:
     """ replace common path wildcards in the string to avoid awkward relative paths in different files... """
     endswith = path.endswith('/')
+    path = os.path.expanduser(path)
     if path.startswith("."):
         path = os.path.abspath(path)
     path = path.format(**standard_paths)
+    if make_dir:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
     if os.path.isdir(path) or endswith:
         path += '/'
     return path

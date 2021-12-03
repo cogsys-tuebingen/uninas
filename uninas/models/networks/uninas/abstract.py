@@ -39,7 +39,7 @@ class AbstractUninasNetwork(Abstract2Network):
         """ build the network """
         return self.net.build(s_in, s_out)
 
-    def _set_dropout_rate(self, p=None):
+    def _set_dropout_rate(self, p=None) -> int:
         """ set the dropout rate of every dropout layer to p """
         return self.net.set_dropout_rate(p=p)
 

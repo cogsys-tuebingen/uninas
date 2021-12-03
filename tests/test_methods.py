@@ -18,7 +18,7 @@ dna1_config = '{path_conf_tasks}/dna1.run_config, {path_conf_net_search}fairnas.
 @Register.method(search=True)
 class TestMaskGradientsSearchMethod(DartsSearchMethod):
 
-    def training_step(self, batch, batch_idx, **net_kwargs) -> LogResult:
+    def training_step(self, batch: (torch.Tensor, torch.Tensor), batch_idx: int, **net_kwargs) -> LogResult:
         assert self.training, "The network must be in training mode here"
         result = super().training_step(batch, batch_idx, **net_kwargs)
         print('\n', 'test mask idx', self.hparams.test_mask_idx, self.opt_idx, result.minimize.item())

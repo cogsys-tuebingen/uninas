@@ -2,7 +2,7 @@ import os
 import torch
 from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.models.other.tabular import TabularSumModel
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.optimization.profilers.abstract import AbstractProfiler
 from uninas.training.devices.abstract import AbstractDeviceMover
 from uninas.register import Register

@@ -10,8 +10,8 @@ from uninas.utils.misc import split
 from uninas.utils.loggers.python import LoggerManager, log_headline, log_in_columns, log_args
 from uninas.utils.paths import get_task_config_path
 from uninas.utils.system import dump_system_info
-from uninas.methods.abstract import AbstractMethod
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.abstract_method import AbstractMethod
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.register import Register
 
 cla_type = Union[str, List, None]

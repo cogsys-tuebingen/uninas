@@ -69,7 +69,7 @@ class SingleSearchTask(SingleTask):
                 log_headline(self.logger, "Bench results")
                 self.benchmark_set.print_info(self.logger.info)
                 result.print(self.logger.info, prefix='\t')
-                self.benchmark_set.log_result(result, self.get_method().logger)
+                self.get_method().log_metrics(self.benchmark_set.get_result_dict(result))
             except Exception as e:
                 self.logger.warning("Can not load a result from the bench db", exc_info=e)
 

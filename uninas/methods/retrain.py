@@ -1,12 +1,12 @@
 from uninas.utils.args import MetaArgument
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.register import Register
 
 
 @Register.method()
 class RetrainMethod(AbstractMethod):
     """
-    To load a network from a config
+    Standard training of a network
     """
 
     @classmethod
