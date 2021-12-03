@@ -84,25 +84,19 @@ class MiniResult:
 
     def state_dict(self) -> dict:
         dct = dict()
-        dct.update(self.named_values())
-        dct.update(self.named_dicts())
-        return dct
-
-    def named_values(self) -> dict:
-        return dict(
+        dct.update(dict(
             arch_index=self.arch_index,
             arch_str=self.arch_str,
             arch_tuple=self.arch_tuple,
-        )
-
-    def named_dicts(self) -> {str: dict}:
-        return dict(
+        ))
+        dct.update(dict(
             params=self.params,
             flops=self.flops,
             latency=self.latency,
             loss=self.loss,
             acc1=self.acc1,
-        )
+        ))
+        return dct
 
     def get_info_str(self, data_set: str = None, result_type: str = None) -> str:
         data_set, result_type = self._get_defaults(data_set, result_type)
@@ -112,10 +106,25 @@ class MiniResult:
             'idx': str(self.arch_index),
             'acc1': str(self.acc1.get(data_set, {}).get(result_type)),
             'loss': str(self.loss.get(data_set, {}).get(result_type)),
-            'par': str(self.loss.get(data_set)),
+            'par': str(self.params.get(data_set)),
             'flops': str(self.flops.get(data_set)),
             'lat': str(self.latency.get(data_set)),
         })
+
+    def get_log_dict(self) -> {str: float}:
+        log_dict = {}
+
+        # loss and acc1
+        for name, dct in [('loss', self.loss), ('acc1', self.acc1)]:
+            for ds, dct2 in dct.items():
+                for rt, v in dct2.items():
+                    log_dict['%s/%s/%s' % (name, ds, rt)] = v
+
+        # other metrics
+        for name, dct in [('flops', self.flops), ('params', self.params), ('latency', self.latency)]:
+            for ds, v in dct.items():
+                log_dict['%s/%s' % (name, ds)] = v
+        return log_dict
 
     def get(self, kind: str, data_set: str = None, result_type: str = None) -> float:
         fun = {

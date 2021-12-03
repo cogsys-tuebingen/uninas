@@ -33,8 +33,10 @@ class AbstractCell(AbstractArgsModule):
         else:
             nf = s_ins[-1].num_features() * self.features_mult
         nf = nf * features_mul
-        _, r = divmod(nf, 8)
-        return nf-r
+        n, r = divmod(nf, 8)
+        if n >= 1:
+            return nf-r
+        return nf
 
     @classmethod
     def get_name_in_args(cls, args: Namespace, index=None):

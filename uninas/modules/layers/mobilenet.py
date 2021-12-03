@@ -33,7 +33,7 @@ def get_conv2d(c_in: int, c_out: int, k_size, stride=1, groups=-1, dilation=1, p
 class MobileInvertedConvLayer(AbstractLayer):
 
     def __init__(self, k_size=3, k_size_in=1, k_size_out=1, stride=1, padding='same', expansion=6, dilation=1,
-                 bn_affine=True, act_fun='relu6', act_inplace=True, att_dict: dict = None):
+                 bn_affine=True, act_fun='relu6', act_inplace=True, att_dict: dict = None, fused=False):
         """
 
         :param k_size: kernel size(s) for the spatial kernel
@@ -47,11 +47,12 @@ class MobileInvertedConvLayer(AbstractLayer):
         :param act_fun: activation function
         :param act_inplace: whether to use the activation function in-place if possible (e.g. ReLU)
         :param att_dict: None to disable attention modules, otherwise a dict with respective kwargs
+        :param fused: fuse the initial pointwise and depthwise convolutions
         """
         super().__init__()
         self._add_to_kwargs(k_size=k_size, k_size_in=k_size_in, k_size_out=k_size_out, stride=stride,
                             expansion=expansion, padding=padding, dilation=dilation, bn_affine=bn_affine,
-                            act_fun=act_fun, act_inplace=act_inplace, att_dict=att_dict)
+                            act_fun=act_fun, act_inplace=act_inplace, att_dict=att_dict, fused=fused)
         self._add_to_print_kwargs(has_skip=False)
         self.block = None
 
@@ -62,23 +63,31 @@ class MobileInvertedConvLayer(AbstractLayer):
         ops = []
         conv_kwargs = dict(dilation=self.dilation, padding=self.padding)
 
-        if self.expansion > 1:
-            # pw
+        # fused?
+        if not self.fused:
+            if self.expansion > 1:
+                # pw
+                ops.extend([
+                    get_conv2d(c_in, c_mid, k_size=self.k_size_in, groups=1, **conv_kwargs),
+                    nn.BatchNorm2d(c_mid, affine=self.bn_affine),
+                    Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
+                ])
+            # dw
             ops.extend([
-                get_conv2d(c_in, c_mid, k_size=self.k_size_in, groups=1, **conv_kwargs),
+                get_conv2d(c_mid, c_mid, k_size=self.k_size, stride=self.stride, groups=-1, **conv_kwargs),
                 nn.BatchNorm2d(c_mid, affine=self.bn_affine),
                 Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
             ])
-        # dw
-        ops.extend([
-            get_conv2d(c_mid, c_mid, k_size=self.k_size, stride=self.stride, groups=-1, **conv_kwargs),
-            nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-            Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
-        ])
+        else:
+            ops.extend([
+                get_conv2d(c_in, c_mid, k_size=self.k_size, stride=self.stride, groups=1, **conv_kwargs),
+                nn.BatchNorm2d(c_mid, affine=self.bn_affine),
+                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
+            ])
         # optional squeeze+excitation module
         if isinstance(self.att_dict, dict):
             ops.append(AbstractAttentionModule.module_from_dict(c_mid, c_substitute=c_in, att_dict=self.att_dict))
-        # pw
+        # final pw
         ops.extend([
             get_conv2d(c_mid, c_out, k_size=self.k_size_out, groups=1, **conv_kwargs),
             nn.BatchNorm2d(c_out, affine=self.bn_affine),
@@ -99,7 +108,7 @@ class SharedMixedMobileInvertedConvLayer(AbstractSharedPathsOp):
 
     def __init__(self, name: str, strategy_name='default', skip_op: str = None, k_size_in=1, k_size_out=1,
                  k_sizes=(3, 5, 7), stride=1, padding='same', expansions=(3, 6),
-                 dilation=1, bn_affine=True, act_fun='relu6', act_inplace=True, att_dict: dict = None):
+                 dilation=1, bn_affine=True, act_fun='relu6', act_inplace=True, att_dict: dict = None, fused=False):
         """
         A layer for several kernel sizes and expansion sizes sharing the 1x1 conv weights.
         Currently only designed for having a single kernel+expansion per forward pass and for the final config.
@@ -118,12 +127,13 @@ class SharedMixedMobileInvertedConvLayer(AbstractSharedPathsOp):
         :param act_fun: activation function
         :param act_inplace: whether to use the activation function in-place if possible (e.g. ReLU)
         :param att_dict: None to disable attention modules, otherwise a dict with respective kwargs
+        :param fused: fuse the initial pointwise and depthwise convolutions
         """
         super().__init__(name, strategy_name)
         self._add_to_kwargs(skip_op=skip_op, k_size_in=k_size_in, k_size_out=k_size_out,
                             k_sizes=k_sizes, stride=stride, expansions=expansions,
                             padding=padding, dilation=dilation, bn_affine=bn_affine,
-                            act_fun=act_fun, act_inplace=act_inplace, att_dict=att_dict)
+                            act_fun=act_fun, act_inplace=act_inplace, att_dict=att_dict, fused=fused)
         self._add_to_print_kwargs(has_skip=False, has_att=isinstance(self.att_dict, dict))
         self.pw_in = nn.ModuleList([])
         self.dw_conv = nn.ModuleList([])
@@ -149,21 +159,32 @@ class SharedMixedMobileInvertedConvLayer(AbstractSharedPathsOp):
             self.skip.build(s_in, c_out)
 
         for e in self.expansions:
-            c_mid = int(c_in * e)
-            # pw in
-            self.pw_in.append(nn.Sequential(
-                get_conv2d(c_in, c_mid, k_size=self.k_size_in, groups=1, **conv_kwargs),
-                nn.BatchNorm2d(c_mid, affine=self.bn_affine),
-                Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
-            ))
-            # dw conv ops with different kernel sizes
             convs = nn.ModuleList([])
-            for k in self.k_sizes:
-                convs.append(nn.Sequential(
-                    get_conv2d(c_mid, c_mid, k_size=k, stride=self.stride, groups=-1, **conv_kwargs),
+            c_mid = int(c_in * e)
+
+            if self.fused:
+                # substitute pw_in with identity, use fused conv as dw
+                self.pw_in.append(nn.Identity())
+                for k in self.k_sizes:
+                    convs.append(nn.Sequential(
+                        get_conv2d(c_in, c_mid, k_size=k, stride=self.stride, groups=1, **conv_kwargs),
+                        nn.BatchNorm2d(c_mid, affine=self.bn_affine),
+                        Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
+                    ))
+            else:
+                # pw in
+                self.pw_in.append(nn.Sequential(
+                    get_conv2d(c_in, c_mid, k_size=self.k_size_in, groups=1, **conv_kwargs),
                     nn.BatchNorm2d(c_mid, affine=self.bn_affine),
                     Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
                 ))
+                # dw conv ops with different kernel sizes
+                for k in self.k_sizes:
+                    convs.append(nn.Sequential(
+                        get_conv2d(c_mid, c_mid, k_size=k, stride=self.stride, groups=-1, **conv_kwargs),
+                        nn.BatchNorm2d(c_mid, affine=self.bn_affine),
+                        Register.act_funs.get(self.act_fun)(inplace=self.act_inplace),
+                    ))
             self.dw_conv.append(convs)
             # dw optional attention module
             if self.has_att:

@@ -4,8 +4,8 @@ networks loaded from a config file
 
 
 import os
-from uninas.methods.strategies.manager import StrategyManager
-from uninas.methods.strategies.random import RandomChoiceStrategy
+from uninas.methods.strategy_manager import StrategyManager
+from uninas.methods.random import RandomChoiceStrategy
 from uninas.models.networks.uninas.abstract import AbstractUninasNetwork
 from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.utils.loggers.python import LoggerManager

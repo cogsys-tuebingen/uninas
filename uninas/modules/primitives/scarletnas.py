@@ -57,7 +57,7 @@ class ScarletPrimitives(PrimitiveSet):
 
     @classmethod
     def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
-        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='hswish', att_dict=None)
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='hswish', att_dict=None, fused=False)
         df_att = df.copy()
         df_att['att_dict'] = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=False,
                                   c_mul=0.25, squeeze_act='relu', excite_act='hsigmoid',

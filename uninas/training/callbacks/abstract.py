@@ -1,5 +1,5 @@
 from pytorch_lightning.callbacks.base import Callback
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.utils.paths import replace_standard_paths
 from uninas.utils.args import ArgsInterface, Namespace

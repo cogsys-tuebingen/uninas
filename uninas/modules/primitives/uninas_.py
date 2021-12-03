@@ -2,8 +2,7 @@
 using primitives/layers/modules from various papers
 """
 
-from uninas.modules.primitives.abstract import CNNPrimitive, StrideChoiceCNNPrimitive, PrimitiveSet
-from uninas.modules.layers.cnn import FactorizedReductionLayer
+from uninas.modules.primitives.abstract import CNNPrimitive, PrimitiveSet
 from uninas.modules.layers.mobilenet import MobileInvertedConvLayer
 from uninas.modules.layers.scarletnas import LinearTransformerLayer
 from uninas.register import Register
@@ -20,7 +19,7 @@ class UninasMixedEcaHswishPrimitives(PrimitiveSet):
 
     @classmethod
     def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
-        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='hswish')
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='hswish', fused=False)
         att_dict = dict(att_cls='EfficientChannelAttentionModule', use_c_substitute=False,
                         k_size=-1, gamma=2, b=1, excite_act='sigmoid')
         primitives = [

@@ -28,11 +28,13 @@ class DifferentConfigPrimitive(Primitive):
 class PrimitiveSet(ArgsInterface):
     """ a set of primitives, used in search blocks """
 
-    def __init__(self, strategy_name: str, mixed_cls: str, subset: str):
+    def __init__(self, strategy_name: str, mixed_cls: str, mixed_priors: str, subset: str):
         super().__init__()
         self.strategy_name = strategy_name
         self.mixed_cls = mixed_cls
+        self.mixed_priors = -1 if len(mixed_priors) == 0 else eval(mixed_priors)
         self.subset = split(subset, int)
+        self._num_instances = 0
 
     @classmethod
     def from_args(cls, args: Namespace, index: int = None) -> 'PrimitiveSet':
@@ -46,6 +48,9 @@ class PrimitiveSet(ArgsInterface):
         return super().args_to_add(index) + [
             Argument('strategy_name', default="default", type=str, help='under which strategy to register'),
             Argument('mixed_cls', default=MixedOp.__name__, type=str, choices=mixed_ops, help='class for mixed op'),
+            Argument('mixed_priors', default="", type=str,
+                     help='empty string: consider only the immediately prior candidate op; '
+                          'or str([[int]]): which prior candidates to consider (by their indices)'),
             Argument('subset', default="", type=str, help='[int] use only these operations, must not be fused'),
         ]
 
@@ -70,9 +75,20 @@ class PrimitiveSet(ArgsInterface):
         if len(self.subset) > 0:
             ops = [ops[i] for i in self.subset]
 
+        # if inter-candidate dependent weights are used, which prior candidates to consider
+        if isinstance(self.mixed_priors, int):
+            priors = [self.mixed_priors]
+        elif isinstance(self.mixed_priors, list):
+            priors = self.mixed_priors[self._num_instances % len(self.mixed_priors)]
+        else:
+            raise NotImplementedError
+        assert isinstance(priors, list)
+        assert all([isinstance(p, int) for p in priors])
+
         # create mixed op
+        self._num_instances += 1
         mixed_op_cls = Register.network_mixed_ops.get(self.mixed_cls)
-        return mixed_op_cls(submodules=ops, name=name, strategy_name=self.strategy_name)
+        return mixed_op_cls(submodules=ops, priors=priors, name=name, strategy_name=self.strategy_name)
 
     @classmethod
     def get_primitives(cls, **primitive_kwargs) -> [Primitive]:
@@ -89,7 +105,9 @@ class CNNPrimitive(Primitive):
     def __init__(self, cls, args: list = None, kwargs: dict = None, stacked=1):
         self.cls = cls
         self.args = args if args is not None else []
-        self.kwargs = kwargs if kwargs is not None else {}
+        self.kwargs = dict(stride=1)
+        if isinstance(kwargs, dict):
+            self.kwargs.update(kwargs)
         self.stacked = stacked
 
     def instance(self, **layer_kwargs) -> AbstractModule:

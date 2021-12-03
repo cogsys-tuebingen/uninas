@@ -2,7 +2,7 @@
 regularizing networks during training
 """
 
-from uninas.modules.networks.abstract import AbstractNetworkBody
+from uninas.models.networks.abstract import AbstractNetwork
 from uninas.utils.args import ArgsInterface, Namespace
 
 
@@ -13,13 +13,13 @@ class AbstractRegularizer(ArgsInterface):
         self.index = index
         self._changed = True
 
-    def on_start(self, max_epochs: int, net: AbstractNetworkBody) -> dict:
+    def on_start(self, max_epochs: int, net: AbstractNetwork) -> dict:
         return {}
 
-    def on_epoch_start(self, cur_epoch: int, max_epochs: int, net: AbstractNetworkBody) -> dict:
+    def on_epoch_start(self, cur_epoch: int, max_epochs: int, net: AbstractNetwork) -> dict:
         return {}
 
-    def on_epoch_end(self, cur_epoch: int, max_epochs: int, net: AbstractNetworkBody) -> dict:
+    def on_epoch_end(self, cur_epoch: int, max_epochs: int, net: AbstractNetwork) -> dict:
         return {}
 
     def set_value(self, v):

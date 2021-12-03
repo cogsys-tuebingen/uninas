@@ -76,6 +76,12 @@ class AbstractNetwork(AbstractModel, AbstractArgsModule):
                      help='assert that the network output shape (each head) matches the expectations (by the dataset)'),
         ]
 
+    def prepare_predict(self, device: str) -> 'AbstractNetwork':
+        """ place the model on some hardware device, go eval mode """
+        model = self.to(device) if len(device) > 0 else self
+        model.eval()
+        return model
+
     def fit(self, data: np.array, labels: np.array):
         """
         fit the model to data+labels
@@ -171,12 +177,13 @@ class AbstractNetwork(AbstractModel, AbstractArgsModule):
         """ output shapes of the network """
         raise NotImplementedError
 
-    def set_dropout_rate(self, p=None):
+    def set_dropout_rate(self, p=None) -> int:
         """ set the dropout rate of every dropout layer to p """
         if isinstance(p, float):
-            self._set_dropout_rate(p)
+            return self._set_dropout_rate(p)
+        return 0
 
-    def _set_dropout_rate(self, p: float):
+    def _set_dropout_rate(self, p: float) -> int:
         """ set the dropout rate of every dropout layer to p, no change for p=None """
         # set any dropout layer to p
         n = 0
@@ -185,6 +192,7 @@ class AbstractNetwork(AbstractModel, AbstractArgsModule):
                 m.p = p
                 n += 1
         assert n > 0 or p <= 0, "Could not set the dropout rate to %f, no nn.Dropout modules found!" % p
+        return n
 
     def get_num_parameters(self) -> int:
         return count_parameters(self)

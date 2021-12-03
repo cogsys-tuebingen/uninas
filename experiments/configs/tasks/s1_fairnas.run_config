@@ -17,8 +17,9 @@
 
     "cls_trainer": "SimpleTrainer",
     "{cls_trainer}.max_epochs": 150,
-    "{cls_trainer}.log_fs": true,
-    "{cls_trainer}.log_ram": true,
+    "{cls_trainer}.log_fs": false,
+    "{cls_trainer}.log_ram": false,
+    "{cls_trainer}.log_device": true,
     "{cls_trainer}.eval_last": 10,
     "{cls_trainer}.test_last": 10,
 
@@ -55,7 +56,7 @@
     "cls_regularizers": "",
 
     "cls_optimizers": "SGDOptimizer",
-    "{cls_optimizers#0}.lr": 0.025,
+    "{cls_optimizers#0}.lr": 0.05,
     "{cls_optimizers#0}.momentum": 0.9,
     "{cls_optimizers#0}.nesterov": false,
     "{cls_optimizers#0}.weight_decay": 4e-5,

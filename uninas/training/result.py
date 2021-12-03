@@ -11,6 +11,8 @@ class ResultValue:
             self.value = value.clone().detach()
         else:
             self.value = torch.Tensor([value])
+        if len(self.value.shape) < 1:
+            self.value = torch.unsqueeze(self.value, 0)
         self.count = count
 
     def get_scaled_value(self) -> torch.Tensor:
@@ -60,9 +62,12 @@ def get_from_result(result: Result, prefix: str) -> dict:
 
 class LogResult(Result):
     def __init__(self, loss: Union[torch.Tensor, None], log_info: dict = None):
-        key = 'minimize' if (isinstance(loss, torch.Tensor) and (loss.grad_fn is not None)) else 'checkpoint_on'
-        super().__init__(**{key: loss})
+        super().__init__(loss if (isinstance(loss, torch.Tensor) and (loss.grad_fn is not None)) else None)
         add_to_result(self, log_prefix, log_info)
+
+    def get_loss(self) -> torch.Tensor:
+        # TODO may not exist, thanks continuous lightning changes
+        return self.minimize
 
     def _detach(self):
         for k, v in self.items():
@@ -85,6 +90,14 @@ class LogResult(Result):
                 counts[k] = 1
         return values, counts
 
+    def backward(self) -> 'LogResult':
+        if isinstance(self.minimize, torch.Tensor):
+            self.minimize.backward()
+        return self
+
     def detach(self) -> 'LogResult':
         self._detach()
         return self
+
+    def get_detached_copy(self) -> 'LogResult':
+        return LogResult(self.get_loss().detach(), log_info=self.get_log_info())

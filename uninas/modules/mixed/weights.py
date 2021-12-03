@@ -1,6 +1,6 @@
 import torch
 from uninas.modules.mixed.mixedop import AbstractDependentMixedOp
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.register import Register
 
 
@@ -17,17 +17,18 @@ class SplitWeightsMixedOp(AbstractDependentMixedOp):
     """
     max_depth = 2
 
-    def __init__(self, submodules: list, name: str, strategy_name: str, depth=0):
+    def __init__(self, submodules: list, priors: list, name: str, strategy_name: str, depth=0):
         """
         :param submodules: list or nn.ModuleList of choices
+        :param priors: list of indices, which prior candidates to consider for additional super-network weights
         :param name: name of the architecture weight
         :param strategy_name: name of the architecture strategy to use
         :param depth: depth, how many previous architecture decisions to consider
         """
-        super().__init__(submodules, name, strategy_name)
+        super().__init__(submodules, priors, name, strategy_name)
         # store previous names in case this mixed op will be deepened, no need to store the own name
         self._add_to_kwargs(depth=depth)
-        self._all_prev_names = StrategyManager().ordered_names(unique=False)[-self.max_depth - 1:-1]
+        self._all_prev_names = self._get_prev_names(name, priors, include_self=False)
         self._state_dicts = {}
         self._last_state = 'w'
         self.change_depth(new_depth=self.depth)
@@ -49,6 +50,7 @@ class SplitWeightsMixedOp(AbstractDependentMixedOp):
             self._state_dicts = new_state_dicts
             self._last_state = '0.%s' % self._last_state
             self.depth += 1
+        # print('change %s depth' % self.__class__.__name__, self.name, self.depth)
 
     def _get_current_state_name(self) -> str:
         """ get a name for the current setting (e.g. "0.1.w") that depends on the previously chosen indices """

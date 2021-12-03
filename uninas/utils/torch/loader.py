@@ -3,6 +3,7 @@ specific kinds of data loaders
 """
 
 from typing import Iterator
+from torch.utils.data.distributed import DistributedSampler
 
 
 class CustomIterator(Iterator):
@@ -10,6 +11,11 @@ class CustomIterator(Iterator):
         for k in ['dataset', 'batch_size', 'num_workers', 'collate_fn', 'pin_memory', 'drop_last',
                   'timeout', 'worker_init_fn', 'sampler']:
             self.__setattr__(k, loader.__getattribute__(k))
+
+    def get_dist_sampler(self) -> DistributedSampler:
+        sampler = self.__getattribute__("sampler")
+        assert isinstance(sampler, DistributedSampler)
+        return sampler
 
     def __next__(self):
         raise NotImplementedError
@@ -30,6 +36,7 @@ class InfIterator(CustomIterator):
     """
 
     def __init__(self, loader):
+        super().__init__()
         self.loader = loader
         self.iterator = None
         self._set_attrs(self.loader)
@@ -59,6 +66,7 @@ class MultiLoader(CustomIterator):
     """
 
     def __init__(self, loaders: list):
+        super().__init__()
         self.iterators = [InfIterator(loader) for loader in loaders]
         self._set_attrs(self.iterators[0])
 
@@ -86,6 +94,7 @@ class InterleavedLoader(CustomIterator):
         :param loaders: list of pytorch data loaders / iterators of data
         :param multiples: list of multiples, same length as loaders
         """
+        super().__init__()
         self.iterators = [InfIterator(loader) for loader in loaders]
         self.multiples = multiples
         self._loader_idx, self._mult = 0, 0

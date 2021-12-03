@@ -1,7 +1,7 @@
 import logging
 import os
 from torch.optim.optimizer import Optimizer
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.devices.abstract import AbstractDeviceMover
 from uninas.training.callbacks.checkpoint import CheckpointCallback
@@ -142,8 +142,8 @@ class AbstractTrainer(ArgsInterface, AbstractTrainerFunctions):
             Argument('log_ram', default='True', type=str, help='log RAM usage', is_bool=True),
             Argument('log_device', default='True', type=str, help='log device usage', is_bool=True),
 
-            Argument('eval_last', default=10, type=int, help='run eval for the last n epochs'),
-            Argument('test_last', default=10, type=int, help='run test for the last n epochs'),
+            Argument('eval_last', default=10, type=int, help='run eval for the last n epochs, always if <0'),
+            Argument('test_last', default=10, type=int, help='run test for the last n epochs, always if <0'),
 
             Argument('accumulate_batches', default=1, type=int,
                      help='accumulate gradients over n batches before stepping updating. '

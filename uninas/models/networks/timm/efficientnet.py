@@ -2,11 +2,11 @@ from typing import Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from uninas.models.networks.timm.abstract import AbstractTimmNetwork
 from uninas.register import Register
 
 
 try:
+    from uninas.models.networks.timm.abstract import AbstractTimmNetwork
     from timm.models.efficientnet import default_cfgs
 
 
@@ -20,9 +20,10 @@ try:
         def _available_models(cls) -> [str]:
             return list(default_cfgs.keys())
 
-        def _set_dropout_rate(self, p=None):
+        def _set_dropout_rate(self, p=None) -> int:
             """ set the dropout rate of every dropout layer to p """
             self.net.drop_rate = p
+            return 1
 
         def get_stem(self) -> nn.Module:
             return nn.Sequential(self.net.conv_stem, self.net.bn1, self.net.act1)

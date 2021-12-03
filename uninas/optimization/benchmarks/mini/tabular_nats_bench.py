@@ -110,6 +110,8 @@ try:
         logger = LoggerManager().get_logger()
 
         # some stats of specific results
+        logger.info('\n'*5)
+        logger.info("%s - %s" % (mini.get_name(), mini.size()))
         logger.info(mini.get_by_arch_tuple((4, 3, 2, 1, 0, 2)).get_info_str('cifar10'))
         logger.info("")
         mini.get_by_arch_tuple((1, 2, 1, 2, 3, 4)).print(logger.info)
@@ -142,22 +144,23 @@ try:
 
     if __name__ == '__main__':
         Builder()
-        path_ = '{path_data}/bench/nats/nats_bench_1.1_mini.pt'
-        # path_ = "https://cloud.cs.uni-tuebingen.de/index.php/s/kaxGB7csptYE9Jt/download"
-        # mini_ = make_nats('{path_data}/NATS-tss-v1_0-3ffb9-simple/', path_)
-        mini_ = MiniNATSBenchTabularBenchmark.load(path_)
+        path_ = '{path_data}/bench/nats/nats_bench_1.1_mini_m%s_%s.pt'
+        # path_ = "https://cloud.cs.uni-tuebingen.de/index.php/s/kaxGB7csptYE9Jt/download"  # not up to date
+        # mini_ = make_nats('{path_data}/NATS-tss-v1_0-3ffb9-simple/', path_ % ('', 'all'))
+        mini_ = MiniNATSBenchTabularBenchmark.load(path_ % ('', 'all'))
 
-        # mini_ = mini_.subset(blacklist=(0, 1, 4), max_size=5)
-        # mini_.save('{path_data}/bench/nats/nats_bench_1.1_subset_m014_test.pt')
+        # subsets for experiments
+        for subset in [(), (0,), (0, 1, 4)]:
+            m = mini_.subset(blacklist=subset, max_size=1000)
+            # m.save(path_ % (''.join([str(s) for s in subset]), '1k'))
+            # explore(m)
+            plot(m, ['flops', 'acc1'], [False, True], add_pareto=True)
 
+        # viz
         mini_.set_default_result_type('test')  # train, valid, test
         mini_.set_default_data_set('cifar10')  # cifar10, cifar10-valid, cifar100, ImageNet16-120
         explore(mini_)
-
         plot(mini_, ['flops', 'acc1'], [False, True], add_pareto=True)
-
-        # mini_.save('{path_data}/bench/nats/nats_bench_1.1_mini_2.pt')
-        # mini_.save(path_)
 
 
 except ImportError as e:

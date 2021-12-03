@@ -1,6 +1,6 @@
 import time
 import torch.nn as nn
-from uninas.training.devices.abstract import AbstractDevicesManager, AbstractDeviceMover, TensorOrList
+from uninas.training.devices.abstract import AbstractDevicesManager, AbstractDeviceMover, T
 from uninas.register import Register
 
 
@@ -42,9 +42,9 @@ class TestCpuDeviceMover(AbstractDeviceMover):
         self._print("moving module, starting timer")
         return module
 
-    def _move(self, t: TensorOrList) -> TensorOrList:
+    def _move(self, t: T) -> T:
         """ move (nested) tensors to the assigned devices """
-        self._print("moving data")
+        self._print("moving data (%s)" % type(t))
         return t
 
 

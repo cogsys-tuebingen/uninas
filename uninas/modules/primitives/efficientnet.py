@@ -28,7 +28,7 @@ class EfficientNetPrimitives(PrimitiveSet):
 
     @classmethod
     def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
-        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish')
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish', fused=False)
         df['att_dict'] = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=True,
                               c_mul=0.25, squeeze_act='swish', excite_act='sigmoid',
                               squeeze_bias=True, excite_bias=True, squeeze_bn=False)
@@ -78,7 +78,7 @@ class EfficientNetECAPrimitives(PrimitiveSet):
 
     @classmethod
     def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
-        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish')
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish', fused=False)
         df['att_dict'] = dict(att_cls='EfficientChannelAttentionModule', use_c_substitute=True)
         primitives = [
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=3.0, **df)),
@@ -112,3 +112,25 @@ class SharedEfficientNetECAPrimitives(PrimitiveSet):
                                                     att_dict=att_dict,
                                                     **primitive_kwargs)
         return shared.get_paths_as_modules()
+
+
+@Register.primitive_set()
+class EfficientNetPrimitivesMini(PrimitiveSet):
+    """
+    MobileNetV2 blocks with Squeeze+Excitation and Swish
+    expansion size {3, 6}
+    kernel size {3, 5}
+    """
+
+    @classmethod
+    def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='swish', fused=False)
+        df['att_dict'] = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=True,
+                              c_mul=0.25, squeeze_act='swish', excite_act='sigmoid',
+                              squeeze_bias=True, excite_bias=True, squeeze_bn=False)
+        return [
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=7, expansion=3.0, **df)),
+            CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=6.0, **df)),
+        ]

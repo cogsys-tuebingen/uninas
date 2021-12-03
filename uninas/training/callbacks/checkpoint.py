@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Union
 import torch
 import torch.nn as nn
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.abstract import AbstractTrainerFunctions
 from uninas.training.callbacks.abstract import AbstractCallback, EpochInfo
 from uninas.utils.torch.misc import itemize

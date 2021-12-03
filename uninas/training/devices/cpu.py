@@ -1,5 +1,5 @@
 import torch.nn as nn
-from uninas.training.devices.abstract import AbstractDevicesManager, AbstractDeviceMover, TensorOrList
+from uninas.training.devices.abstract import AbstractDevicesManager, AbstractDeviceMover, T
 from uninas.register import Register
 
 
@@ -31,7 +31,7 @@ class CpuDeviceMover(AbstractDeviceMover):
         assert self.get_num_devices() == 1
         return module
 
-    def _move(self, t: TensorOrList) -> TensorOrList:
+    def _move(self, t: T) -> T:
         """ move (nested) tensors to the assigned devices """
         return t
 

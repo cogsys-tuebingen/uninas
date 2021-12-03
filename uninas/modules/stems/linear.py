@@ -4,6 +4,7 @@ from uninas.modules.modules.abstract import AbstractModule
 from uninas.modules.layers.common import LinearLayer
 from uninas.utils.args import Argument
 from uninas.utils.shape import Shape, ShapeList
+from uninas.utils.misc import split
 from uninas.register import Register
 
 
@@ -37,3 +38,31 @@ class LinearToConvStem(AbstractStem):
 
     def forward(self, x: torch.Tensor) -> [torch.Tensor]:
         return [self.stem(x).unsqueeze(-1).unsqueeze(-1)]
+
+
+@Register.network_stem()
+class ReshapeStem(AbstractStem):
+    """ simply reshapes data """
+    _num_outputs = 1
+
+    @classmethod
+    def args_to_add(cls, index=None) -> [Argument]:
+        """ list arguments to add to argparse when this class (or a child class) is chosen """
+        return super().args_to_add(index) + [
+            Argument('reshape_to', default='1, 1, -1', type=str, help='new shape of the data'),
+        ]
+
+    @classmethod
+    def stem_from_kwargs(cls, **kwargs) -> AbstractStem:
+        """ get all parsed arguments that the class added """
+        kwargs['reshape_to'] = split(kwargs['reshape_to'], int)
+        return cls(**kwargs)
+
+    def _build(self, s_in: Shape) -> ShapeList:
+        """ build the stem for the data set, return list of output feature sizes """
+        assert (self.features <= -1) or (self.features == s_in.numel()),\
+            "num features (%d) must be <0 or match the number of input features (%d)" % (self.features, s_in.numel())
+        return self.probe_outputs(s_in, multiple_outputs=True)
+
+    def forward(self, x: torch.Tensor) -> [torch.Tensor]:
+        return [torch.reshape(x, [x.shape[0]] + self.reshape_to)]

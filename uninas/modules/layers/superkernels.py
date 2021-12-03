@@ -5,7 +5,7 @@ Contrary to  Single-Path NAS, architecture parameters are required (but enable a
 
 import torch
 import torch.nn as nn
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.modules.layers.abstract import AbstractLayer, AbstractStepsLayer
 from uninas.modules.layers.cnn import ConvLayer, SepConvLayer
 from uninas.modules.layers.mobilenet import MobileInvertedConvLayer

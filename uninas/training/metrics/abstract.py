@@ -19,7 +19,7 @@ class AbstractMetric(ArgsInterface):
             self.__setattr__(k, v)
 
     def get_log_name(self) -> str:
-        raise NotImplementedError
+        return self.__class__.__name__
 
     @classmethod
     def from_args(cls, args: Namespace, index: int, data_set: AbstractDataSet, head_weights: list) -> 'AbstractMetric':
@@ -145,9 +145,6 @@ class AbstractLogMetric(AbstractMetric):
     all single results of _evaluate() are weighted averaged later, by how the batch sizes of each single result
     """
 
-    def get_log_name(self) -> str:
-        raise NotImplementedError
-
     def evaluate(self, net: AbstractNetwork,
                  inputs: torch.Tensor, logits: [torch.Tensor], targets: torch.Tensor, key: str) -> {str: ResultValue}:
         """
@@ -187,9 +184,6 @@ class AbstractAccumulateMetric(AbstractMetric):
         self.stats = defaultdict(dict)
         self.each_epochs = each_epochs
         self.is_active = False
-
-    def get_log_name(self) -> str:
-        raise NotImplementedError
 
     @classmethod
     def _combine_tensors(cls, dict_key: str, tensors: [torch.Tensor]) -> torch.Tensor:
@@ -274,14 +268,36 @@ class AbstractAccumulateMetric(AbstractMetric):
         if len(stats) > 0:
             if isinstance(epoch, int):
                 save_dir = '%s/epoch_%d/' % (save_dir, epoch)
-            self._viz_stats(save_dir, key, prefix, stats)
-            return self._to_dict(key, prefix, self.get_log_name(), self._compute_stats(save_dir, key, stats))
+            save_path = '%s/%s/%s' % (save_dir, prefix, key)
+            stats = self._update_stats(stats)
+            self._viz_stats(save_path, stats)
+            return self._to_dict(key, prefix, self.get_log_name(), self._log_stats(stats))
         return {}
 
-    def _compute_stats(self, save_dir: str, key: str, stats: dict) -> dict:
-        """ compute this metric """
+    def _update_stats(self, stats: dict) -> dict:
+        """
+        pre-compute things on the stats that may be shared across log/viz
+
+        :param stats: accumulated stats throughout the _evaluate calls
+        :return: stats
+        """
+        return stats
+
+    def _log_stats(self, stats: dict) -> dict:
+        """
+        compute this metric
+
+        :param stats: accumulated stats throughout the _evaluate() calls, after calling _update_stats() on them
+        :return: log dict
+        """
         return {}
 
-    def _viz_stats(self, save_dir: str, key: str, prefix: str, stats: dict):
-        """ visualize this metric """
+    def _viz_stats(self, save_path: str, stats: dict):
+        """
+        visualize this metric
+
+        :param save_path: where to save
+        :param stats: accumulated stats throughout the _evaluate() calls, after calling _update_stats() on them
+        :return:
+        """
         pass

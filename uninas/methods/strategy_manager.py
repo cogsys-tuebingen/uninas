@@ -1,7 +1,8 @@
+import torch
 from typing import Union, List
 from torch import nn
 from uninas.optimization.hpo.uninas.values import ValueSpace, DiscreteValues
-from uninas.methods.strategies.abstract import AbstractWeightStrategy
+from uninas.methods.abstract_strategy import AbstractWeightStrategy
 from uninas.utils.loggers.python import Logger, log_headline, log_in_columns
 from uninas.utils.meta import Singleton
 
@@ -13,15 +14,15 @@ class StrategyManager(nn.Module, metaclass=Singleton):
 
     def __init__(self):
         super().__init__()
-        self.strategies = {}                # {strategy name: strategy}
-        self._requested = {}                # {weight name: strategy}
+        self.strategies = nn.ModuleDict()   # {strategy name: strategy}
+        self._weight_to_strategy = {}       # {weight name: strategy name}
         self._ordered = []                  # weight names in order of requests
         self._ordered_unique = []           # weight names in order of requests, ignoring duplicates
         self._fixed_strategy_name = None    # force all weights to be registered under this strategy (name)
 
     def reset(self):
         self.strategies.clear()
-        self._requested.clear()
+        self._weight_to_strategy.clear()
         self._ordered.clear()
         self._ordered_unique.clear()
 
@@ -53,12 +54,12 @@ class StrategyManager(nn.Module, metaclass=Singleton):
         """
         delete a weight strategy from the manager
         """
-        strategy = self.strategies.get(name, None)
+        strategy = self.strategies[name] if name in self.strategies else None
         if self._fixed_strategy_name == name:
             self._fixed_strategy_name = None
         if isinstance(strategy, AbstractWeightStrategy):
             for n in strategy.get_weight_names():
-                self._requested.pop(n)
+                self._weight_to_strategy.pop(n)
                 self._ordered.remove(n)
                 self._ordered_unique.remove(n)
             del self.strategies[name]
@@ -86,13 +87,14 @@ class StrategyManager(nn.Module, metaclass=Singleton):
             logger.info("")
 
         for i, strategy in enumerate(strategies):
+            assert isinstance(strategy, AbstractWeightStrategy)
             if i > 0:
                 logger.info("")
 
             logger.info(strategy.str())
             rows = [("name", "num choices", "used")]
             for r in strategy.get_requested_weights():
-                rows.append((r.name, r.num_choices(), '%dx' % r.num_requests()))
+                rows.append((r.name, r.num_choices_str(), '%dx' % r.num_requests()))
             logger.info("Weights:")
             log_in_columns(logger, rows, add_bullets=True, num_headers=1)
 
@@ -105,12 +107,24 @@ class StrategyManager(nn.Module, metaclass=Singleton):
     def get_strategies_list(self) -> [AbstractWeightStrategy]:
         return list(sorted(self.strategies.values(), key=lambda s: s.name))
 
-    def get_strategy_by_weight(self, weight_name: str) -> AbstractWeightStrategy:
-        return self._requested.get(weight_name)
+    def get_strategy_by_weight(self, weight_name: str) -> Union[AbstractWeightStrategy, None]:
+        strategy_name = self._weight_to_strategy.get(weight_name, None)
+        if strategy_name in self.strategies:
+            strategy = self.strategies[strategy_name]
+            assert isinstance(strategy, AbstractWeightStrategy)
+            return strategy
+        return None
 
     def is_only_single_path(self) -> bool:
         """ whether all used strategies are single-path """
-        return all([strategy.is_single_path() for strategy in self.get_strategies_list()])
+        return all([strategy.is_single_path() for strategy in self.get_strategies().values()])
+
+    def uses_all_paths(self) -> bool:
+        """ whether a forward pass will use all parameters (used for distributed training) """
+        for strategy in self.get_strategies().values():
+            if strategy.is_single_path():
+                return False
+        return True
 
     def make_weight(self, strategy_name: str, name: str, only_single_path=False,
                     choices: nn.ModuleList = None, num_choices: int = None) -> AbstractWeightStrategy:
@@ -125,12 +139,13 @@ class StrategyManager(nn.Module, metaclass=Singleton):
         :param num_choices: number of options, required if 'choices' is None
         """
         strategy_name = self._strategy_name(strategy_name)
-        ws1 = self.strategies.get(strategy_name, None)
-        ws2 = self._requested.get(name, None)
+        ws1 = self.strategies[strategy_name] if strategy_name in self.strategies else None
+        ws2 = self.get_strategy_by_weight(weight_name=name)
         num_choices = len(choices) if choices is not None else num_choices
 
         if ws1 is None:
             raise KeyError('strategy with name "%s" does not exist' % strategy_name)
+        assert isinstance(ws1, AbstractWeightStrategy), "strategy '%s' is actually not a strategy" % strategy_name
         if num_choices < 1:
             raise ValueError('can not have a weight without option(s) to choose from')
         if ws2 not in [ws1, None]:
@@ -139,7 +154,7 @@ class StrategyManager(nn.Module, metaclass=Singleton):
         if name not in self._ordered:
             self._ordered_unique.append(name)
         self._ordered.append(name)
-        self._requested[name] = ws1
+        self._weight_to_strategy[name] = strategy_name
         if only_single_path:
             assert ws1.is_single_path(),\
                 "The network module requires to use a single architecture path, " \
@@ -150,7 +165,7 @@ class StrategyManager(nn.Module, metaclass=Singleton):
     def mask_index(self, idx: int, weight_name: str = None):
         """ prevent sampling a specific index, either for a specific weight or all weights """
         if isinstance(weight_name, str):
-            strategies = [self._requested.get(weight_name)]
+            strategies = [self.get_strategy_by_weight(weight_name)]
         else:
             strategies = self.strategies.values()
         for s in strategies:
@@ -174,14 +189,14 @@ class StrategyManager(nn.Module, metaclass=Singleton):
         :param fixed_arc: optional list of unique indices to fix the architecture, overwrites any fixed_arc in name_to_dict
         :param strategy_dict: {strategy name: strategy specific stuff}
         """
-        if fixed_arc is not None:
+        if isinstance(fixed_arc, (tuple, list)):
             strategy_dict = {} if strategy_dict is None else strategy_dict
             # each strategy gets only the indices that belong to its weights
             for s in self.strategies.values():
                 strategy_dict[s.name] = strategy_dict.get(s.name, {})
                 strategy_dict[s.name]['fixed_arc'] = []
             for n, v in zip(self._ordered_unique, fixed_arc):
-                strategy_dict[self._requested.get(n).name]['fixed_arc'].append(v)
+                strategy_dict[self.get_strategy_by_weight(n).get_name()]['fixed_arc'].append(v)
         # if a strategy dict is given, execute only these strategies
         if strategy_dict is not None:
             for k, v in strategy_dict.items():
@@ -199,8 +214,8 @@ class StrategyManager(nn.Module, metaclass=Singleton):
                  a list of only ints if flat, otherwise a list of indices at every position
         """
         if flat:
-            return [self._requested.get(n).get_finalized_index(n) for n in self.ordered_names(unique=unique)]
-        return [self._requested.get(n).get_finalized_indices(n) for n in self.ordered_names(unique=unique)]
+            return [self.get_strategy_by_weight(n).get_finalized_index(n) for n in self.ordered_names(unique=unique)]
+        return [self.get_strategy_by_weight(n).get_finalized_indices(n) for n in self.ordered_names(unique=unique)]
 
     def get_finalized_indices(self, weight_name: str, flat=False) -> Union[int, List[int]]:
         """
@@ -214,8 +229,8 @@ class StrategyManager(nn.Module, metaclass=Singleton):
                  a list of only ints if flat, otherwise a list of indices at every position
         """
         if flat:
-            return self._requested.get(weight_name).get_finalized_index(weight_name)
-        return self._requested.get(weight_name).get_finalized_indices(weight_name)
+            return self.get_strategy_by_weight(weight_name).get_finalized_index(weight_name)
+        return self.get_strategy_by_weight(weight_name).get_finalized_indices(weight_name)
 
     def ordered_names(self, unique=True) -> [str]:
         """
@@ -223,6 +238,24 @@ class StrategyManager(nn.Module, metaclass=Singleton):
         """
         lst = self._ordered_unique if unique else self._ordered
         return lst.copy()
+
+    def get_log_dict(self) -> {str: float}:
+        """
+        :return: dict of values that are interesting to log
+        """
+        dct = {}
+        for i, ws in enumerate(self.strategies.values()):
+            for k, v in ws.get_log_dict().items():
+                dct["ws%d/%s" % (i, k)] = v
+        return dct
+
+    def get_losses(self, clear=True) -> {str, torch.Tensor}:
+        """ get loss tensors, maybe clear storage """
+        dct = {}
+        for i, ws in enumerate(self.strategies.values()):
+            for k, loss in ws.get_losses(clear=clear).items():
+                dct["ws%d/%s" % (i, k)] = loss.unsqueeze(dim=0)
+        return dct
 
     def on_epoch_start(self, current_epoch: int):
         """ whenever the method starts a new epoch """
@@ -247,7 +280,8 @@ class StrategyManager(nn.Module, metaclass=Singleton):
         :return: indices of the modules that should constitute the new architecture
                  a list of only ints if flat, otherwise a list of indices at every position
         """
-        return [self._requested.get(n).get_requested_weight(n).num_choices() for n in self.ordered_names(unique=unique)]
+        return [self.get_strategy_by_weight(n).get_requested_weight(n).num_choices()
+                for n in self.ordered_names(unique=unique)]
 
     def get_num_weight_choices(self, name: str) -> int:
         """
@@ -255,7 +289,7 @@ class StrategyManager(nn.Module, metaclass=Singleton):
 
         :param name: name of the weight
         """
-        return self._requested.get(name).get_requested_weight(name).num_choices()
+        return self.get_strategy_by_weight(name).get_requested_weight(name).num_choices()
 
     def get_value_space(self, unique=True) -> ValueSpace:
         """
@@ -263,15 +297,9 @@ class StrategyManager(nn.Module, metaclass=Singleton):
 
         :param unique: False to consider weights that are used multiple times also multiple times in the indices
         """
-        num = [self._requested.get(n).get_requested_weight(n).get_choices() for n in self.ordered_names(unique=unique)]
+        num = [self.get_strategy_by_weight(n).get_requested_weight(n).get_choices()
+               for n in self.ordered_names(unique=unique)]
         return ValueSpace(*[DiscreteValues(allowed_values=n) for n in num])
-
-    def highest_value_per_weight(self) -> dict:
-        """ {name: value} of the highest weight probability value """
-        dct = {}
-        for ws in self.strategies.values():
-            dct.update(ws.highest_value_per_weight())
-        return dct
 
     def randomize_weights(self):
         """ randomizes all arc weights """
@@ -295,9 +323,10 @@ class StrategyManager(nn.Module, metaclass=Singleton):
 
 class StrategyManagerDefault:
     """
-    execute code with a currently fixed strategy name
+    context, execute code with a currently fixed strategy name
 
     with StrategyManagerDefault('my_strategy_name'):
+        sm.make_weight(...)
         ...
     """
 

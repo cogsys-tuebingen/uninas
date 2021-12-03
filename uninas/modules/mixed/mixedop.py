@@ -1,6 +1,6 @@
 import torch
 from uninas.modules.modules.misc import SumParallelModules
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.register import Register
 
 
@@ -11,9 +11,10 @@ class MixedOp(SumParallelModules):
     the weight strategy decides which results to compute and combine
     """
 
-    def __init__(self, submodules: list, name: str, strategy_name: str):
+    def __init__(self, submodules: list, priors: list, name: str, strategy_name: str):
         """
         :param submodules: list or nn.ModuleList of choices
+        :param priors: list of indices, which prior candidates to consider for additional super-network weights
         :param name: name of the architecture weight
         :param strategy_name: name of the architecture strategy to use
         """
@@ -21,6 +22,19 @@ class MixedOp(SumParallelModules):
         self._add_to_kwargs(name=name, strategy_name=strategy_name)
         self.sm = StrategyManager()
         self.ws = self.sm.make_weight(self.strategy_name, name, only_single_path=False, choices=self.submodules)
+
+    def _get_prev_names(self, name: str, priors: [int], include_self=True) -> [str]:
+        all_prev_names = self.sm.ordered_names(unique=False)[:-1]
+        prev_names = []
+        for i in priors:
+            try:
+                prev_names.append(all_prev_names[i])
+            except:
+                pass
+        if include_self:
+            prev_names.append(name)
+        # print(name, self.__class__.__name__, prev_names)
+        return prev_names
 
     def config(self, finalize=True, **_) -> dict:
         if finalize:

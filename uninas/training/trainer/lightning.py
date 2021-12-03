@@ -3,7 +3,7 @@ import types
 import pytorch_lightning as pl
 from torch.optim.optimizer import Optimizer
 
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.training.trainer.abstract2 import AbstractTrainer
 from uninas.training.schedulers.abstract import AbstractScheduler
 from uninas.utils.args import MetaArgument, Argument, Namespace

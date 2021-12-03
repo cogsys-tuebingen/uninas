@@ -30,7 +30,7 @@ def verify():
         batch_size=args.data_batch_size,
         aug_dict={
             "cls_augmentations": "TimmImagenetAug",
-            "DartsImagenetAug#0.crop_size": 224,
+            "TimmImagenetAug#0.crop_size": 224,
         },
     )
 

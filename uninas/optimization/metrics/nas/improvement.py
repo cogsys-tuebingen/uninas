@@ -42,9 +42,11 @@ class ImprovementNasMetric(AbstractNasMetric):
         mean_mean = np.mean(data.get('mean'), axis=0)
 
         # axis scaling, only relevant part on the y axis
-        d = data.get('mean')[:, :-rem_last]
-        y0 = np.mean(np.min(data.get('mean')[:, :-rem_last], axis=1))
-        y1 = np.mean(np.max(data.get('mean')[:, :-rem_last], axis=1))
+        d = data.get('mean')
+        if rem_last > 1:
+            d = d[:, :-rem_last]
+        y0 = np.mean(np.min(d, axis=1))
+        y1 = np.mean(np.max(d, axis=1))
 
         # update abs values
         prev_state['abs_min'] = min([abs_min, prev_state.get('abs_min', abs_min)])
@@ -71,6 +73,7 @@ class ImprovementNasMetric(AbstractNasMetric):
         if data.get('mean').shape[0] > 1:
             std_mean = np.std(data.get('mean'), axis=0)
             ax.fill_between(x, mean_mean - std_mean, mean_mean + std_mean, alpha=0.3, color=cls._cols[index])
+            # print("name={:>20}, rem={} \t mean={:.2f}, std={:.2f}".format(name, rem_last, mean_mean[-rem_last], std_mean[-rem_last]))
 
         # cls._update_state_mean(prev_state, mean_mean)
         # cls._limit_ax_by_mean(prev_state, ax, last_on_axis=last_on_axis, mul=1.1)

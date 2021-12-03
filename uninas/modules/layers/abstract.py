@@ -79,13 +79,16 @@ class AbstractStepsLayer(AbstractLayer):
                 return False
         return True
 
-    def set_dropout_rate(self, p=None):
-        """ set the dropout rate of every dropout layer to p """
+    def set_dropout_rate(self, p=None) -> int:
+        """ set the dropout rate of every dropout layer to p, no change for p=None. return num of affected modules """
+        n = 0
         if self.dropout_fun is not None and isinstance(p, float):
             self.set(dropout_rate=p)
             for s in self.steps:
                 if isinstance(s, self.dropout_fun):
                     s.p = p
+                    n += 1
+        return n
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """ basic forward, all steps (layer function, dropout, bn) in order """

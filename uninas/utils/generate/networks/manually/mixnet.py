@@ -27,7 +27,7 @@ def get_mixnet_s(s_in=Shape([3, 224, 224]), s_out=Shape([1000])) -> nn.Module:
     head = get_head_instance(FeatureMixClassificationHead, features=1536, act_fun='relu')
 
     defaults = dict(k_size=(3,), k_size_in=1, k_size_out=1, padding='same', dilation=1,
-                    bn_affine=True, act_inplace=True, att_dict=None)
+                    bn_affine=True, act_inplace=True, att_dict=None, fused=False)
     se25 = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=True,
                 c_mul=0.25, squeeze_act='swish', excite_act='sigmoid',
                 squeeze_bias=True, excite_bias=True, squeeze_bn=False)
@@ -65,7 +65,7 @@ def get_mixnet_m(s_in=Shape([3, 224, 224]), s_out=Shape([1000])) -> nn.Module:
     head = get_head_instance(FeatureMixClassificationHead, features=1536, act_fun='relu')
 
     defaults = dict(k_size=(3,), k_size_in=1, k_size_out=1, padding='same', dilation=1,
-                    bn_affine=True, act_inplace=True, att_dict=None)
+                    bn_affine=True, act_inplace=True, att_dict=None, fused=False)
     se25 = dict(att_cls='SqueezeExcitationChannelModule', use_c_substitute=True,
                 c_mul=0.25, squeeze_act='swish', excite_act='sigmoid',
                 squeeze_bias=True, excite_bias=True, squeeze_bn=False)

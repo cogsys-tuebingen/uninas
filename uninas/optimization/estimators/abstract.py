@@ -2,6 +2,7 @@
 estimators (metrics) to rank different networks (architecture subsets of a supernet)
 """
 
+from typing import Union
 import numpy as np
 from uninas.optimization.hpo.uninas.candidate import Candidate
 from uninas.utils.args import ArgsInterface, Namespace, Argument
@@ -90,31 +91,6 @@ class AbstractEstimator(ArgsInterface):
             return self.bounds[1] * self._sign
         return default
 
-    def evaluate_candidate(self, candidate: Candidate, strategy_name: str = None) -> float:
-        """
-        evaluate this metric for the candidate, store info in it
-        """
-        if self.key not in candidate.metrics:
-            candidate.metrics[self.key] = self.evaluate_tuple(candidate.values, strategy_name=strategy_name)
-        return candidate.metrics.get(self.key)
-
-    def evaluate_pymoo(self, x: np.array, in_constraints: bool, strategy_name: str = None) -> (np.array, np.array):
-        """
-        evaluate this metric for the candidate if it is still within constraints,
-        return metric value and constraint value
-        """
-        r, g = self.evaluate_tuple(tuple(x), strategy_name=strategy_name) if in_constraints else 0, None
-        if self.is_constraint():
-            g = -1 if in_constraints and self.bounds[0] < r < self.bounds[1] else 1
-        return self._sign*r, g
-
-    def evaluate_tuple(self, values: tuple, strategy_name: str = None) -> float:
-        """
-        :param values: architecture description
-        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
-        """
-        raise NotImplementedError
-
     def _str_dict(self) -> dict:
         dct = dict(key='"%s"' % self.key)
         if self.is_constraint():
@@ -123,3 +99,99 @@ class AbstractEstimator(ArgsInterface):
             dct.update(dict(maximize=self._maximize, weighting=self._weighting))
         dct.update(self.kwargs)
         return dct
+
+    def evaluate_pymoo(self, x: np.array, in_constraints: np.array, strategy_name: str = None)\
+            -> (np.array, Union[np.array, None]):
+        """
+        evaluate this metric for the candidate if it is still within constraints,
+        return metric value and constraint value
+
+        :param x: [batch, ...] numpy array
+        :param in_constraints: [bool] numpy array
+        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
+        :return:
+        """
+        # only use the relevant parameters, that are in the hard constraints
+        indices = np.argwhere(in_constraints).squeeze()
+        x_sub = x[indices]
+
+        # evaluate results
+        r = np.zeros(shape=(x.shape[0],), dtype=np.float32)
+        if indices.shape[0] > 0:
+            r_sub = self.evaluate_batch(x_sub, only_minimize=True, strategy_name=strategy_name)
+            r[indices] = r_sub.squeeze()
+
+        # constraints
+        c = None
+        if self.is_constraint():
+            c = np.ones(shape=(x.shape[0],), dtype=np.bool)
+            if indices.shape[0] > 0:
+                if self.is_constraint():
+                    for i in range(len(c)):
+                        y = self.bounds[0] < r[i]*self._sign < self.bounds[1]
+                        c[i] &= y
+            else:
+                c &= False
+
+        return r, c
+
+    def evaluate_candidate(self, candidate: Candidate, strategy_name: str = None) -> float:
+        """
+        evaluate this metric for the candidate, store info in it
+        """
+        if self.key not in candidate.metrics:
+            candidate.metrics[self.key] =\
+                self.evaluate_tuple(candidate.values, strategy_name=strategy_name, only_minimize=False)
+        return candidate.metrics.get(self.key)
+
+    def evaluate_batch(self, x: np.array, only_minimize=False, strategy_name: str = None) -> np.array:
+        """
+        evaluate a batch of parameter values at once
+
+        :param x: [batch, ...] numpy array
+        :param only_minimize: always return smaller values for better parameters
+        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
+        :return: float np.array of how well the batch of given parameter values do
+        """
+        r = self._evaluate_batch(x, strategy_name=strategy_name)
+        if only_minimize:
+            return self._sign * r
+        return r
+
+    def evaluate_tuple(self, values: tuple, only_minimize=False, strategy_name: str = None) -> float:
+        """
+        evaluate a single tuple
+
+        :param values: tuple
+        :param only_minimize: always return smaller values for better parameters
+        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
+        :return: single float value of how well the given parameter values do
+        """
+        r = self._evaluate_tuple(values, strategy_name=strategy_name)
+        if only_minimize:
+            return self._sign * r
+        return r
+
+    def _evaluate_batch(self, x: np.array, strategy_name: str = None) -> np.array:
+        """
+        NOTE: either this or the _evaluate_tuple method must be implemented in subclasses
+        evaluate a batch of parameter values at once
+
+        :param x: [batch, ...] numpy array
+        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
+        :return: float np.array of how well the batch of given parameter values do
+        """
+        r = [self._evaluate_tuple(xi, strategy_name=strategy_name) for xi in x]
+        return np.array(r)
+
+    def _evaluate_tuple(self, values: tuple, strategy_name: str = None) -> float:
+        """
+        NOTE: either this or the _evaluate_batch method must be implemented in subclasses
+        evaluate a single tuple
+
+        :param values: tuple
+        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
+        :return: single float value of how well the given parameter values do
+        """
+        r = self._evaluate_batch(np.array([values], dtype=np.float32), strategy_name=strategy_name)
+        return r[0]

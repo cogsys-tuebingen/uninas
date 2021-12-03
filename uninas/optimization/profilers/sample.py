@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.models.networks.uninas.retrain import RetrainUninasNetwork
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.optimization.profilers.abstract import AbstractProfiler
 from uninas.optimization.profilers.functions import AbstractProfileFunction
 from uninas.training.devices.abstract import AbstractDeviceMover

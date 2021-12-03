@@ -12,9 +12,10 @@ changes = {
     "{cls_task}.save_del_old": True,
 
     # only 4 epochs to test
-    "{cls_trainer}.max_epochs": 4,
+    "{cls_trainer}.max_epochs": 10,
 
     "{cls_schedulers#0}.warmup_epochs": 0,
+    "{cls_schedulers#0}.fake_num_epochs": -1,
 
     # data, small batch size to test
     "{cls_data}.dir": "{path_data}/cifar_data/",
@@ -31,13 +32,13 @@ changes = {
     "cls_augmentations": "DartsCifarAug",
 
     # specifying how to add weights, note that SplitWeightsMixedOp requires a SplitWeightsMixedOpCallback
-    "{cls_network_cells_primitives#0}.mixed_cls": "SplitWeightsMixedOp",  # MixedOp, SplitWeightsMixedOp, BiasD1MixedOp, ...
-    "{cls_network_cells_primitives#1}.mixed_cls": "SplitWeightsMixedOp",  # MixedOp, SplitWeightsMixedOp, BiasD1MixedOp, ...
+    "{cls_network_cells_primitives#0}.mixed_cls": "MulBiasMixedOp",  # MixedOp, SplitWeightsMixedOp, MulBiasMixedOp, ...
+    "{cls_network_cells_primitives#0}.mixed_priors": "[[], [], [-2], [], [-4], [-4, -3]]",
 
     # remove the SplitWeightsMixedOpCallback and its arguments if you use another mixed op
-    "cls_callbacks": "CheckpointCallback, SplitWeightsMixedOpCallback",
-    "{cls_callbacks#1}.milestones": "2",    # split after 2 epochs
-    "{cls_callbacks#1}.pattern": "1",       # split every SplitWeightsMixedOp
+    # "cls_callbacks": "CheckpointCallback, SplitWeightsMixedOpCallback",
+    # "{cls_callbacks#1}.milestones": "2, 2",    # split after 2 epochs
+    # "{cls_callbacks#1}.pattern": "1",       # split every SplitWeightsMixedOp
 }
 
 

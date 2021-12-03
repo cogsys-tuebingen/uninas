@@ -10,8 +10,8 @@ class AbstractNasMetric:
     """
     Calculate metrics based on predicted/true network performance values
     """
-    _cols = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
-    _markers = ['o--', 'v--', '^--', '<--', '>--', '*--']
+    _cols = ['red', 'green', 'blue', 'orange', 'cyan', 'purple', 'gray', 'deepskyblue', 'gold']
+    _markers = ['o--', 'v--', '^--', '<--', '>--', '*--', 'X--', 'd--', '--']
 
     _short_name = None
     _x_label = None
@@ -147,6 +147,7 @@ class AbstractNasMetric:
         if isinstance(save_path, str):
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             plt.savefig(save_path)
+            # print("saved plot to %s" % save_path)
         plt.close()
 
     @classmethod

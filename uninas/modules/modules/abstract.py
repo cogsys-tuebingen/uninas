@@ -244,10 +244,12 @@ class AbstractModule(nn.Module):
         r2 = [m.hierarchical_base_modules() for m in submodules]
         return self, r0, r1, r2
 
-    def set_dropout_rate(self, p=None):
-        """ set the dropout rate of every dropout layer to p, no change for p=None """
+    def set_dropout_rate(self, p=None) -> int:
+        """ set the dropout rate of every dropout layer to p, no change for p=None. return num of affected modules """
+        n = 0
         for m in self.base_modules(recursive=False):
-            m.set_dropout_rate(p)
+            n += m.set_dropout_rate(p)
+        return n
 
     def get_device(self) -> torch.device:
         """ get the device of one of the weights """

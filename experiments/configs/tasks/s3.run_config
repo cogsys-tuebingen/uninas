@@ -12,6 +12,18 @@
     "{cls_device}.use_cudnn": true,
     "{cls_device}.use_cudnn_benchmark": true,
 
+    "cls_trainer": "SimpleTrainer",
+    "{cls_trainer}.max_epochs": 240,
+    "{cls_trainer}.log_fs": false,
+    "{cls_trainer}.log_ram": false,
+    "{cls_trainer}.log_device": true,
+    "{cls_trainer}.eval_last": 10,
+    "{cls_trainer}.test_last": 10,
+
+    "cls_clones": "EMAClone",
+    "{cls_clones#0}.device": "same",
+    "{cls_clones#0}.decay": 0.9999,
+
     "cls_exp_loggers": "TensorBoardExpLogger",
     "{cls_exp_loggers#0}.log_graph": false,
 
@@ -33,17 +45,6 @@
 
     "cls_augmentations": "TimmImagenetAug",
     "{cls_augmentations#0}.crop_size": 224,
-
-    "cls_trainer": "SimpleTrainer",
-    "{cls_trainer}.max_epochs": 240,
-    "{cls_trainer}.log_fs": true,
-    "{cls_trainer}.log_ram": true,
-    "{cls_trainer}.eval_last": 10,
-    "{cls_trainer}.test_last": 10,
-
-    "cls_clones": "EMAClone",
-    "{cls_clones#0}.device": "same",
-    "{cls_clones#0}.decay": 0.9999,
 
     "cls_callbacks": "CheckpointCallback",
     "{cls_callbacks#0}.save_clone": true,

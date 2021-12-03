@@ -10,6 +10,8 @@ the code here is mostly adapted from the original
 
 
 import os
+import random
+import pandas as pd
 from collections import defaultdict
 from uninas.models.other.tabular import TabularSumModel
 from uninas.utils.paths import replace_standard_paths
@@ -21,13 +23,16 @@ def create_nasbench201(bench_path="./HW-NAS-Bench-v1_0.pickle", save_dir="./hw_n
     from uninas.data.datasets.profiled import ProfiledData
     from uninas.optimization.benchmarks.mini.tabular_nats_bench import MiniNATSBenchTabularBenchmark
 
-    assert os.path.isfile(bench_path_), "Is not a file: %s" % bench_path_
+    assert os.path.isfile(bench_path), "Is not a file: %s" % bench_path
     hw_api = HWNASBenchAPI(bench_path, search_space="nasbench201")
 
     data_names = list(hw_api.HW_metrics[hw_api.search_space].keys())
     metrics = list(hw_api.HW_metrics[hw_api.search_space][data_names[0]].keys())
     metrics.remove("config")
     sizes = tuple([5]*6)
+
+    df_data = defaultdict(dict)
+    df_data_acc = defaultdict(dict)
 
     for data_name in data_names:
         architectures = hw_api.HW_metrics[hw_api.search_space][data_name]["config"]
@@ -37,9 +42,23 @@ def create_nasbench201(bench_path="./HW-NAS-Bench-v1_0.pickle", save_dir="./hw_n
             metric_values = hw_api.HW_metrics[hw_api.search_space][data_name][metric]
             data = {k: v for k, v in zip(arcs_as_idx, metric_values)}
             assert len(data) == len(arcs_as_idx), "Redundant architectures?"
+
+            # save pytorch data set
             path_save = "%s/%s-%s.pt" % (save_dir, data_name, metric)
-            ProfiledData.separate_and_save(path_save, data=data, sizes=sizes, num_test=2000, shuffle=False)
+            ProfiledData.separate_and_save(path_save, data=data, sizes=sizes, num_test=2000, shuffle=True)
+
+            # add to csv
+            key = "%s-%s" % (data_name, metric)
+            for k, v in data.items():
+                df_data[str(k)][key] = v
+
             print("saved %s" % path_save)
+
+    # save dataframes
+    df = pd.DataFrame(df_data)
+    path_save = "%s/hwnas.csv" % save_dir
+    # df.to_csv(path_save)
+    print("saved full csv: %s" % path_save)
 
 
 def create_fbnet(bench_path="./HW-NAS-Bench-v1_0.pickle", save_dir="./hw_nas_api/"):
@@ -176,7 +195,7 @@ def create_fbnet(bench_path="./HW-NAS-Bench-v1_0.pickle", save_dir="./hw_nas_api
 
 if __name__ == '__main__':
     Builder()
+    random.seed(0)
     bench_path_ = replace_standard_paths("{path_data}/bench/HW-NAS-Bench-v1_0.pickle")
-    save_dir_ = replace_standard_paths("{path_tmp}/hw_nas_api/")
     create_nasbench201(bench_path=bench_path_, save_dir=replace_standard_paths("{path_data}/profiling/HW-NAS/"))
-    create_fbnet(bench_path=bench_path_, save_dir=replace_standard_paths("{path_profiled}/HW-NAS/"))
+    # create_fbnet(bench_path=bench_path_, save_dir=replace_standard_paths("{path_profiled}/HW-NAS/"))

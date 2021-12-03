@@ -3,7 +3,7 @@ common estimator (metric) utils to rank different networks (architecture subsets
 """
 
 import torch
-from uninas.methods.abstract import AbstractMethod
+from uninas.methods.abstract_method import AbstractMethod
 from uninas.models.networks.uninas.search import SearchUninasNetwork
 from uninas.training.trainer.simple import SimpleTrainer
 from uninas.optimization.estimators.abstract import AbstractEstimator
@@ -43,15 +43,23 @@ class AbstractNetEstimator(AbstractEstimator, ArgsInterface):
     def short_name(self) -> str:
         raise NotImplementedError
 
-    def evaluate_tuple(self, values: tuple, strategy_name: str = None):
+    def _evaluate_tuple(self, values: tuple, strategy_name: str = None) -> float:
+        """
+        NOTE: either this or the _evaluate_batch method must be implemented in subclasses
+        evaluate a single tuple
+
+        :param values: tuple
+        :param strategy_name: None if candidate is global, otherwise specific to this weight strategy
+        :return: single float value of how well the given parameter values do
+        """
         self.net.set_forward_strategy(False)
         if isinstance(strategy_name, str):
             self.net.forward_strategy(strategy_dict={strategy_name: dict(fixed_arc=values)})
         else:
             self.net.forward_strategy(fixed_arc=values)
-        return self._evaluate_tuple(values=values)
+        return self._evaluate_tuple_in_net(values=values)
 
-    def _evaluate_tuple(self, values: tuple):
+    def _evaluate_tuple_in_net(self, values: tuple):
         raise NotImplementedError
 
 
@@ -88,7 +96,7 @@ class NetParamsEstimator(AbstractNetEstimator):
         except:
             return 0
 
-    def _evaluate_tuple(self, values: tuple):
+    def _evaluate_tuple_in_net(self, values: tuple):
         if not self.is_set_up:
             self.is_set_up = True
             checkpoint = torch.load(self.load_path)
@@ -128,7 +136,7 @@ class NetMacsEstimator(AbstractNetEstimator):
     def short_name(self) -> str:
         return "macs"
 
-    def _evaluate_tuple(self, values: tuple):
+    def _evaluate_tuple_in_net(self, values: tuple):
         return self.method.profile_macs()
 
 
@@ -160,7 +168,7 @@ class NetValueEstimator(AbstractNetEstimator):
             Argument('value', default='val/accuracy/1', type=str, help='which top k value to optimize'),
         ]
 
-    def _evaluate_tuple(self, values: tuple):
+    def _evaluate_tuple_in_net(self, values: tuple):
         if self.kwargs.get('load', False):
             self.trainer.load(self.load_path)
         train, eval_, dct = self.kwargs.get('batches_train', 0), self.kwargs.get('batches_eval', 0), {}
@@ -182,4 +190,4 @@ class NetValueEstimator(AbstractNetEstimator):
         v = dct.get(self.kwargs['value'], None)
         if v is None:
             raise KeyError("key %s not in dict, have keys=(%s)" % (self.kwargs['value'], list(dct.keys())))
-        return v.cpu().detach().numpy()
+        return v.cpu().detach().item()

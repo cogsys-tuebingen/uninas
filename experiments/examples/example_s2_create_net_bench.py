@@ -11,8 +11,7 @@ beware that s1 may be using fake data
 
 args = {
     "cls_task": "CreateSearchNetBenchTask",
-    # "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
-    "{cls_task}.s1_path": "{path_tmp}/run_config/",
+    "{cls_task}.s1_path": "{path_tmp}/run_bench_s1/",
 
     "{cls_task}.save_dir": "{path_tmp}/s2_bench/",
     "{cls_task}.save_del_old": True,
@@ -20,10 +19,11 @@ args = {
     "{cls_task}.measure_min": 20,
 
     "cls_benchmarks": "MiniNASTabularBenchmark",
-    "{cls_benchmarks#0}.path": "{path_data}/bench/sin/SIN_fairnas_v0.1.pt",
+    # "{cls_benchmarks#0}.path": "{path_data}/bench/sin/SIN_fairnas_v0.1.pt",
+    "{cls_benchmarks#0}.path": "{path_data}/bench/nats/nats_bench_1.1_mini.pt",
 
     "cls_hpo_self_algorithm": "RandomHPO",
-    "{cls_hpo_self_algorithm}.num_eval": 100,
+    "{cls_hpo_self_algorithm}.num_eval": 20,
 
     "{cls_data}.batch_size_train": 16,
 

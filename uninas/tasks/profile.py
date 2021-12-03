@@ -1,7 +1,7 @@
 import torch
 from uninas.tasks.abstract import AbstractTask
-from uninas.methods.strategies.manager import StrategyManager
-from uninas.methods.strategies.random import RandomChoiceStrategy
+from uninas.methods.strategy_manager import StrategyManager
+from uninas.methods.random import RandomChoiceStrategy
 from uninas.optimization.profilers.abstract import AbstractProfiler
 from uninas.utils.args import MetaArgument, Namespace
 from uninas.utils.loggers.python import log_headline

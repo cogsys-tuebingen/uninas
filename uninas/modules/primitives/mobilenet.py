@@ -23,7 +23,7 @@ class MobileNetV2Primitives(PrimitiveSet):
 
     @classmethod
     def get_primitives(cls, stride=1, **primitive_kwargs) -> [CNNPrimitive]:
-        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='relu6', att_dict=None, stride=stride)
+        df = dict(dilation=1, act_inplace=True, bn_affine=True, act_fun='relu6', att_dict=None, stride=stride, fused=False)
         return [
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=3, expansion=3.0, **df)),
             CNNPrimitive(cls=MobileInvertedConvLayer, kwargs=dict(k_size=5, expansion=3.0, **df)),

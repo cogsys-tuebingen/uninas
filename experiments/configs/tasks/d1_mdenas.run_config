@@ -22,8 +22,9 @@
 
     "cls_trainer": "SimpleTrainer",
     "{cls_trainer}.max_epochs": 100,
-    "{cls_trainer}.log_fs": true,
-    "{cls_trainer}.log_ram": true,
+    "{cls_trainer}.log_fs": false,
+    "{cls_trainer}.log_ram": false,
+    "{cls_trainer}.log_device": true,
     "{cls_trainer}.eval_last": -1,
     "{cls_trainer}.test_last": 10,
 

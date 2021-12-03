@@ -11,8 +11,7 @@ beware that s1 is using fake data
 
 args = {
     "cls_task": "NetHPOTask",
-    # "{cls_task}.s1_path": "{path_tmp}/s1/",
-    "{cls_task}.s1_path": "{path_tmp}/run_config/",
+    "{cls_task}.s1_path": "{path_tmp}/s1/",  # run_config, s1
 
     "{cls_task}.save_dir": "{path_tmp}/s2/",
     "{cls_task}.save_del_old": True,

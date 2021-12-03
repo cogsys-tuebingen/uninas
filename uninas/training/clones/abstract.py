@@ -1,5 +1,5 @@
 from copy import deepcopy
-from uninas.methods.abstract import AbstractMethod, MethodWrapper
+from uninas.methods.abstract_method import AbstractMethod, MethodWrapper
 from uninas.training.devices.abstract import AbstractDevicesManager
 from uninas.utils.args import ArgsInterface, Argument, Namespace
 

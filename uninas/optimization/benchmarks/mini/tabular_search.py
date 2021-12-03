@@ -1,5 +1,5 @@
-from uninas.methods.abstract import AbstractMethod
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.abstract_method import AbstractMethod
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.optimization.benchmarks.mini.tabular import MiniNASTabularBenchmark, explore
 from uninas.optimization.benchmarks.mini.result import MiniResult
 from uninas.optimization.hpo.uninas.population import Population

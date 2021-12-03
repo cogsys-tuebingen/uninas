@@ -5,7 +5,7 @@ from copy import deepcopy
 import numpy as np
 from uninas.tasks.abstract import AbstractTask, AbstractNetTask
 from uninas.models.networks.uninas.search import SearchUninasNetwork
-from uninas.methods.strategies.manager import StrategyManager
+from uninas.methods.strategy_manager import StrategyManager
 from uninas.optimization.task import common_s2_net_args_to_add, common_s2_extend_args, common_s2_prepare_run
 from uninas.optimization.benchmarks.mini.benchmark import MiniNASBenchmark, MiniResult
 from uninas.optimization.benchmarks.mini.tabular import MiniNASTabularBenchmark, explore
